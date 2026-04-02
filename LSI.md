@@ -1,7 +1,7 @@
 ---
 layout: page
-title: Laboratório de Sistemas Interfaciais
-subtitle: Interfaces - regiões especiais do espaço
+title: Interfaces - regiões especiais do espaço
+subtitle: Combinando experimentos e teoria
 ---
 
 O Laboratório de Sistemas Interfaciais é coordenado pelo Prof. Filipe Lima e o foco principal do grupo é no estudo de sistemas que possuem interfaces.
