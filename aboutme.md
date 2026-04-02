@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Laboratório de Sistemas Interfaciais
+title: Laboratorio de Sistemas Interfaciais
 subtitle: Interfaces: regiões especiais do espaço
 ---
 
