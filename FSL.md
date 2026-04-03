@@ -5,7 +5,7 @@ subtitle: Filipe Lima
 ---
 
 <p align="center">
-  <img width="300" height="300" src="assets/img/rFSL.png">
+  <img width="300" height="300" src="https://github.com/fslima-UFPE/Teste/blob/ae5ec9437f16105f869d2ce895dec6c86cf8cb19/assets/img/rFSL.png">
 </p>
 
 <p style="text-align: justify">
