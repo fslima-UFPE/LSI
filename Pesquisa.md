@@ -15,11 +15,10 @@ Interfaces são regiões no espaço que separam duas regiões distintas (fases).
   <img src="assets/img/air-water.jpg">
 </div>
 
-<p style="text-align: center;">
 <b>Figura 1 - </b>A interface ar água vista de perto (Reprodução de P. Jungwirth, <i>Nature</i>, 168–169, <b>2011</b>)
-</p>
 
-<p style="text-align: justify;">
+
+<p>
 Uma vez que é a diferença de interação entre as moléculas e as duas (ou mais) fases que faz com que haja excesso (ou depleção) de moléculas nas interfaces, a natureza dessas interações é que determina as propriedades interfaciais. Assim, para diferentes interfaces, como a interface água/ar, óleo/água, entre tantas outras, a adsorção de moléculas varia drasticamente com a natureza das fases e dos solutos. Um grupo de interfaces de grande interesse industrial e biológico são as interfaces formadas pela associação de moléculas anfifílicas, como os surfactantes e os lipídeos.
 
 Surfactantes são moléculas que possuem grupos hidrofílicos e uma cadeia hidrofóbica em suas estruturas e são largamente utilizadas na indústria. Devido à baixa afinidade das caudas hidrofóbicas dos surfactantes por água, em determinadas condições, surfactantes formam espontâneamente agregados conhecidos como micelas. Nas micelas, as caudas hidrofóbicas dos surfactantes formam um núcleo hidrofóbico e as cabeças polares dos surfactantes formam uma interface polar. As propriedades das micelas variam conforme a estrutura da região apolar e da região polar e o controle das propriedades micelares pode ser utilizado para diversos fins, como para o controle de propriedades de nanopartículas sintetizadas utilizando micelas como suportes.
