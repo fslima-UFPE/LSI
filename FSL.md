@@ -4,6 +4,13 @@ title: Pesquisador Principal
 subtitle: Filipe Lima
 ---
 
+.center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%;
+}
+
 <img src="assets/img/rFSL.png" class="center">
 
 <p style="text-align: justify";>
