@@ -5,7 +5,7 @@ subtitle: Filipe Lima
 ---
 
 <p align="center">
-  <img width="300" height="300" src="/assets/img/rFSL.png"/>
+  <img width="300" height="300" src="/assets/img/rFSL.png">
 </p>
 
 <p style="text-align: justify">
