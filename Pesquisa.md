@@ -27,9 +27,9 @@ Surfactantes são moléculas que possuem grupos hidrofílicos e uma cadeia hidro
 
 Quando a molécula anfifílica possui duas cadeias hidrofóbicas, como os lipídeos, a afinidade do anfifílico por água é muito menor do que a afinidade entre moléculas de água. Assim, em água, lipídeos formam estruturas conhecidas como bicamadas, que são consideravelmente mais empacotadas do que micelas, isto é, há um contato muito menor entre cadeias hidrofóbicas e a água em bicamadas do que em micelas. Estas estruturas são de grande importância biológica, pois as membranas celulares são compostas por lipídeos, fazendo com que o estudo das propriedades de bicamadas seja fundamental. Estas estruturas também são importantes na industria de cosméticos e no design de novos sistema de entrega de fármacos.
 
-# <p align="center">
-#  <img src="assets/img/bilayer.jpeg">
-# </p>
+<p align="center">
+ <img src="assets/img/bilayer.jpeg">
+</p>
 
 <b>Figura 3 - </b>Representação de uma bicamada lipídica.
 
