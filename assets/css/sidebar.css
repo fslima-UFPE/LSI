@@ -1,6 +1,6 @@
 /* Sidebar Container */
 .side-nav {
-  height: 100%;       /* Full-height */
+  height: 80%;       /* Full-height */
   width: 200px;       /* Set a fixed width */
   position: fixed;    /* Stay in place on scroll */
   left: 0;
