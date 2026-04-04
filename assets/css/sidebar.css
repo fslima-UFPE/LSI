@@ -21,8 +21,9 @@
 .side-nav li a {
   display: block;     /* Makes the whole area clickable */
   color: black;
+  hover-col: "#FA8072";
   padding: 10px 25px;
-  text-decoration: none;
+  /*text-decoration: none;*/
 }
 
 /* Hover effect */
