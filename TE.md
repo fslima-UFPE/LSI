@@ -15,3 +15,14 @@ d. djejrj e rjjrnendnisieiek
   <li><a href="#">Services</a></li>
   <li><a href="#">Contact</a></li>
 </ul>
+
+<div class="container">
+  <ul class="my-list">
+    <li>Item 1</li>
+    <li>Item 2</li>
+    <li>Item 3</li>
+  </ul>
+  <div class="content">
+    <p> Isso aqui é a parte do texto, não sei se vai funcionar assim...</p>
+  </div>
+</div>
