@@ -7,8 +7,7 @@
   top: 100px;
   bottom: 20px
   background-color: "#FFFFFF";
-  /*padding-top: 300px;
-  marging-top: 300px;*/
+  navbar-border-col: "#F5F5F5";
 }
 
 /* Remove list bullets */
@@ -22,7 +21,7 @@
 .side-nav li a {
   display: block;     /* Makes the whole area clickable */
   color: black;
-  padding: 15px 25px;
+  padding: 10px 25px;
   text-decoration: none;
 }
 
