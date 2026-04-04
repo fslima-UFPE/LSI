@@ -4,6 +4,8 @@ title: Publicações
 subtitle: Lista das publicações que envolvem membros e ex-membros do LSI
 ---
 
+31 – FEITOSA, SIDNEY G. D. ; DA SILVA, SIDIANE B. ; LINS, ILÁRIA M. S. ; DA SILVA'JR, JOSENILDO A. ; SANTOS, RUTH C. A. ; <b>LIMA, FILIPE DA S.</b> ; ARAÚJO, ALICE V. ; DOS ANJOS, JANAÍNA V. . Unveiling the Potential of the Thiopyrimidinone Nucleus as a Vasoactive Scaffold: An Approach to Developing Novel Alpha-1 Adrenoceptor Antagonists. ChemistrySelect, v. 10, p. 1-11, 2025.
+
 30 – MORTARA, LAURA ; CORTEZ, MATHEUS P. ; Lacerda, Caroline D. ; CARRETERO, GUSTAVO P. B. ; SCHREIER, SHIRLEY ; CHAIMOVICH, HERNAN ; Lima, Filipe S. ; CUCCOVIA, IOLANDA M. . Micellization of Zwitterionic Surfactant with Opposite Dipoles is Differently Affected by Anions. LANGMUIR, v. 41, p. 9480-9487, 2025
 
 
