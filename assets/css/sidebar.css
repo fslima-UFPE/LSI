@@ -4,8 +4,8 @@
   width: 120px;       /* Set a fixed width */
   position: fixed;    /* Stay in place on scroll */
   left: 0;
-  top: 100px;
-  bottom: 20px;
+  top: 0px;
+  bottom: 100px;
   background-color: "#FFFFFF";
   border-right: 3px solid #333;
 }
@@ -13,7 +13,7 @@
 /* Remove list bullets */
 .side-nav ul {
   list-style-type: none;
-  padding: 0;
+  padding-top: 90px;
   margin: 0;
 }
 
