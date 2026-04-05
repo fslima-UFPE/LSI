@@ -11,6 +11,6 @@ subtitle: Curso online
   </ul>
 </nav>
 
-<p text-align: justify>
+<p style="text-align: justify">
 A termodinâmica estatística é o ramo da ciência que trata sistemas físico-químicos do ponto de vista da estatística, transformando propriedades atômico/moleculares em propriedades coletivas.
 </p>
