@@ -1,34 +1,43 @@
+/* ======================= */
 /* Sidebar Container */
 .side-nav {
-  height: 100%;       /* Full-height */
-  width: 150px;       /* Set a fixed width */
-  position: fixed;    /* Stay in place on scroll */
-  left: 0px;
-  top: 0px;
-  background-color: #FFFFFF;
+  height: 100%;                 /* Full-height */
+  width: 150px;                 /* Fixed width */
+  position: fixed;              /* Stay in place */
+  left: 0;
+  top: 0;
+  background-color: #ffffff;    
   border-right: 2px solid #333;
-  overflow-y: auto;
+  overflow-y: auto;             
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* subtle shadow */
+  scroll-behavior: smooth;      /* smooth scroll for long sidebars */
+  z-index: 1000;                /* stay above content */
 }
 
-/* Remove list bullets */
+/* Remove list bullets and spacing */
 .side-nav ul {
-  list-style-type: none;
+  list-style: none;
   padding-top: 90px;
   padding-bottom: 50px;
   margin: 0;
 }
 
-/* Style the links */
+/* Sidebar links */
 .side-nav li a {
-  display: block;     /* Makes the whole area clickable */
+  display: block;               /* full width clickable */
   color: black;
-  padding: 10px 10px 10px 0px;
-  /*text-decoration: none;*/
+  padding: 10px 15px;           /* space around text */
+  text-decoration: none;
+  text-align: left;
+  width: 100%;                  /* ensures hover spans full sidebar */
+  box-sizing: border-box;       /* include padding in width */
+  transition: background-color 0.2s, color 0.2s;
 }
 
-/* Hover effect */
+/* Hover effect for full width */
 .side-nav li a:hover {
   background-color: #555;
+  color: white;
 }
 
 /* Offset main content so it doesn't overlap */
@@ -37,6 +46,19 @@
   margin-right: 150px;
 }
 
+/* Footer offset when sidebar exists */
 body.has-sidebar footer {
   margin-left: 150px;
+}
+
+/* ======================= */
+/* Responsive sidebar: collapse on small screens */
+@media screen and (max-width: 768px) {
+  .side-nav {
+    width: 0;
+    transition: 0.3s;
+  }
+  .content {
+    margin-left: 0;
+  }
 }
