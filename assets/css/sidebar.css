@@ -21,7 +21,7 @@
 .side-nav li a {
   display: block;     /* Makes the whole area clickable */
   color: black;
-  padding: 10px 5px 10px 5px;
+  padding: 10px 5px 10px 2px;
   /*text-decoration: none;*/
 }
 
