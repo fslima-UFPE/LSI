@@ -3,7 +3,9 @@
     tex: {
       inlineMath: [['$', '$'], ['\\(', '\\)']],
       macros: {
-        boxeq: ["\\class{mathbox}{#1}", 1]  /* new shortcut for boxed formulas */
+        boxeq: ["\\class{mathbox}{#1}", 1],  /* new shortcut for boxed formulas */
+        boxeqnum: ["\\class{mathbox-wrapper}{\\class{mathbox}{#1} \\class{eq-number}{#2}}", 2], /* formula + number */
+        highlight: ["\\class{highlighted-line}{#1}", 1] /* highlight line inside box */
       }
     }
   };
