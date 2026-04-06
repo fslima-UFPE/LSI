@@ -21,9 +21,11 @@
 /* Style the links */
 .side-nav li a {
   display: block;     /* Makes the whole area clickable */
+  width: 100%;
   color: black;
-  padding: 10px 10px 10px 0px;
-  /*text-decoration: none;*/
+  padding: 10px 15px;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
 /* Hover effect */
