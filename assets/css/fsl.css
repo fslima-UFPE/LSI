@@ -13,7 +13,7 @@
   justify-content: center;   /* box on left, number on right */
   margin: 6px 0;                /* vertical spacing (keep center alignment) */
   max-width: 800px;                 /* optional: limit max width */
-  gap: 20px;
+  gap: 6px;
 }
 
 .mathbox {
@@ -37,7 +37,7 @@
 
 /* Equation number on the right */
 .eq-number {
-  margin-left: 6px;
+  margin-left: 20px;
   font-weight: bold;
   font-style: italic;
   color: #d12f2f;
