@@ -1,13 +1,16 @@
-/* Sidebar links */
-.side-nav li a {
-  display: block;           /* make the link take full width */
-  width: 100%;              /* ensure full width of sidebar */
-  padding: 10px 15px;       /* padding inside the box */
-  color: black;
-  text-decoration: none;
-  text-align: left;
-  box-sizing: border-box;   /* include padding in width */
-  transition: background-color 0.2s, color 0.2s;
+/* ======================= */
+/* Sidebar Container */
+.side-nav {
+  height: 100%;                 /* Full-height */
+  width: 150px;                 /* Fixed width */
+  position: fixed;              /* Stay in place */
+  left: 0;
+  top: 0;
+  background-color: #ffffff;    
+  border-right: 2px solid #333;
+  overflow-y: auto;             
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* subtle shadow */
+  scroll-behavior: smooth;      /* smooth scroll for long sidebars */
 }
 
 /* Remove list bullets and spacing */
