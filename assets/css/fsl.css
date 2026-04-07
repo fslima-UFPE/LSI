@@ -98,7 +98,7 @@
   }
   main.container-md,
   main.container-fluid {
-    padding-top: 100px; /* adjust to your header height */
+    padding-top: 150px; /* adjust to your header height */
   }  
 }
 
@@ -149,8 +149,8 @@ img {
   /* Hamburger button */
   #menu-toggle {
     position: fixed;
-    top: 30px;
-    left: 150px;
+    top: 45px;
+    left: 300px;
     z-index: 1100;
     background: #333;
     color: white;
