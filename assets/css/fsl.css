@@ -87,6 +87,7 @@
     margin-top: 5px;
   }
 }
+
 /* text for phone */
 @media (max-width: 768px) {
   body {
@@ -103,9 +104,11 @@
 }
 
   /* images for phone */
-img {
-  max-width: 100%;
-  height: auto;
+@media (max-width: 760px) {
+  img {
+    max-width: 100%;
+    height: auto;
+    }
 }
 
 /* sidebar for phone */
