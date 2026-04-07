@@ -407,17 +407,17 @@
   </li>
   {%- endif -%}
 
-  %- if network[0] == "tidal" -%}
-<li class="list-inline-item">
-  <a href="https://tidal.com/{{ network[1] }}" title="TIDAL" target="_blank" rel="noopener noreferrer">
-    <span class="fa-stack fa-lg" aria-hidden="true">
-      <i class="fas fa-circle fa-stack-2x"></i>
-      <img src="/assets/img/tidal-logo.png" class="fa-stack-1x tidal-icon" alt="TIDAL">
-    </span>
-    <span class="sr-only">TIDAL</span>
-  </a>
-</li>
-{%- endif -%}
+  {%- if network[0] == "tidal" -%}
+  <li class="list-inline-item">
+    <a href="https://tidal.com/{{ network[1] }}" title="TIDAL" target="_blank" rel="noopener noreferrer">
+      <span class="fa-stack fa-lg" aria-hidden="true">
+        <i class="fas fa-circle fa-stack-2x"></i>
+        <img src="/assets/img/tidal-logo.png" class="fa-stack-1x tidal-icon" alt="TIDAL">
+      </span>
+      <span class="sr-only">TIDAL</span>
+    </a>
+  </li>
+  {%- endif -%}
 
 {%- endfor -%}
 
