@@ -36,3 +36,24 @@
     <script src="{{ js | relative_url }}"></script>
   {% endfor %}
 {% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const toggle = document.getElementById("menu-toggle");
+    const sidebar = document.querySelector(".side-nav");
+
+    if (!toggle || !sidebar) return;
+
+    // Toggle sidebar visibility on mobile
+    toggle.addEventListener("click", () => {
+      sidebar.classList.toggle("active");
+    });
+
+    // Close sidebar when any link is clicked
+    sidebar.querySelectorAll("a").forEach(link => {
+      link.addEventListener("click", () => {
+        sidebar.classList.remove("active");
+      });
+    });
+  });
+</script>
