@@ -103,7 +103,7 @@
   }
   main.container-md,
   main.container-fluid {
-    padding-top: 60px; /* adjust to your header height */
+    padding-top: 40px; /* adjust to your header height */
   }
 }
 
@@ -123,7 +123,7 @@
   main.container-fluid h1,
   main.container-md .page-header,
   main.container-fluid .page-header {
-      margin-top: 60px;  /* adjust to match header height */
+      margin-top: 150px;  /* adjust to match header height */
   }
 }
 
