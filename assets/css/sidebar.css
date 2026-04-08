@@ -5,8 +5,8 @@
   position: fixed;    /* Stay in place on scroll */
   left: 0px;
   top: 0px;
-  background-color: #FFFFFF;
-  border-right: 2px solid #333;
+  background-color: rgba(255,145,100,0.1);
+  border-right: 2px solid rgba(0,60,100);
   overflow-y: auto;
 }
 
