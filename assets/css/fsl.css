@@ -74,19 +74,6 @@
   padding: 0 !important;
 }
 
-/* Image inside eq-numbers */
-.eq-numbers img {
-  margin-top: 6px;          /* space below number */
-  height: 40px;             /* control size */
-  width: auto;
-  display: block;
-}
-
-/* Optional: center image relative to numbers */
-.eq-numbers {
-  align-items: center;      /* centers number + image horizontally */
-}
-
   /* equations for phone */
 @media (max-width: 768px) {
   .mathbox {
