@@ -74,30 +74,17 @@
   padding: 0 !important;
 }
 
-/* Special layout ONLY when image is present */
-.eq-with-img {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* Make MathJax behave inside flex */
-.eq-with-img .MathJax_Display {
-  flex: 1;
-}
-
-/* Keep equation + number aligned */
-.eq-with-img mjx-container {
-  display: flex !important;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Image styling */
-.eq-with-img img {
-  height: 40px;
+/* Image inside eq-numbers */
+.eq-numbers img {
+  margin-top: 6px;          /* space below number */
+  height: 40px;             /* control size */
   width: auto;
-  flex-shrink: 0;
+  display: block;
+}
+
+/* Optional: center image relative to numbers */
+.eq-numbers {
+  align-items: center;      /* centers number + image horizontally */
 }
 
   /* equations for phone */
@@ -114,18 +101,6 @@
 
   .eq-numbers {
     margin-top: 5px;
-  }
-}
-
-/* box+numb+img*/
-@media (max-width: 600px) {
-  .eq-with-img {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .eq-with-img img {
-    margin-top: 8px;
   }
 }
 
