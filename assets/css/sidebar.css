@@ -63,6 +63,9 @@
   text-decoration: none;
   box-sizing: border-box;
   text-align: center;
+  white-space: normal;
+  overflow: visible;
+  word-break: normal;
 }
 
 /* Hover effect */
