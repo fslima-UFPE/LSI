@@ -5,7 +5,7 @@
   position: fixed;    /* Stay in place on scroll */
   left: 0px;
   top: 0px;
-  background-color: rgba(255,145,100,0.05);
+  background-color: #FFEBE4;
   border-right: 2px solid #003366;
   transition: width 0.7s ease; /* smooth expand*/
   cursor: pointer;
