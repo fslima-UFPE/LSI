@@ -1,0 +1,20 @@
+<div class="toolbox">
+
+  <div class="toolbox-header">
+    <h3 class="toolbox-title">{{ include.title }}</h3>
+    {% if include.subtitle %}
+      <p class="toolbox-subtitle">{{ include.subtitle }}</p>
+    {% endif %}
+  </div>
+
+  <div class="toolbox-content">
+    {{ include.content | markdownify }}
+  </div>
+
+  {% if include.interactive %}
+    <div class="interactive-area" id="{{ include.interactive_id }}">
+      <!-- Sliders, inputs, outputs can go here -->
+      {{ include.interactive | markdownify }}
+    </div>
+  {% endif %}
+</div>
