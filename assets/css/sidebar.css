@@ -33,6 +33,18 @@
   text-decoration: none;
   box-sizing: border-box;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: hidden;
+}
+
+.side-nav li a span {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.side-nav:hover li a span {
+  opacity: 1;
 }
 
 /* Hover effect */
