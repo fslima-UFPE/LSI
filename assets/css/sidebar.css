@@ -41,6 +41,19 @@
   text-overflow: ellipsis;
 }
 
+/* First letter always visible */
+.side-nav li a .initial {
+  display: inline-block;
+  width: 20px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Hide rest of text when collapsed */
+.side-nav li a .label {
+  display: none;
+}
+
 .side-nav:hover li a {
   justify-content: flex-start;
 }
@@ -68,6 +81,17 @@ body.has-sidebar footer {
 
 .side-nav:hover ~ footer {
   margin-left: 150px;
+}
+
+.side-nav li a .initial {
+  background-color: rgba(0,0,0,0.05);
+  border-radius: 4px;
+  padding: 2px 0;
+}
+
+.side-nav:hover li a .label {
+  display: inline;
+  margin-left: 8px;
 }
 
 .side-nav::after {
