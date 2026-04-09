@@ -7,7 +7,7 @@
   top: 0px;
   background-color: #FFFBF9;
   border-right: 2px solid #003366;
-  transition: width 0.5s ease-in-out; /* smooth expand*/
+  transition: width 0.3s ease-in-out; /* smooth expand*/
   cursor: pointer;
   overflow: hidden;
 }
@@ -55,7 +55,7 @@
 
 body.has-sidebar footer {
   margin-left: 75px;
-  transition: margin-left 0.5s ease-in-out;
+  transition: margin-left 0.3s ease-in-out;
 }
 
 .side-nav:hover ~ footer {
