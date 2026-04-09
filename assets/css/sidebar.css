@@ -9,6 +9,7 @@
   border-right: 2px solid rgba(0,60,100);
   overflow-y: auto;
   transition: width 0.3s ease; /* smooth expand*/
+  cursor: pointer;
 }
 
 .side-nav:hover {
@@ -70,6 +71,20 @@ body.has-sidebar footer {
 
 .side-nav:hover ~ footer {
   margin-left: 150px;
+}
+
+.side-nav::after {
+  content: "›";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  opacity: 0.6;
+}
+
+.side-nav:hover::after {
+  content: "";
 }
 
 /* Mobile only sidebar behavior */
