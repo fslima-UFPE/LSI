@@ -1,11 +1,11 @@
 /* Sidebar Container */
 .side-nav {
   height: 100%;       /* Full-height */
-  width: 140px;       /* collapsed width */
+  width: 75px;       /* collapsed width */
   position: fixed;    /* Stay in place on scroll */
   left: 0px;
   top: 0px;
-  background-color: rgba(255,145,100,0.05);
+  background-color: rgba(255,145,100);
   border-right: 2px solid rgba(0,60,100);
   transition: width 0.7s ease; /* smooth expand*/
   cursor: pointer;
@@ -57,8 +57,6 @@
   display: inline-block;
   white-space: nowrap;       /* keep one line in collapsed */
   overflow: hidden;
-  max-width: 2ch;            /* show only first letter */
-  transition: max-width 0.7s ease;
 }
 
 .side-nav:hover li a .text {
@@ -67,7 +65,7 @@
 }
 
 body.has-sidebar footer {
-  margin-left: 140px;
+  margin-left: 75px;
   transition: margin-left 0.7s ease;
 }
 
@@ -81,12 +79,18 @@ body.has-sidebar footer {
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 16px;
-  opacity: 0.6;
+  font-size: 24px;
+  opacity: 0.8;
 }
 
 .side-nav:hover::after {
-  content: "";
+  content: "<";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 24px;
+  opacity: 0.8;
 }
 
 /* Mobile only sidebar behavior */
