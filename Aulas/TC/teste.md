@@ -26,6 +26,10 @@ Faça a sua abaixo:
     subtitle="Mexe aí, vai"
     interactive=true
     interactive_id="quad1"
-    content="Considere esse aqui abaixo: $$ f(x) = ax^2 + bx + c $$ Ajusta as barras aí para ver o que acontece:"
-    interactive="<label>a: <input type='range' class='slider-a' min='-5' max='5' step='0.1' value='1'></label> <label>b: <input type='range' class='slider-b' min='-5' max='5' step='0.1' value='0'></label> <canvas class='graph-canvas' width='400' height='250'></canvas> <p class='output-text'>Vertex: <span class='vertex-output'></span></p>"
+    content="Considere o seguinte:
+
+$$ f(x) = ax^2 + bx + c $$
+
+Ajuste os sliders abaixo para ver como a parábola muda."
+    interactive="<label>a: <input type='range' class='slider-a' min='-5' max='5' step='0.1' value='1'></label> <label>b: <input type='range' class='slider-b' min='-5' max='5' step='0.1' value='0'></label> <canvas class='graph-canvas' width='400' height='250'></canvas> <p>Vértice: <span class='vertex-output'></span></p>"
 %}
