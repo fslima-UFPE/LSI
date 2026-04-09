@@ -1,0 +1,44 @@
+.toolbox {
+  width: 100%;
+  max-width: 800px;          /* match your content width */
+  margin: 2rem auto;
+  padding: 1.5rem;
+
+  border-radius: 16px;
+  background: #f8f9fb;
+  border: 1px solid #e0e0e0;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Header */
+.toolbox-header {
+  margin-bottom: 1rem;
+}
+
+.toolbox-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.toolbox-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Content */
+.toolbox-content {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* Interactive area */
+.interactive-area {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #ddd;
+}
