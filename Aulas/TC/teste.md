@@ -31,5 +31,5 @@ Faça a sua abaixo:
 $$ f(x) = ax^2 + bx + c $$
 
 Ajuste os sliders abaixo para ver como a parábola muda."
-    interactive="<label>a: <input type='range' class='slider-a' min='-5' max='5' step='0.1' value='1'></label> <label>b: <input type='range' class='slider-b' min='-5' max='5' step='0.1' value='0'></label> <canvas class='graph-canvas' width='400' height='250'></canvas> <p>Vértice: <span class='vertex-output'></span></p>"
+    interactive="<label>a: <input type='range' class='slider-a' min='-5' max='5' step='0.1' value='1'></label> <label>b: <input type='range' class='slider-b' min='-5' max='5' step='0.1' value='0'></label> <canvas class='graph-canvas' width='400' height='250'></canvas>"
 %}
