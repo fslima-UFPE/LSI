@@ -7,7 +7,7 @@
   top: 0px;
   background-color: #FFFBF9;
   border-right: 2px solid #003366;
-  transition: width 0.7s ease; /* smooth expand*/
+  transition: width 0.2s ease-in-out; /* smooth expand*/
   cursor: pointer;
   overflow: hidden;
 }
@@ -30,7 +30,7 @@
 .side-nav li a {
   display: block;     /* Makes the whole area clickable */
   width: %100;
-  color: black;
+  color: rgba(0,0,0,0.5);
   padding: 10px 15px;
   text-decoration: none;
   box-sizing: border-box;
@@ -45,6 +45,7 @@
   text-align: center;       /* or left if you prefer */
   word-break: normal;
   overflow-wrap: break-word;
+  color: rgba(0,0,0,1.0)
 }
 
 /* Hover effect */
@@ -54,7 +55,7 @@
 
 body.has-sidebar footer {
   margin-left: 75px;
-  transition: margin-left 0.7s ease;
+  transition: margin-left 0.2s ease-in-out;
 }
 
 .side-nav:hover ~ footer {
