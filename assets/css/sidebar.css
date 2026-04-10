@@ -70,6 +70,7 @@ body.has-sidebar footer {
   transform: translateY(-50%);
   font-size: 24px;
   opacity: 0.8;
+  font-weight: bold;
 }
 
 .side-nav:hover::after {
@@ -80,6 +81,7 @@ body.has-sidebar footer {
   transform: translateY(-50%);
   font-size: 24px;
   opacity: 0.8;
+  font-weight: bold;
 }
 
 /* Mobile only sidebar behavior */
