@@ -121,7 +121,7 @@ body.has-sidebar footer {
   #menu-toggle {
     position: fixed;
     top: 13px;
-    left: 15px;
+    left: 0px;
     z-index: 1100;
     background: #FF9164;
     color: black;
