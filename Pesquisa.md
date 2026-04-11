@@ -11,7 +11,7 @@ O Laboratório de Sistemas Interfaciais é coordenado pelo Prof. Filipe Lima e o
 Interfaces são regiões no espaço que separam duas regiões distintas (fases). Devido ao fato de solutos interagirem diferentemente com as duas regiões, a concentração de espécies próximas às interfaces é invariavelmente diferente das concentrações em seio de solução (bulk). Logo, a composição das interfaces e, consequentemente, as propriedades das interfaces diferem drasticamente das propriedades no bulk, tornando as interfaces regiões especiais no espaço.
 </p>
 
-![AW](/assets/img/air-water.jpg){: .mx-auto.d-block :}
+![AW](/assets/img/air-water.jpg){ .mx-auto.d-block :}
 
 <p style="text-align: center">
 <b>Figura 1 - </b>A interface ar água vista de perto (Reprodução de P. Jungwirth, <i>Nature</i>, 168–169, <b>2011</b>).
@@ -25,7 +25,7 @@ Uma vez que é a diferença de interação entre as moléculas e as duas (ou mai
 Surfactantes são moléculas que possuem grupos hidrofílicos e uma cadeia hidrofóbica em suas estruturas e são largamente utilizadas na indústria. Devido à baixa afinidade das caudas hidrofóbicas dos surfactantes por água, em determinadas condições, surfactantes formam espontâneamente agregados conhecidos como micelas. Nas micelas, as caudas hidrofóbicas dos surfactantes formam um núcleo hidrofóbico e as cabeças polares dos surfactantes formam uma interface polar. As propriedades das micelas variam conforme a estrutura da região apolar e da região polar e o controle das propriedades micelares pode ser utilizado para diversos fins, como para o controle de propriedades de nanopartículas sintetizadas utilizando micelas como suportes.
 </p>
 
-![MIC](/assets/img/micelle.jpg){: .mx-auto.d-block :}
+![MIC](/assets/img/micelle.jpg){ .mx-auto.d-block :}
 
 <p style="text-align: center">
 <b>Figura 2 - </b>Representação de uma micela esférica.
@@ -35,7 +35,7 @@ Surfactantes são moléculas que possuem grupos hidrofílicos e uma cadeia hidro
 Quando a molécula anfifílica possui duas cadeias hidrofóbicas, como os lipídeos, a afinidade do anfifílico por água é muito menor do que a afinidade entre moléculas de água. Assim, em água, lipídeos formam estruturas conhecidas como bicamadas, que são consideravelmente mais empacotadas do que micelas, isto é, há um contato muito menor entre cadeias hidrofóbicas e a água em bicamadas do que em micelas. Estas estruturas são de grande importância biológica, pois as membranas celulares são compostas por lipídeos, fazendo com que o estudo das propriedades de bicamadas seja fundamental. Estas estruturas também são importantes na industria de cosméticos e no design de novos sistema de entrega de fármacos.
 </p>
 
-![BL](/assets/img/bilayer.jpeg){: .mx-auto.d-block :}
+![BL](/assets/img/bilayer.jpeg){ .mx-auto.d-block :}
 
 <p style="text-align: center">
 <b>Figura 3 - </b>Representação de uma bicamada lipídica.
