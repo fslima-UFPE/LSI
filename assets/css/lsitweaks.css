@@ -20,6 +20,7 @@
   font-size: 1.2em;
   margin-top: 30px;
   counter-increment: h3counter;
+  margin-bottom: 
 }
 
 .aula-container h3::before {
@@ -29,6 +30,10 @@
 .aula-container h2::before,
 .aula-container h3::before {
   display: inline-block;
+}
+
+.aula-container h3 + p {
+  margin-top: 0; /* remove space above paragraph ONLY when it follows h3 */
 }
 
 
