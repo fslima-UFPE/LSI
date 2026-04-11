@@ -1,12 +1,29 @@
+/* Reset counter at the start of each lesson */
+.aula-container {
+  counter-reset: h2counter;
+}
+
 .aula-container h2 {
   font-size: 1.8em;
   margin-top: 50px;
   border-bottom: 2px solid #ddd;
+  counter-increment: h2counter;
+  counter-reset: h3counter;
+}
+
+.aula-container h2::before {
+  content: counter(h2counter) ". ";
+  font-weight: bold;
 }
 
 .aula-container h3 {
   font-size: 1.4em;
   margin-top: 30px;
+  counter-increment: h3counter;
+}
+
+.aula-container h3::before {
+  content: counter(h2counter) "." counter(h3counter) " ";
 }
 
 
