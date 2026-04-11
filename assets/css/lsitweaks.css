@@ -37,6 +37,17 @@
   margin-top: 0; /* remove space above paragraph ONLY when it follows h3 */
 }
 
+/* Control spacing when image is wrapped in <p> */
+.aula-container p:has(img) {
+  margin: 10px 0;
+}
+
+/* Control spacing when image is standalone */
+.aula-container img {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
 
 /*sidebar toggle off for desktop */
 #menu-toggle {
