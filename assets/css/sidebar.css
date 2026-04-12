@@ -39,6 +39,12 @@
   white-space: nowrap;  
 }
 
+.side-nav li a .text {
+  max-width: 2ch;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .side-nav:hover li a {
   white-space: normal;      /* allow wrapping */
   overflow: visible;        /* show full text */
