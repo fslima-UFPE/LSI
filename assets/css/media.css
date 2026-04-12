@@ -29,6 +29,6 @@
   main.container-fluid h1,
   main.container-md .page-header,
   main.container-fluid .page-header {
-      margin-top: 150px;  /* adjust to match header height */
+      margin-top: 250px;  /* adjust to match header height */
   }
 }
