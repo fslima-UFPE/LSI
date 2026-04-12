@@ -139,3 +139,58 @@ body.has-sidebar footer {
     display: block;
   }
 }
+
+/* sidebar for phone */
+/* Mobile sidebar toggle */
+/*@media (max-width: 768px) {*/
+
+  /* Sidebar hidden by default */
+  /*.side-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;          /* adjust as needed */
+    /*height: 100%;
+    background-color: rgba(255, 255, 255, 0.85); /* white with 85% opacity */
+    /*backdrop-filter: blur(5px); /* optional, nice glass effect */
+    /*border-right: 2px solid #333;
+    overflow-y: auto;
+    padding-top: 60px;      /* optional top spacing */
+    /*transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  /* Sidebar visible when active */
+  /*.side-nav.active {
+    transform: translateX(0);
+  }
+
+  /* Full-width content when sidebar hidden */
+  /*.content {
+    margin-left: 0;
+    margin-right: 0;
+    padding: 10px;
+  }
+
+  /* Footer adjustments */
+  /*body.has-sidebar footer {
+    margin-left: 0 !important;
+  }
+  
+  /*
+    #menu-toggle {
+    position: fixed;
+    top: 45px;
+    left: 15px;
+    z-index: 1100;
+    background: #FF9164;
+    color: #000000;
+    border: 2px;
+    padding: 10px 12px;
+    font-size: 20px;
+    border-radius: 6px;
+    border-color: #000000;
+    display: block;
+  }
+}*/
