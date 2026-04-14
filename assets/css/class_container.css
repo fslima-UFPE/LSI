@@ -45,6 +45,8 @@
 /* Control spacing when image is standalone */
 .aula-container img {
   display: block;
+  width: 300px;
+  height: auto;
   margin: 0 auto;
 }
 
