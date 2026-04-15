@@ -51,9 +51,3 @@
     font-size: 18px;
   }
 }
-
-@media (max-width: 768px) {
-  body.sidebar-open .side-nav {
-    left: 0; /* open the sidebar when clicked */
-  }
-}
