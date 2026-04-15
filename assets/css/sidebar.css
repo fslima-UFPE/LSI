@@ -126,7 +126,7 @@ body.has-sidebar footer {
   }
 
   /* Hamburger button */
-  #menu-toggle {
+/*  #menu-toggle { 
     position: fixed;
     top: 150px;
     left: 225px;
@@ -139,5 +139,5 @@ body.has-sidebar footer {
     border-radius: 6px;
     border-color: #000000;
     display: block;
-  }
+  }*/
 }
