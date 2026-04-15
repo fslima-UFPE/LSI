@@ -89,11 +89,17 @@
   display: block;
 }
 
-/* Apply ONLY to equations outside mathboxes */
-:not(.mathbox) > .MathJax_Display {
-  overflow-x: auto;
-  overflow-y: hidden;
+.MathJax_Display {
   max-width: 100%;
+}
+
+/* Only scroll when NOT inside mathbox */
+body .MathJax_Display {
+  overflow-x: auto;
+}
+
+.mathbox .MathJax_Display {
+  overflow-x: visible; /* cancel scrolling inside boxes */
 }
 
   /* equations for phone */
