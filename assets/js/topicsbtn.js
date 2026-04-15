@@ -1,14 +1,6 @@
-document.addEventListener('DOMContentLoaded', function() {
-  const btn = document.getElementById("topics-toggle");
-
-  if (!btn) {
-    console.log("Button NOT found");
-    return;
-  }
-
-  console.log("Button found");
-
-  btn.addEventListener("click", function() {
+$(document).ready(function() {
+  $(document).on("click", "#topics-toggle", function() {
+    $(".side-nav").toggleClass("active");
     console.log("CLICK WORKED");
   });
 });
