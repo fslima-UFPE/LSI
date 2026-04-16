@@ -30,7 +30,7 @@
 @media (max-width: 768px) {
   .topics-btn {
     background: transparent;
-    border: 2px solid black;
+    border: 2px solid #B0E0E6;
     border-radius: 5px;
     font-size: 18px;
     margin-right: 10px;
