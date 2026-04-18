@@ -17,7 +17,7 @@
 
   {%- if network[0] == "email" -%}
   <li class="list-inline-item">
-    <a href="mailto:{{ network[1] }}" title="Email me">
+    <a href="mailto:{{ network[1] }}" title="Email me" target="_blank" rel="noopener noreferrer">
       <span class="fa-stack fa-lg" aria-hidden="true">
         <i class="fas fa-circle fa-stack-2x"></i>
         <i class="fas fa-envelope fa-stack-1x fa-inverse"></i>
@@ -77,7 +77,7 @@
 
   {%- if network[0] == "github" -%}
   <li class="list-inline-item">
-    <a href="https://github.com/{{ network[1] }}" title="GitHub">
+    <a href="https://github.com/{{ network[1] }}" title="GitHub" target="_blank" rel="noopener noreferrer">
       <span class="fa-stack fa-lg" aria-hidden="true">
         <i class="fas fa-circle fa-stack-2x"></i>
         <i class="fab fa-github fa-stack-1x fa-inverse"></i>
@@ -285,7 +285,7 @@
 
   {%- if network[0] == "ORCID" -%}
  <li class="list-inline-item">
-   <a href="https://orcid.org/{{ network[1] }}" title="ORCID">
+   <a href="https://orcid.org/{{ network[1] }}" title="ORCID" target="_blank" rel="noopener noreferrer">
      <span class="fa-stack fa-lg" aria-hidden="true">
        <i class="fas fa-circle fa-stack-2x"></i>
        <i class="fab fa-orcid fa-stack-1x fa-inverse"></i>
@@ -297,7 +297,7 @@
 
   {%- if network[0] == "google-scholar" -%}
   <li class="list-inline-item">
-    <a href="https://scholar.google.com/citations?user={{ network[1] }}" title="Google Scholar">
+    <a href="https://scholar.google.com/citations?user={{ network[1] }}" title="Google Scholar" target="_blank" rel="noopener noreferrer">
       <span class="fa-stack fa-lg" aria-hidden="true">
         <i class="fas fa-circle fa-stack-2x"></i>
         <i class="fa fa-graduation-cap fa-stack-1x fa-inverse"></i>
