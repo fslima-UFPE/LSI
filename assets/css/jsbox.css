@@ -57,6 +57,9 @@
   counter-increment: none;
 }
 
+.aula-container > h2 { ... }
+.aula-container > h3 { ... }
+
 /* Content */
 .toolbox-content {
   line-height: 1.6;
