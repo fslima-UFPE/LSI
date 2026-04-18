@@ -71,3 +71,13 @@
 .aula-container > h3::before {
   content: counter(h2counter) "." counter(h3counter) ".";
 }
+
+.toolbox h2::before,
+.toolbox h3::before {
+  content: none;
+}
+
+.toolbox h2,
+.toolbox h3 {
+  counter-increment: none;
+}
