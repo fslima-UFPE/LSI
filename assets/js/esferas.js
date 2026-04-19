@@ -250,58 +250,52 @@ document.addEventListener('DOMContentLoaded', function() {
     frequencyMaxY = maxFreq > 0 ? maxFreq * 1.1 : 10;
 
     // --- CÁLCULO DA MÉDIA DOS 80% FINAIS ---
-
-    try {
-      let avg = 0; 
+    let avg = 0; 
+    
+    if (frequencyData && frequencyData.length > 5) {
+      const startIdx = Math.floor(frequencyData.length * 0.2);
+      const last80 = frequencyData.slice(startIdx);
       
-      if (frequencyData && frequencyData.length > 5) {
-        const startIdx = Math.floor(frequencyData.length * 0.2);
-        const last80 = frequencyData.slice(startIdx);
-        
-        const sum = last80.reduce((acc, d) => {
-          let val = (typeof d === 'number') ? d : (d.count || d.f || d.value || d.freq || 0);
-          return acc + val;
-        }, 0);
-        
-        avg = sum / last80.length;
-        
-        const avgSpan = document.getElementById('val-avg-freq');
-        if (avgSpan) avgSpan.innerText = isNaN(avg) ? '--' : avg.toFixed(2);
-      }
-
-      const inpN = document.getElementById('inp-n1');
-      const inpT = document.getElementById('inp-T');
-      const inpM = document.getElementById('inp-m1');
+      const sum = last80.reduce((acc, d) => {
+        let val = (typeof d === 'number') ? d : (d.count || d.f || d.value || d.freq || 0);
+        return acc + val;
+      }, 0);
       
-      const currentN = inpN ? inpN.value : '?';
-      const currentT = inpT ? inpT.value : '?';
-      const currentM = inpM ? inpM.value : '?';
-
-      simulationHistory.unshift({
-        n: currentN,
-        t: currentT,
-        m: currentM,
-        f: isNaN(avg) ? '--' : avg.toFixed(2)
-      });
-
-      if (simulationHistory.length > 3) simulationHistory.pop();
-
-      const historyContainer = document.getElementById('history-box-content');
-      if (historyContainer) {
-        historyContainer.innerHTML = simulationHistory.map((sim, index) => `
-          <div style="font-size: 0.85em; border-bottom: ${index === simulationHistory.length - 1 ? 'none' : '1px solid #eee'}; padding: 4px 0;">
-            <span style="color: ${index === 0 ? '#ff9800' : '#888'}; font-weight: bold;">
-              ${index === 0 ? 'ATUAL' : 'Anterior'}
-            </span>: 
-            N=${sim.n}, T=${sim.t}, m=${sim.m} &rarr; <b>f=${sim.f}</b>
-          </div>
-        `).join('');
-      }
-    } catch (erroInterno) {
-      console.error("Opa! O erro está na matemática do histórico:", erroInterno);
+      avg = sum / last80.length;
+      
+      const avgSpan = document.getElementById('val-avg-freq');
+      if (avgSpan) avgSpan.innerText = isNaN(avg) ? '--' : avg.toFixed(2);
     }
 
-    // ==========================================
+    const inpN = document.getElementById('inp-n1');
+    const inpT = document.getElementById('inp-T');
+    const inpM = document.getElementById('inp-m1');
+    
+    const currentN = inpN ? inpN.value : '?';
+    const currentT = inpT ? inpT.value : '?';
+    const currentM = inpM ? inpM.value : '?';
+
+    simulationHistory.unshift({
+      n: currentN,
+      t: currentT,
+      m: currentM,
+      f: isNaN(avg) ? '--' : avg.toFixed(2)
+    });
+
+    if (simulationHistory.length > 3) simulationHistory.pop();
+
+    const historyContainer = document.getElementById('history-box-content');
+    if (historyContainer) {
+      historyContainer.innerHTML = simulationHistory.map((sim, index) => `
+        <div style="font-size: 0.85em; border-bottom: ${index === simulationHistory.length - 1 ? 'none' : '1px solid #eee'}; padding: 4px 0;">
+          <span style="color: ${index === 0 ? '#ff9800' : '#888'}; font-weight: bold;">
+            ${index === 0 ? 'ATUAL' : 'Anterior'}
+          </span>: 
+          N=${sim.n}, T=${sim.t}, m=${sim.m} &rarr; <b>f=${sim.f}</b>
+        </div>
+      `).join('');
+    }
+
     isCalculating = false;
     btnRun.disabled = false;
     btnRun.innerText = "Atualizar Simulação";
