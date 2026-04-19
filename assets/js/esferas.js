@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return `rgb(${r}, 0, ${b})`;
   }
 
-  // --- CLASSE BOLA ---
+  // --- CLASSE BOLA ---50
   class Bola {
     constructor(radius, mass, x, y, vx, vy, color) {
       this.radius = radius; this.mass = mass;
@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       while (placed < count && attempts < maxAttempts) {
-        attempts++;
+        attempts++;50
         const x = Math.random() * (params.edge - 2*r) + r;
         const y = Math.random() * (params.edge - 2*r) + r;
         
@@ -458,4 +458,17 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   btnRun.addEventListener('click', runSimulation);
+
+  // --- BOTÃO DE LIMPAR HISTÓRICO ---
+  const btnClearHistory = document.getElementById('btn-clear-history');
+  if (btnClearHistory) {
+    btnClearHistory.addEventListener('click', () => {
+      simulationHistory = []; 
+      
+      const historyContainer = document.getElementById('history-box-content');
+      if (historyContainer) {
+        historyContainer.innerHTML = '<p style="color: #999; font-style: italic; font-size: 0.85em;">Nenhuma simulação realizada.</p>';
+      }
+    });
+  }
 });
