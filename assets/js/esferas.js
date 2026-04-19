@@ -248,6 +248,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const maxFreq = frequencyData.length > 1 ? Math.max(...frequencyData.map(d => d.count)) : 0;
     frequencyMaxY = maxFreq > 0 ? maxFreq * 1.1 : 10;
 
+    // --- CÁLCULO DA MÉDIA DOS 80% FINAIS ---
+    if (frequencyData.length > 5) {
+      const startIdx = Math.floor(frequencyData.length * 0.2);
+      const last80 = frequencyData.slice(startIdx);
+      
+      const sum = last80.reduce((acc, d) => acc + d.count, 0);
+      const avg = sum / last80.length;
+      
+      // Exibir o resultado no HTML
+      document.getElementById('val-avg-freq').innerText = avg.toFixed(2);
+    }
+
     isCalculating = false;
     btnRun.disabled = false;
     btnRun.innerText = "Atualizar Simulação";
@@ -350,11 +362,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const getHistY = d => 260 - (d / maxHistY) * 220;
     const getHistH = d => (d / maxHistY) * 220;
 
-    // Azul transparente para a Média (Acumulado)
     curHist.cum.forEach((dens, i) => {
       histHTML += `<rect x="${getHistX(i)}" y="${getHistY(dens)}" width="${histW}" height="${getHistH(dens)}" fill="#2196f3" opacity="0.5" />`;
     });
-    // Laranja sem fundo para o Instantâneo
     curHist.inst.forEach((dens, i) => {
       histHTML += `<rect x="${getHistX(i)}" y="${getHistY(dens)}" width="${histW}" height="${getHistH(dens)}" fill="none" stroke="#ff9800" stroke-width="2" opacity="0.9" />`;
     });
@@ -365,7 +375,6 @@ document.addEventListener('DOMContentLoaded', function() {
       let y = 260 - (pt.dens / maxHistY) * 220;
       theoPath += (i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
     });
-    // Verde para a curva teórica
     histHTML += `<path d="${theoPath}" fill="none" stroke="#28a745" stroke-width="2" />`;
     svgHist.innerHTML = histHTML;
 
