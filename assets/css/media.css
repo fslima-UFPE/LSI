@@ -55,7 +55,6 @@
 }
 
 @media (max-width: 768px) {
-
   .navbar-toggler {
     order: 2;
     margin-right: auto;  /* push left */
@@ -65,5 +64,4 @@
     order: 3;
     margin-left: auto;   /* push right */
   }
-
 }
