@@ -48,18 +48,24 @@
 @media (max-width: 768px) {
   .navbar-brand {
     flex: 0 0 100%;
-    text-align: center; /* optional, looks better */
+    width: 100%;
+    text-align: center;
   }
 }
 
 @media (max-width: 768px) {
+  .navbar-toggler,
+  .topics-btn {
+    flex: 0 0 50%;
+  }
+  
   .navbar-toggler {
-    order: 2;
+    text-align: left;
     margin-right: auto;  /* push left */
   }
 
   .topics-btn {
-    order: 3;
+    text-align: right;
     margin-left: auto;   /* push right */
   }
 }
