@@ -53,19 +53,18 @@
   }
 }
 
+/*
 @media (max-width: 768px) {
   .navbar-toggler,
   .topics-btn {
     flex: 0 0 50%;
-  }
+  }*/
   
   .navbar-toggler {
-    text-align: left;
     margin-right: auto;  /* push left */
   }
 
   .topics-btn {
-    text-align: right;
     margin-left: auto;   /* push right */
   }
 }
