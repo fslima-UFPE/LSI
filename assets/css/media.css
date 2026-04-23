@@ -41,15 +41,13 @@
 
 @media (max-width: 768px) {
   .navbar {
-    display: flex;
     flex-wrap: wrap;
-    align-items: center;
   }
 }
 
 @media (max-width: 768px) {
   .navbar-brand {
-    width: 100%;       /* takes entire first line */
+    flex: 0 0 100%;
     text-align: center; /* optional, looks better */
   }
 }
