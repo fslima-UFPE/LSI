@@ -104,25 +104,10 @@ body.has-sidebar footer {
     height: 100%;
     background: #fff;
     z-index: 1000;
+    background-color: rgba(246, 240, 245, 0.2);    
   }
 
   .side-nav.active {
     transform: translateX(0);
   }
-
-  /* Hamburger button */
-/*  #menu-toggle { 
-    position: fixed;
-    top: 150px;
-    left: 225px;
-    z-index: 1100;
-    background: #FF9164;
-    color: #000000;
-    border: 2px;
-    padding: 10px 12px;
-    font-size: 20px;
-    border-radius: 6px;
-    border-color: #000000;
-    display: block;
-  }*/
 }
