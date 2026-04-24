@@ -1,4 +1,5 @@
-// Procura pelo ID da Aula 2 OU pelo ID da Aula 5
+document.addEventListener('DOMContentLoaded', function() {
+  // Procura pelo ID da Aula 2 ou pelo ID da Aula 5
   const container = document.getElementById('gas-ideal') || document.getElementById('esferas-rigidas');
   if (!container) return;
 
