@@ -263,11 +263,11 @@ function createMCSimulation(box) {
 
             // 🔥 REAL-TIME UPDATE
             if (s.step % (stride * 5) === 0) {
-                energyChart.data.labels = labels;
-                energyChart.data.datasets[0].data = energyData;
+                energyChart.data.labels.push(s.step);
+                energyChart.data.datasets[0].data.push(E);
 
-                pressureChart.data.labels = labels;
-                pressureChart.data.datasets[0].data = pressureData;
+                pressureChart.data.labels.push(s.step);
+                pressureChart.data.datasets[0].data.push(P);
 
                 energyChart.update("none");
                 pressureChart.update("none");
