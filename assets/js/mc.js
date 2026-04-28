@@ -2,55 +2,24 @@ function createMCSimulation(box) {
 
     const energyChart = new Chart(box.querySelector("#energyChart"), {
         type: "line",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Energy (kJ/mol)",
-                data: [],
-                borderWidth: 2,
-                pointRadius: 0
-            }]
-        },
+        data: { labels: [], datasets: [{ data: [], borderWidth: 1, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const pressureChart = new Chart(box.querySelector("#pressureChart"), {
         type: "line",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Pressure (bar)",
-                data: [],
-                borderWidth: 2,
-                pointRadius: 0
-            }]
-        },
+        data: { labels: [], datasets: [{ data: [], borderWidth: 1, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const histChart = new Chart(box.querySelector("#histChart"), {
         type: "bar",
-        data: { labels: [], datasets: [{ label: "Energy histogram (kJ/mol)", data: [] }] },
+        data: { labels: [], datasets: [{ data: [] }] },
         options: { animation: false }
     });
 
-    const R = 0.0083145;   // kJ/mol/K
-    const Rj = 8.3145;     // J/mol/K
+    const R = 0.0083145;
     const kB = 1.380649e-23;
-
-    let state = null;
-
-    function LJ(dr, eps, sig) {
-        const s = sig / dr;
-        const s2 = s*s;
-        const s6 = s2*s2*s2;
-        const s12 = s6*s6;
-
-        return {
-            en: 4 * eps * (s12 - s6),   // K units
-            xi: 24 * eps * (2*s12 - s6)
-        };
-    }
 
     function dist(a, b, box) {
         let dx = a[0]-b[0];
@@ -64,184 +33,218 @@ function createMCSimulation(box) {
         return Math.sqrt(dx*dx+dy*dy+dz*dz);
     }
 
-    function initSimulation(p) {
+    function LJ(dr, eps, sig) {
+        const s = sig/dr;
+        const s2 = s*s;
+        const s6 = s2*s2*s2;
+        const s12 = s6*s6;
 
-        const positions = [];
-        const ngrid = Math.ceil(Math.cbrt(p.N));
-        const spacing = p.boxSize / ngrid;
+        return {
+            en: 4*eps*(s12 - s6),
+            xi: 24*eps*(2*s12 - s6)
+        };
+    }
 
-        let count = 0;
-        for (let x=0;x<ngrid;x++){
-            for (let y=0;y<ngrid;y++){
-                for (let z=0;z<ngrid;z++){
-                    if (count >= p.N) break;
+    function init(params) {
 
-                    positions.push([
-                        (x+0.5)*spacing,
-                        (y+0.5)*spacing,
-                        (z+0.5)*spacing
-                    ]);
+        const { species, boxSize, T, dx, maxSteps, cutoff } = params;
+        const N = species.length;
 
-                    count++;
+        const pos = [];
+        const ngrid = Math.ceil(Math.cbrt(N));
+        const spacing = boxSize/ngrid;
+
+        let c=0;
+        for(let x=0;x<ngrid;x++){
+            for(let y=0;y<ngrid;y++){
+                for(let z=0;z<ngrid;z++){
+                    if(c>=N) break;
+                    pos.push([(x+0.5)*spacing,(y+0.5)*spacing,(z+0.5)*spacing]);
+                    c++;
                 }
             }
         }
 
-        let energy = 0;
-        let xi = 0;
+        let en=0, xi=0;
 
-        for (let i=0;i<p.N;i++){
-            for (let j=i+1;j<p.N;j++){
-                const dr = dist(positions[i], positions[j], p.boxSize);
-                const res = LJ(dr, p.species.eps, p.species.sig);
-                energy += res.en;
-                xi += res.xi;
+        for(let i=0;i<N;i++){
+            for(let j=i+1;j<N;j++){
+
+                const eps = Math.sqrt(species[i].eps * species[j].eps);
+                const sig = 0.5*(species[i].sig + species[j].sig);
+                const rcut = cutoff * sig;
+
+                const dr = dist(pos[i],pos[j],boxSize);
+                if(dr > rcut) continue;
+
+                const r = LJ(dr, eps, sig);
+                en += r.en;
+                xi += r.xi;
             }
         }
 
         return {
-            positions,
-            energy,
-            xi,
-            step: 0,
-            eqStart: Math.floor(0.2*p.maxSteps),
+            pos, species, N,
+            en, xi,
+            step:0, maxSteps,
+            box:boxSize, T, dx, cutoff,
+            eqStart: Math.floor(0.2*maxSteps),
 
-            // Welford variables (numerically stable!)
-            meanE: 0,
-            M2E: 0,
-            meanP: 0,
-            count: 0,
+            sumE:0, sumE2:0, sumP:0, count:0,
+            hist:[],
 
-            hist: [],
-
-            ...p,
-            pcoef: kB/(p.T*(p.boxSize**3*1e-27)),
-            pid: 0.01*p.N*kB*p.T/(p.boxSize**3*1e-27),
-
-            sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300))
+            pcoef: kB/(T*(boxSize**3*1e-27)),
+            pid: 0.01*N*kB*T/(boxSize**3*1e-27)
         };
     }
 
     function mcStep(s) {
 
         const i = Math.floor(Math.random()*s.N);
-        const old = [...s.positions[i]];
+        const oldPos = s.pos[i];
+        const sp_i = s.species[i];
 
-        let newPos = old.map(v => v + (Math.random()-0.5)*s.dx);
-        newPos = newPos.map(v => (v+s.boxSize)%s.boxSize);
+        let newPos = oldPos.map(v => (v + (Math.random()-0.5)*s.dx + s.box)%s.box);
 
-        let dE = 0;
-        let dXi = 0;
+        let dE=0, dXi=0;
 
-        for (let j=0;j<s.N;j++){
-            if (j===i) continue;
+        for(let j=0;j<s.N;j++){
+            if(j===i) continue;
 
-            const drOld = dist(old, s.positions[j], s.boxSize);
-            const drNew = dist(newPos, s.positions[j], s.boxSize);
+            const sp_j = s.species[j];
 
-            const oldRes = LJ(drOld, s.species.eps, s.species.sig);
-            const newRes = LJ(drNew, s.species.eps, s.species.sig);
+            const eps = Math.sqrt(sp_i.eps * sp_j.eps);
+            const sig = 0.5*(sp_i.sig + sp_j.sig);
+            const rcut = s.cutoff * sig;
 
-            dE += newRes.en - oldRes.en;
-            dXi += newRes.xi - oldRes.xi;
+            const drOld = dist(oldPos, s.pos[j], s.box);
+            const drNew = dist(newPos, s.pos[j], s.box);
+
+            let oldE=0, oldXi=0, newE=0, newXi=0;
+
+            if(drOld < rcut){
+                const r = LJ(drOld, eps, sig);
+                oldE = r.en; oldXi = r.xi;
+            }
+
+            if(drNew < rcut){
+                const r = LJ(drNew, eps, sig);
+                newE = r.en; newXi = r.xi;
+            }
+
+            dE += newE - oldE;
+            dXi += newXi - oldXi;
         }
 
-        if (dE < 0 || Math.random() < Math.exp(-dE/s.T)) {
-            s.positions[i] = newPos;
-            s.energy += dE;
+        if(dE < 0 || Math.random() < Math.exp(-dE/s.T)){
+            s.pos[i] = newPos;
+            s.en += dE;
             s.xi += dXi;
         }
     }
 
-    function updateStats(s) {
+    function updateStats(s, stride, energyData, pressureData, labels) {
 
-        if (s.step < s.eqStart) return;
+        if(s.step >= s.eqStart){
 
-        const E_dim = s.energy;           // K
-        const E = R * E_dim;              // kJ/mol
-        const P = s.xi*s.pcoef + s.pid;
+            const E = R*s.en;
+            const P = s.xi*s.pcoef + s.pid;
 
-        // Welford update (stable variance!)
-        s.count++;
-        const delta = E_dim - s.meanE;
-        s.meanE += delta / s.count;
-        s.M2E += delta * (E_dim - s.meanE);
+            s.sumE += E;
+            s.sumE2 += E*E;
+            s.sumP += P;
+            s.count++;
 
-        s.meanP += (P - s.meanP) / s.count;
+            s.hist.push(E);
 
-        s.hist.push(E);
-
-        if (s.step % s.sampleEvery === 0) {
-            energyChart.data.labels.push(s.step);
-            energyChart.data.datasets[0].data.push(E);
-
-            pressureChart.data.labels.push(s.step);
-            pressureChart.data.datasets[0].data.push(P);
+            if(s.step % stride === 0){
+                energyData.push(E);
+                pressureData.push(P);
+                labels.push(s.step);
+            }
         }
     }
 
     function finalize(s) {
 
-        const avgE = R * s.meanE;
-        const avgP = s.meanP;
+        const avgE = s.sumE / s.count;
+        const avgP = s.sumP / s.count;
 
-        const varianceE = s.M2E / (s.count - 1);
+        const avgE2 = s.sumE2 / s.count;
 
-        // ✅ OPTION A (correct, intensive, MC-consistent)
-        const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
-
-        const cv_ideal = 1.5 * Rj;
-        const cv_total = cv_ideal + cv_real;
+        const cvm = (avgE2 - avgE*avgE) / (s.N * R * s.T*s.T) * 1000;
+        const cvid = 1.5 * R * 1000;
 
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
-             ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
-             Cv(real) = ${cv_real.toFixed(2)} |
-             Cv(ideal) = ${cv_ideal.toFixed(2)} |
-             Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
+             ⟨P⟩ = ${avgP.toFixed(2)} bar |
+             Cv = ${(cvm + cvid).toFixed(2)} J/mol·K 
+             (real: ${cvm.toFixed(2)})`;
 
-        // histogram
-        const bins = 30;
-        const min = Math.min(...s.hist);
-        const max = Math.max(...s.hist);
+        // ===== FIXED HISTOGRAM =====
+        const bins = 40;
+        const data = s.hist;
+
+        if(data.length === 0) return;
+
+        let min = Math.min(...data);
+        let max = Math.max(...data);
+
+        if(Math.abs(max - min) < 1e-12){
+            max = min + 1e-6; // avoid collapse
+        }
 
         const hist = new Array(bins).fill(0);
 
-        s.hist.forEach(v=>{
-            const i = Math.floor((v-min)/(max-min)*bins);
-            hist[Math.min(i,bins-1)]++;
+        data.forEach(v=>{
+            let idx = Math.floor((v-min)/(max-min)*bins);
+            idx = Math.max(0, Math.min(bins-1, idx));
+            hist[idx]++;
         });
 
-        histChart.data.labels = hist.map((_,i)=>i);
-        histChart.data.datasets[0].data = hist;
+        const norm = hist.reduce((a,b)=>a+b,0);
+        const histNorm = hist.map(v=>v/norm);
+
+        const labels = histNorm.map((_,i)=>
+            (min + (i+0.5)*(max-min)/bins).toFixed(1)
+        );
+
+        histChart.data.labels = labels;
+        histChart.data.datasets[0].data = histNorm;
         histChart.update();
     }
 
     function run(params) {
 
-        state = initSimulation(params);
+        const s = init(params);
 
-        energyChart.data.labels = [];
-        energyChart.data.datasets[0].data = [];
+        const energyData = [];
+        const pressureData = [];
+        const labels = [];
 
-        pressureChart.data.labels = [];
-        pressureChart.data.datasets[0].data = [];
+        const stride = Math.max(1, Math.floor(s.maxSteps/500));
 
-        function loop() {
+        function loop(){
 
-            for (let i=0;i<200;i++) {
-                mcStep(state);
-                state.step++;
-                updateStats(state);
+            for(let i=0;i<200;i++){
+                mcStep(s);
+                s.step++;
 
-                if (state.step >= state.maxSteps) {
-                    finalize(state);
+                updateStats(s, stride, energyData, pressureData, labels);
+
+                if(s.step >= s.maxSteps){
+                    energyChart.data.labels = labels;
+                    energyChart.data.datasets[0].data = energyData;
+                    pressureChart.data.labels = labels;
+                    pressureChart.data.datasets[0].data = pressureData;
+
+                    energyChart.update();
+                    pressureChart.update();
+
+                    finalize(s);
                     return;
                 }
             }
-
-            energyChart.update();
-            pressureChart.update();
 
             requestAnimationFrame(loop);
         }
@@ -252,6 +255,8 @@ function createMCSimulation(box) {
     return { run };
 }
 
+
+// ===== INIT =====
 document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll(".toolbox").forEach(box => {
@@ -264,22 +269,37 @@ document.addEventListener("DOMContentLoaded", () => {
             Ar: { eps: 116.81, sig: 3.401 },
             Ne: { eps: 36.831, sig: 2.775 },
             He: { eps: 5.465, sig: 2.628 },
-            HS: { eps: 0.0001, sig: 4.0 },
-            IG: { eps: 0.000001, sig: 1.0 }
+            HS: { eps: 1e-6, sig: 4.0 },
+            IG: { eps: 1e-9, sig: 1.0 }
         };
 
         box.querySelector(".jsbox-btn-primary").addEventListener("click", () => {
 
+            const sp1 = box.querySelector(".sp1").value;
+            const sp2 = box.querySelector(".sp2").value;
+
+            const n1 = parseInt(box.querySelector(".n1").value);
+            const n2 = parseInt(box.querySelector(".n2").value);
+
+            const species = [];
+
+            if(sp1 !== "None"){
+                for(let i=0;i<n1;i++) species.push(speciesDB[sp1]);
+            }
+
+            if(sp2 !== "None"){
+                for(let i=0;i<n2;i++) species.push(speciesDB[sp2]);
+            }
+
             sim.run({
-                N: parseInt(box.querySelector(".npart").value),
+                species,
                 boxSize: parseFloat(box.querySelector(".box").value),
                 T: parseFloat(box.querySelector(".temp").value),
                 dx: parseFloat(box.querySelector(".dx").value),
                 maxSteps: parseInt(box.querySelector(".steps").value),
-                species: speciesDB[box.querySelector(".species").value]
+                cutoff: parseFloat(box.querySelector(".cutoff").value)
             });
 
         });
     });
-
 });
