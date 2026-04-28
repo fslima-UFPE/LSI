@@ -1,18 +1,18 @@
 function createMCSimulation(box) {
 
-    const energyChart = new Chart(box.querySelector(".energyChart"), {
+    const energyChart = new Chart(box.querySelector("#energyChart"), {
         type: "line",
         data: { labels: [], datasets: [{ data: [], borderWidth: 1, pointRadius: 0 }] },
         options: { animation: false }
     });
 
-    const pressureChart = new Chart(box.querySelector(".pressureChart"), {
+    const pressureChart = new Chart(box.querySelector("#pressureChart"), {
         type: "line",
         data: { labels: [], datasets: [{ data: [], borderWidth: 1, pointRadius: 0 }] },
         options: { animation: false }
     });
 
-    const histChart = new Chart(box.querySelector(".histChart"), {
+    const histChart = new Chart(box.querySelector("#histChart"), {
         type: "bar",
         data: { labels: [], datasets: [{ data: [] }] },
         options: { animation: false }
