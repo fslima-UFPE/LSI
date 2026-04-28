@@ -213,6 +213,13 @@ function createMCSimulation(box) {
 
         state = initSimulation(params);
 
+        energyChart.data.labels = [];
+        energyChart.data.datasets[0].data = [];
+        pressureChart.data.labels = [];
+        pressureChart.data.datasets[0].data = [];
+        histChart.data.labels = [];
+        histChart.data.datasets[0].data = [];
+
         function loop() {
 
             for (let i=0;i<50;i++) {  // MANY MC steps per frame
