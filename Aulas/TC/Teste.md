@@ -1,7 +1,7 @@
 ---
 layout: TCclass
-title: 1a. Lei da Termodinâmica
-subtitle: Trabalho, calor e energia interna
+title: Teste de MC
+subtitle: LJ particles
 ---
 
 <p class="jt">
