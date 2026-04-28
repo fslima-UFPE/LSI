@@ -1,264 +1,240 @@
-document.addEventListener("DOMContentLoaded", () => {
+function createMCSimulation(box) {
 
-  const PARTICLES = {
-    IG: { eps: 0, sig: 0 },
-    HS: { eps: 0, sig: 4.055 },
-    He: { eps: 5.465, sig: 2.628 },
-    Ne: { eps: 36.831, sig: 2.775 },
-    Ar: { eps: 116.81, sig: 3.401 },
-    Kr: { eps: 164.56, sig: 3.601 },
-    Xe: { eps: 218.18, sig: 4.055 }
-  };
-
-  document.querySelectorAll(".toolbox").forEach(box => {
-    if (box.id !== "mc-lj-tool") return;
-
-    const canvas = box.querySelector("#mcCanvas");
+    const canvas = box.querySelector(".jsbox-canvas-container canvas");
     const ctx = canvas.getContext("2d");
 
-    const energyCanvas = box.querySelector("#energyChart");
-    const pressureCanvas = box.querySelector("#pressureChart");
+    const energyChart = new Chart(box.querySelector("#energyChart"), {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Energy (kJ/mol)", data: [], borderWidth: 1 }] },
+        options: { animation: false, scales: { x: { title: { display: true, text: "MC steps" }}}}
+    });
 
-    const startBtn = box.querySelector("#startBtn");
-    const stepBtn = box.querySelector("#stepBtn");
-    const status = box.querySelector("#status");
+    const pressureChart = new Chart(box.querySelector("#pressureChart"), {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Pressure (bar)", data: [], borderWidth: 1 }] },
+        options: { animation: false, scales: { x: { title: { display: true, text: "MC steps" }}}}
+    });
 
-    let sim = null;
-    let running = false;
+    const histChart = new Chart(box.querySelector("#histChart"), {
+        type: "bar",
+        data: { labels: [], datasets: [{ label: "Energy histogram", data: [] }] },
+        options: { animation: false }
+    });
 
-    let energyChart, pressureChart;
+    const R = 0.0083145;
+    const kB = 1.380649e-23;
 
-    // ================= INIT =================
-    function initSim() {
+    let state = null;
 
-      const N = parseInt(box.querySelector("#np").value);
-      const boxSize = parseFloat(box.querySelector("#box").value);
-      const T = parseFloat(box.querySelector("#temp").value);
-      const dx = parseFloat(box.querySelector("#dx").value);
-      const type = box.querySelector("#ptype").value;
+    function LJ(dr, eps, sig) {
+        const s = sig / dr;
+        const s2 = s*s;
+        const s6 = s2*s2*s2;
+        const s12 = s6*s6;
 
-      const { eps, sig } = PARTICLES[type];
-
-      const r = [];
-
-      for (let i = 0; i < N; i++) {
-        r.push([
-          Math.random() * boxSize,
-          Math.random() * boxSize,
-          Math.random() * boxSize
-        ]);
-      }
-
-      const kB = 1.380649e-23;
-      const v = Math.pow(boxSize, 3) * 1e-27;
-      const pcoef = kB / (T * v);
-
-      sim = {
-        N, box: boxSize, T, dx,
-        eps, sig,
-        r,
-        en: 0,
-        xi: 0,
-        pcoef,
-        energy: [],
-        pressure: [],
-        step: 0
-      };
-
-      computeTotalEnergy();
+        return {
+            en: 4 * eps * (s12 - s6),
+            xi: 24 * eps * (2*s12 - s6)
+        };
     }
 
-    // ================= DIST =================
     function dist(a, b, box) {
-      let dx = Math.abs(a[0] - b[0]);
-      let dy = Math.abs(a[1] - b[1]);
-      let dz = Math.abs(a[2] - b[2]);
+        let dx = a[0]-b[0];
+        let dy = a[1]-b[1];
+        let dz = a[2]-b[2];
 
-      dx -= Math.round(dx / box) * box;
-      dy -= Math.round(dy / box) * box;
-      dz -= Math.round(dz / box) * box;
+        dx -= Math.round(dx/box)*box;
+        dy -= Math.round(dy/box)*box;
+        dz -= Math.round(dz/box)*box;
 
-      return Math.sqrt(dx*dx + dy*dy + dz*dz);
+        return Math.sqrt(dx*dx+dy*dy+dz*dz);
     }
 
-    // ================= LJ =================
-    function encalc(r) {
-      if (sim.eps === 0) return { en: 0, xi: 0 };
+    function initSimulation(params) {
 
-      const sr = sim.sig / r;
-      const sr6 = sr**6;
-      const sr12 = sr6**2;
+        const { N, boxSize, T, dx, maxSteps, species } = params;
 
-      const en = 4 * sim.eps * (sr12 - sr6);
-      const xi = 24 * sim.eps * (2*sr12 - sr6);
+        const positions = [];
+        const types = [];
 
-      return { en, xi };
-    }
+        const ngrid = Math.ceil(Math.cbrt(N));
+        const spacing = boxSize / ngrid;
 
-    // ================= TOTAL ENERGY =================
-    function computeTotalEnergy() {
-      sim.en = 0;
-      sim.xi = 0;
+        let count = 0;
+        for (let x=0; x<ngrid; x++) {
+            for (let y=0; y<ngrid; y++) {
+                for (let z=0; z<ngrid; z++) {
+                    if (count >= N) break;
 
-      for (let i = 0; i < sim.N; i++) {
-        for (let j = i + 1; j < sim.N; j++) {
-          const r = dist(sim.r[i], sim.r[j], sim.box);
-          const { en, xi } = encalc(r);
-          sim.en += en;
-          sim.xi += xi;
-        }
-      }
-    }
+                    positions.push([
+                        (x+0.5)*spacing,
+                        (y+0.5)*spacing,
+                        (z+0.5)*spacing
+                    ]);
 
-    // ================= MC STEP =================
-    function mcStep() {
-
-      const i = Math.floor(Math.random() * sim.N);
-      const old = [...sim.r[i]];
-
-      const trial = [
-        (old[0] + (Math.random()-0.5)*sim.dx + sim.box) % sim.box,
-        (old[1] + (Math.random()-0.5)*sim.dx + sim.box) % sim.box,
-        (old[2] + (Math.random()-0.5)*sim.dx + sim.box) % sim.box
-      ];
-
-      let dE = 0;
-      let dXi = 0;
-      let reject = false;
-
-      for (let j = 0; j < sim.N; j++) {
-        if (j === i) continue;
-
-        const rOld = dist(old, sim.r[j], sim.box);
-        const rNew = dist(trial, sim.r[j], sim.box);
-
-        // HARD SPHERE
-        if (sim.eps === 0 && sim.sig > 0) {
-          if (rNew < sim.sig) {
-            reject = true;
-            break;
-          }
-          continue;
+                    types.push(0); // single species for now
+                    count++;
+                }
+            }
         }
 
-        const oldVal = encalc(rOld);
-        const newVal = encalc(rNew);
+        let energy = 0;
+        let xi = 0;
 
-        dE += newVal.en - oldVal.en;
-        dXi += newVal.xi - oldVal.xi;
-      }
-
-      if (!reject) {
-        if (dE < 0 || Math.random() < Math.exp(-dE / sim.T)) {
-          sim.r[i] = trial;
-          sim.en += dE;
-          sim.xi += dXi;
+        for (let i=0;i<N;i++){
+            for (let j=i+1;j<N;j++){
+                const dr = dist(positions[i], positions[j], boxSize);
+                const res = LJ(dr, species.eps, species.sig);
+                energy += res.en;
+                xi += res.xi;
+            }
         }
-      }
 
-      sim.step++;
+        return {
+            positions,
+            types,
+            energy,
+            xi,
+            step: 0,
+            maxSteps,
+            T,
+            dx,
+            box: boxSize,
+            N,
+            pcoef: kB/(T*(boxSize**3*1e-27)),
+            pid: 0.01*N*kB*T/(boxSize**3*1e-27),
+            eqStart: Math.floor(0.2*maxSteps),
 
-      sim.energy.push({ x: sim.step, y: sim.en });
-      sim.pressure.push({ x: sim.step, y: sim.xi * sim.pcoef });
+            sumE: 0,
+            sumE2: 0,
+            sumP: 0,
+            count: 0,
 
-      if (sim.energy.length > 300) {
-        sim.energy.shift();
-        sim.pressure.shift();
-      }
+            hist: []
+        };
     }
 
-    // ================= DRAW =================
-    function draw() {
-      const size = canvas.width = canvas.clientWidth;
-      canvas.height = size;
+    function mcStep(s, species) {
 
-      ctx.clearRect(0,0,size,size);
+        const i = Math.floor(Math.random()*s.N);
+        const oldPos = [...s.positions[i]];
 
-      for (let p of sim.r) {
-        const x = (p[0] / sim.box) * size;
-        const y = (p[1] / sim.box) * size;
+        let newPos = oldPos.map(v => v + (Math.random()-0.5)*s.dx);
+        newPos = newPos.map(v => (v+s.box)%s.box);
 
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, 2*Math.PI);
-        ctx.fillStyle = "#007bff";
-        ctx.fill();
-      }
-    }
+        let dE = 0;
+        let dXi = 0;
 
-    // ================= CHARTS =================
-    function initCharts() {
+        for (let j=0;j<s.N;j++){
+            if (j===i) continue;
 
-      if (energyChart) energyChart.destroy();
-      if (pressureChart) pressureChart.destroy();
+            let drOld = dist(oldPos, s.positions[j], s.box);
+            let drNew = dist(newPos, s.positions[j], s.box);
 
-      energyChart = new Chart(energyCanvas, {
-        type: 'line',
-        data: { datasets: [{ label: "Energy", data: [], borderColor: "#2980b9", pointRadius: 0 }] },
-        options: {
-          animation: false,
-          responsive: true,
-          scales: {
-            x: { type: 'linear', title: { display: true, text: 'Steps' } },
-            y: { title: { display: true, text: 'Energy' } }
-          }
+            const oldRes = LJ(drOld, species.eps, species.sig);
+            const newRes = LJ(drNew, species.eps, species.sig);
+
+            dE += newRes.en - oldRes.en;
+            dXi += newRes.xi - oldRes.xi;
         }
-      });
 
-      pressureChart = new Chart(pressureCanvas, {
-        type: 'line',
-        data: { datasets: [{ label: "Pressure", data: [], borderColor: "#e74c3c", pointRadius: 0 }] },
-        options: {
-          animation: false,
-          responsive: true,
-          scales: {
-            x: { type: 'linear', title: { display: true, text: 'Steps' } },
-            y: { title: { display: true, text: 'Pressure' } }
-          }
+        if (dE < 0 || Math.random() < Math.exp(-dE/s.T)) {
+            s.positions[i] = newPos;
+            s.energy += dE;
+            s.xi += dXi;
         }
-      });
     }
 
-    function updateCharts() {
-      energyChart.data.datasets[0].data = sim.energy;
-      energyChart.update();
+    function updateStats(s) {
 
-      pressureChart.data.datasets[0].data = sim.pressure;
-      pressureChart.update();
+        if (s.step >= s.eqStart) {
+
+            const E = R*s.energy;
+            const P = s.xi*s.pcoef + s.pid;
+
+            s.sumE += E;
+            s.sumE2 += E*E;
+            s.sumP += P;
+            s.count++;
+
+            s.hist.push(E);
+
+            energyChart.data.labels.push(s.step);
+            energyChart.data.datasets[0].data.push(E);
+
+            pressureChart.data.labels.push(s.step);
+            pressureChart.data.datasets[0].data.push(P);
+        }
     }
 
-    // ================= LOOP =================
-    function loop() {
-      if (!running) return;
+    function drawParticles(s) {
 
-      for (let i = 0; i < 5; i++) mcStep();
+        ctx.clearRect(0,0,canvas.width,canvas.height);
 
-      draw();
-      updateCharts();
+        const scale = canvas.width / s.box;
 
-      status.textContent =
-        `E=${sim.en.toFixed(2)} | P=${(sim.xi * sim.pcoef).toExponential(2)}`;
-
-      requestAnimationFrame(loop);
+        for (let p of s.positions) {
+            ctx.beginPath();
+            ctx.arc(p[0]*scale, p[1]*scale, 3, 0, 2*Math.PI);
+            ctx.fill();
+        }
     }
 
-    // ================= BUTTONS =================
-    startBtn.addEventListener("click", () => {
-      initSim();
-      initCharts();
-      running = true;
-      loop();
-    });
+    function finalize(s) {
 
-    stepBtn.addEventListener("click", () => {
-      if (!sim) {
-        initSim();
-        initCharts();
-      }
-      mcStep();
-      draw();
-      updateCharts();
-    });
+        const avgE = s.sumE / s.count;
+        const avgP = s.sumP / s.count;
 
-  });
+        const cv = (s.sumE2/s.count - avgE*avgE)/(s.N*R*s.T*s.T);
 
-});
+        box.querySelector(".results").innerHTML =
+            `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
+             ⟨P⟩ = ${avgP.toFixed(2)} bar |
+             Cv = ${cv.toFixed(2)} J/mol·K`;
+
+        // histogram
+        const bins = 30;
+        const min = Math.min(...s.hist);
+        const max = Math.max(...s.hist);
+
+        const hist = new Array(bins).fill(0);
+
+        s.hist.forEach(v=>{
+            const i = Math.floor((v-min)/(max-min)*bins);
+            hist[Math.min(i,bins-1)]++;
+        });
+
+        histChart.data.labels = hist.map((_,i)=>i);
+        histChart.data.datasets[0].data = hist;
+        histChart.update();
+    }
+
+    function run(params) {
+
+        state = initSimulation(params);
+
+        function loop() {
+
+            for (let i=0;i<50;i++) {  // MANY MC steps per frame
+                mcStep(state, params.species);
+                state.step++;
+                updateStats(state);
+
+                if (state.step >= state.maxSteps) {
+                    finalize(state);
+                    return;
+                }
+            }
+
+            drawParticles(state);
+            energyChart.update();
+            pressureChart.update();
+
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    }
+
+    return { run };
+}
