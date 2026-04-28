@@ -182,77 +182,40 @@ function createMCSimulation(box) {
 
     function finalize(s) {
 
-    if (s.count === 0) {
+        const avgE = R * s.meanE;
+        const avgP = s.meanP;
+
+        const varianceE = s.M2E / (s.count - 1);
+
+        // ✅ OPTION A (correct, intensive, MC-consistent)
+        const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
+
+        const cv_ideal = 1.5 * Rj;
+        const cv_total = cv_ideal + cv_real;
+
         box.querySelector(".results").innerHTML =
-            "No data collected (increase steps or check equilibration).";
-        return;
+            `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
+             ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
+             Cv(real) = ${cv_real.toFixed(2)} |
+             Cv(ideal) = ${cv_ideal.toFixed(2)} |
+             Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
+
+        // histogram
+        const bins = 30;
+        const min = Math.min(...s.hist);
+        const max = Math.max(...s.hist);
+
+        const hist = new Array(bins).fill(0);
+
+        s.hist.forEach(v=>{
+            const i = Math.floor((v-min)/(max-min)*bins);
+            hist[Math.min(i,bins-1)]++;
+        });
+
+        histChart.data.labels = hist.map((_,i)=>i);
+        histChart.data.datasets[0].data = hist;
+        histChart.update();
     }
-
-    // Mean energy (dimensionless → convert to kJ/mol)
-    const avgE = R * s.meanE;
-
-    // Mean pressure
-    const avgP = s.meanP;
-
-    // Variance (dimensionless energy)
-    const varE = s.M2E / s.count;
-
-    // Cv (real part)
-    const cvm = (varE) / (s.N * s.T * s.T) * Rj;
-
-    // Ideal gas contribution
-    const cvid = 1.5 * Rj;
-
-    box.querySelector(".results").innerHTML =
-        `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
-         ⟨P⟩ = ${avgP.toFixed(2)} bar |
-         Cv = ${(cvm + cvid).toFixed(2)} J/(K·mol)
-         (real: ${cvm.toFixed(2)} J/(K·mol))`;
-
-    // =========================
-    // Histogram (unchanged)
-    // =========================
-
-    const data = s.hist;
-    if (data.length < 10) return;
-
-    const bins = 40;
-
-    let min = data[0];
-    let max = data[0];
-
-    for (let i = 1; i < data.length; i++) {
-        if (data[i] < min) min = data[i];
-        if (data[i] > max) max = data[i];
-    }
-
-    if (Math.abs(max - min) < 1e-10) {
-        max = min + 1e-6;
-    }
-
-    const hist = new Array(bins).fill(0);
-
-    for (let i = 0; i < data.length; i++) {
-        let idx = Math.floor((data[i] - min) / (max - min) * bins);
-        if (idx < 0) idx = 0;
-        if (idx >= bins) idx = bins - 1;
-        hist[idx]++;
-    }
-
-    const total = data.length;
-    const histNorm = hist.map(v => v / total);
-
-    const labels = [];
-    for (let i = 0; i < bins; i++) {
-        labels.push(
-            (min + (i + 0.5) * (max - min) / bins).toFixed(2)
-        );
-    }
-
-    histChart.data.labels = labels;
-    histChart.data.datasets[0].data = histNorm;
-    histChart.update();
-}
 
     function run(params) {
 
