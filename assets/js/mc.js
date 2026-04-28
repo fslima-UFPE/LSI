@@ -275,31 +275,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
         box.querySelector(".jsbox-btn-primary").addEventListener("click", () => {
 
-            const sp1 = box.querySelector(".sp1").value;
-            const sp2 = box.querySelector(".sp2").value;
+            const getVal = (selector) => {
+                const el = box.querySelector(selector);
+                if (!el) {
+                    console.error("Missing element:", selector);
+                    return null;
+                }
+                return el.value;
+            };
 
-            const n1 = parseInt(box.querySelector(".n1").value);
-            const n2 = parseInt(box.querySelector(".n2").value);
+        const sp1 = getVal(".sp1");
+        const sp2 = getVal(".sp2");
+        const n1 = parseInt(getVal(".n1"));
+        const n2 = parseInt(getVal(".n2"));
 
-            const species = [];
+        if (sp1 === null || sp2 === null || isNaN(n1) || isNaN(n2)) {
+            console.error("Invalid inputs — simulation aborted.");
+            return;
+        }
 
-            if(sp1 !== "None"){
-                for(let i=0;i<n1;i++) species.push(speciesDB[sp1]);
-            }
+        const species = [];
 
-            if(sp2 !== "None"){
-                for(let i=0;i<n2;i++) species.push(speciesDB[sp2]);
-            }
+        if (sp1 !== "None") {
+            for (let i = 0; i < n1; i++) species.push(speciesDB[sp1]);
+        }
 
-            sim.run({
-                species,
-                boxSize: parseFloat(box.querySelector(".box").value),
-                T: parseFloat(box.querySelector(".temp").value),
-                dx: parseFloat(box.querySelector(".dx").value),
-                maxSteps: parseInt(box.querySelector(".steps").value),
-                cutoff: parseFloat(box.querySelector(".cutoff").value)
-            });
+        if (sp2 !== "None") {
+            for (let i = 0; i < n2; i++) species.push(speciesDB[sp2]);
+        }
 
+        if (species.length === 0) {
+            alert("You must select at least one particle.");
+            return;
+        }
+
+        sim.run({
+            species,
+            boxSize: parseFloat(getVal(".box")),
+            T: parseFloat(getVal(".temp")),
+            dx: parseFloat(getVal(".dx")),
+            maxSteps: parseInt(getVal(".steps")),
+            cutoff: parseFloat(getVal(".cutoff"))
         });
+      });
     });
 });
