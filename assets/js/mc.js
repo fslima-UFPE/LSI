@@ -90,18 +90,18 @@ function createMCSimulation(box) {
         }
 
         let energy = 0;
-        let xi = 0;
+let xi = 0;
 
-        for (let i=0;i<p.N;i++){
-            for (let j=i+1;j<p.N;j++){
-                const dr = dist(positions[i], positions[j], p.boxSize);
-                if (p.species.type === "LJ") {
-                    const res = LJ(dr, p.species.eps, p.species.sig);
-                    energy += res.en;
-                    xi += res.xi;
-                }
-            }
+if (p.species.type === "LJ") {
+    for (let i=0;i<p.N;i++){
+        for (let j=i+1;j<p.N;j++){
+            const dr = dist(positions[i], positions[j], p.boxSize);
+            const res = LJ(dr, p.species.eps, p.species.sig);
+            energy += res.en;
+            xi += res.xi;
         }
+    }
+}
 
         return {
             positions,
@@ -184,77 +184,83 @@ function createMCSimulation(box) {
 
     function updateStats(s) {
 
-        if (s.step < s.eqStart) return;
+    if (s.step < s.eqStart) return;
 
-        if (s.species.type === "IG") {
+    let E, P;
 
-            const E = 0;
-            const P = s.pid;
+    // =========================
+    // IDEAL GAS
+    // =========================
+    if (s.species.type === "IG") {
 
-            if (s.step % s.sampleEvery === 0) {
-            energyChart.data.labels.push(s.step);
-            energyChart.data.datasets[0].data.push(E);
+        E = 0;
+        P = s.pid;
 
-            pressureChart.data.labels.push(s.step);
-            pressureChart.data.datasets[0].data.push(P);
-        }
+    // =========================
+    // HARD SPHERES (Carnahan-Starling)
+    // =========================
+    } else if (s.species.type === "HS") {
 
-        s.hist.push(E);
-        s.count++;
-        s.meanP += (P - s.meanP) / s.count;
+        const V = s.boxSize**3 * 1e-27;      // m³
+        const sigma = s.species.sig * 1e-10; // m
+        const rho = s.N / V;
 
-        return;
-        }
+        const eta = (Math.PI / 6) * rho * Math.pow(sigma, 3);
 
-        const E_dim = (s.species.type === "HS") ? 0 : s.energy;
-        const E = R * E_dim;
-        let P;
+        let Z;
 
-        if (s.species.type === "HS") {
-
-            const V = s.boxSize**3 * 1e-27;      // m³
-            const sigma = s.species.sig * 1e-10; // m
-            const rho = s.N / V;
-
-            const eta = (Math.PI / 6) * rho * sigma**3;
-
-            if (eta >= 0.7) {
-            P = 1e6; // cap (bar)
+        if (eta >= 0.7) {
+            Z = 50; // cap to avoid divergence explosion
         } else {
-            const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
-            P = s.pid * Z;  // cleaner
+            Z = (1 + eta + eta**2 - eta**3) / Math.pow(1 - eta, 3);
         }
 
-        } else {
+        P = s.pid * Z;
+        E = 0;
 
-            P = s.xi * s.pcoef + s.pid;
-        }
+    // =========================
+    // LENNARD-JONES
+    // =========================
+    } else {
 
-        // Welford update (stable variance!)
+        const E_dim = s.energy;
+        E = R * E_dim;
+
+        P = s.xi * s.pcoef + s.pid;
+
+        // Welford energy stats ONLY for LJ
         s.count++;
         const delta = E_dim - s.meanE;
         s.meanE += delta / s.count;
         s.M2E += delta * (E_dim - s.meanE);
-
-        s.meanP += (P - s.meanP) / s.count;
-
-        s.hist.push(E);
-
-        if (s.step % s.sampleEvery === 0) {
-            energyChart.data.labels.push(s.step);
-            energyChart.data.datasets[0].data.push(E);
-
-            pressureChart.data.labels.push(s.step);
-            pressureChart.data.datasets[0].data.push(P);
-        }
     }
+
+    // =========================
+    // COMMON (P stats for all)
+    // =========================
+
+    s.count++;
+    s.meanP += (P - s.meanP) / s.count;
+
+    s.hist.push(E);
+
+    if (s.step % s.sampleEvery === 0) {
+        energyChart.data.labels.push(s.step);
+        energyChart.data.datasets[0].data.push(E);
+
+        pressureChart.data.labels.push(s.step);
+        pressureChart.data.datasets[0].data.push(P);
+    }
+}
 
     function finalize(s) {
 
-        const avgE = R * s.meanE;
-        const avgP = s.meanP;
+        const avgE = (s.species.type === "LJ") ? R * s.meanE : 0;
+const avgP = s.meanP;
 
-        const varianceE = (s.count > 1) ? s.M2E / (s.count - 1) : 0;
+const varianceE = (s.count > 1 && s.species.type === "LJ")
+    ? s.M2E / (s.count - 1)
+    : 0;
 
         // ✅ OPTION A (correct, intensive, MC-consistent)
         const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
