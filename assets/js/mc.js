@@ -2,29 +2,13 @@ function createMCSimulation(box) {
 
     const energyChart = new Chart(box.querySelector("#energyChart"), {
         type: "line",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Energy (kJ/mol)",
-                data: [],
-                borderWidth: 2,
-                pointRadius: 0
-            }]
-        },
+        data: { labels: [], datasets: [{ label: "Energy (kJ/mol)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const pressureChart = new Chart(box.querySelector("#pressureChart"), {
         type: "line",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Pressure (bar)",
-                data: [],
-                borderWidth: 2,
-                pointRadius: 0
-            }]
-        },
+        data: { labels: [], datasets: [{ label: "Pressure (bar)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
@@ -34,8 +18,8 @@ function createMCSimulation(box) {
         options: { animation: false }
     });
 
-    const R = 0.0083145;   // kJ/mol/K
-    const Rj = 8.3145;     // J/mol/K
+    const R = 0.0083145;
+    const Rj = 8.3145;
     const kB = 1.380649e-23;
 
     let state = null;
@@ -47,7 +31,7 @@ function createMCSimulation(box) {
         const s12 = s6*s6;
 
         return {
-            en: 4 * eps * (s12 - s6),   // K units
+            en: 4 * eps * (s12 - s6),
             xi: 24 * eps * (2*s12 - s6)
         };
     }
@@ -66,8 +50,6 @@ function createMCSimulation(box) {
 
     function initSimulation(p) {
 
-        console.log("SIGMA INSIDE SIM:", p.species.sig);
-
         const positions = [];
         const ngrid = Math.ceil(Math.cbrt(p.N));
         const spacing = p.boxSize / ngrid;
@@ -83,25 +65,24 @@ function createMCSimulation(box) {
                         (y+0.5)*spacing,
                         (z+0.5)*spacing
                     ]);
-
                     count++;
                 }
             }
         }
 
         let energy = 0;
-let xi = 0;
+        let xi = 0;
 
-if (p.species.type === "LJ") {
-    for (let i=0;i<p.N;i++){
-        for (let j=i+1;j<p.N;j++){
-            const dr = dist(positions[i], positions[j], p.boxSize);
-            const res = LJ(dr, p.species.eps, p.species.sig);
-            energy += res.en;
-            xi += res.xi;
+        if (p.species.type === "LJ") {
+            for (let i=0;i<p.N;i++){
+                for (let j=i+1;j<p.N;j++){
+                    const dr = dist(positions[i], positions[j], p.boxSize);
+                    const res = LJ(dr, p.species.eps, p.species.sig);
+                    energy += res.en;
+                    xi += res.xi;
+                }
+            }
         }
-    }
-}
 
         return {
             positions,
@@ -110,7 +91,6 @@ if (p.species.type === "LJ") {
             step: 0,
             eqStart: Math.floor(0.2*p.maxSteps),
 
-            // Welford variables (numerically stable!)
             meanE: 0,
             M2E: 0,
             meanP: 0,
@@ -121,9 +101,10 @@ if (p.species.type === "LJ") {
             ...p,
 
             dx: (p.dx !== undefined) ? p.dx : 5,
-            
+
+            V: p.boxSize**3 * 1e-27,
+            pid: 0.01 * p.N * kB * p.T / (p.boxSize**3 * 1e-27),
             pcoef: kB/(p.T*(p.boxSize**3*1e-27)),
-            pid: 0.01*p.N*kB*p.T/(p.boxSize**3*1e-27),
 
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300))
         };
@@ -146,33 +127,18 @@ if (p.species.type === "LJ") {
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
 
-            let oldE = 0, newE = 0;
-            let oldXi = 0, newXi = 0;
-
             if (s.species.type === "HS") {
-
-                // HARD SPHERE: reject overlaps
-                if (drNew < s.species.sig) {
-                    return; // reject move immediately
-                }
-
-            } else if (s.species.type === "IG") {
-                continue;            
-
-            // no energy, no virial contribution
-            } else {
-
-                const oldRes = LJ(drOld, s.species.eps, s.species.sig);
-                const newRes = LJ(drNew, s.species.eps, s.species.sig);
-
-                oldE = oldRes.en;
-                newE = newRes.en;
-                oldXi = oldRes.xi;
-                newXi = newRes.xi;
+                if (drNew < s.species.sig) return;
+                continue;
             }
 
-            dE += newE - oldE;
-            dXi += newXi - oldXi;
+            if (s.species.type === "IG") continue;
+
+            const oldRes = LJ(drOld, s.species.eps, s.species.sig);
+            const newRes = LJ(drNew, s.species.eps, s.species.sig);
+
+            dE += newRes.en - oldRes.en;
+            dXi += newRes.xi - oldRes.xi;
         }
 
         if (dE < 0 || Math.random() < Math.exp(-dE/s.T)) {
@@ -184,91 +150,62 @@ if (p.species.type === "LJ") {
 
     function updateStats(s) {
 
-        console.log("TYPE:", s.species.type);
+        if (s.step < s.eqStart) return;
 
-    if (s.step < s.eqStart) return;
+        let E = 0;
+        let P = 0;
 
-    let E = 0;
-    let P = 0;
+        if (s.species.type === "IG") {
 
-    // =========================
-    // IDEAL GAS
-    // =========================
-    if (s.species.type === "IG") {
+            P = s.pid;
 
-        E = 0;
-        P = s.pid;
+        } else if (s.species.type === "HS") {
 
-    // =========================
-    // HARD SPHERES
-    // =========================
-    } else if (s.species.type === "HS") {
+            const sigma = s.species.sig * 1e-10;
+            const rho = s.N / s.V;
 
-        const V = s.boxSize**3 * 1e-27;      // m³
-        const sigma = s.species.sig * 1e-10; // m
-        const rho = s.N / V;
+            const eta = (Math.PI / 6) * rho * sigma**3;
 
-        const eta = (Math.PI / 6) * rho * sigma**3;
+            const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
 
-        let Z;
-        if (eta >= 0.6) {
-            Z = 100; // cap to avoid blow-up
+            P = s.pid * Z;
+
         } else {
-            Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+
+            const E_dim = s.energy;
+            E = R * E_dim;
+
+            P = s.xi * s.pcoef + s.pid;
+
+            const delta = E_dim - s.meanE;
+            s.meanE += delta / (s.count + 1);
+            s.M2E += delta * (E_dim - s.meanE);
         }
 
-        P = s.pid * Z;
-        E = 0;
-
-    // =========================
-    // LENNARD-JONES
-    // =========================
-    } else {
-
-        const E_dim = s.energy;
-        E = R * E_dim;
-
-        P = s.xi * s.pcoef + s.pid;
-
-        // energy stats ONLY for LJ
         s.count++;
-        const delta = E_dim - s.meanE;
-        s.meanE += delta / s.count;
-        s.M2E += delta * (E_dim - s.meanE);
+        s.meanP += (P - s.meanP) / s.count;
+
+        s.hist.push(E);
+
+        if (s.step % s.sampleEvery === 0) {
+            energyChart.data.labels.push(s.step);
+            energyChart.data.datasets[0].data.push(E);
+
+            pressureChart.data.labels.push(s.step);
+            pressureChart.data.datasets[0].data.push(P);
+        }
     }
-
-    // =========================
-    // PRESSURE STATS (ALL MODELS)
-    // =========================
-
-    s.meanP += (P - s.meanP) / (s.count + 1);
-
-    // increment count ONLY ONCE
-    s.count++;
-
-    s.hist.push(E);
-
-    if (s.step % s.sampleEvery === 0) {
-        energyChart.data.labels.push(s.step);
-        energyChart.data.datasets[0].data.push(E);
-
-        pressureChart.data.labels.push(s.step);
-        pressureChart.data.datasets[0].data.push(P);
-    }
-}
 
     function finalize(s) {
 
         const avgE = (s.species.type === "LJ") ? R * s.meanE : 0;
-const avgP = s.meanP;
+        const avgP = s.meanP;
 
-const varianceE = (s.count > 1 && s.species.type === "LJ")
-    ? s.M2E / (s.count - 1)
-    : 0;
+        const varianceE = (s.species.type === "LJ" && s.count > 1)
+            ? s.M2E / (s.count - 1)
+            : 0;
 
-        // ✅ OPTION A (correct, intensive, MC-consistent)
         const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
-
         const cv_ideal = 1.5 * Rj;
         const cv_total = cv_ideal + cv_real;
 
@@ -276,56 +213,7 @@ const varianceE = (s.count > 1 && s.species.type === "LJ")
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
              ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
              Cv(real) = ${cv_real.toFixed(2)} |
-             Cv(ideal) = ${cv_ideal.toFixed(2)} |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
-
-        // histogram
-        const bins = 30;
-
-        if (s.hist.length === 0) return;
-
-        let min = s.hist[0];
-        let max = s.hist[0];
-
-        // safer than Math.min(...array) for large arrays
-        for (let i = 1; i < s.hist.length; i++) {
-            if (s.hist[i] < min) min = s.hist[i];
-            if (s.hist[i] > max) max = s.hist[i];
-        }
-
-        // 🔥 CRITICAL FIX: avoid zero-width distribution
-        if (Math.abs(max - min) < 1e-12) {
-            max = min + 1e-6;
-        }
-
-        const hist = new Array(bins).fill(0);
-
-        for (let v of s.hist) {
-            let i = Math.floor((v - min) / (max - min) * bins);
-
-            if (i < 0) i = 0;
-            if (i >= bins) i = bins - 1;
-
-            hist[i]++;
-        }
-
-        // optional normalization (keeps shape nicer)
-        const total = s.hist.length;
-        const histNorm = hist.map(v => v / total);
-
-        // better labels (energy scale, not index)
-        const labels = [];
-        for (let i = 0; i < bins; i++) {
-            labels.push(
-                (min + (i + 0.5) * (max - min) / bins).toFixed(2)
-            );
-        }
-
-        histChart.data.labels = labels;
-        histChart.data.datasets[0].data = histNorm;
-
-        histChart.update();
-
     }
 
     function run(params) {
@@ -333,13 +221,9 @@ const varianceE = (s.count > 1 && s.species.type === "LJ")
         state = initSimulation(params);
 
         energyChart.data.labels = [];
-        energyChart.data.datasets[0].data = [];
-
         pressureChart.data.labels = [];
-        pressureChart.data.datasets[0].data = [];
 
         function loop() {
-
             for (let i=0;i<200;i++) {
                 mcStep(state);
                 state.step++;
@@ -363,9 +247,14 @@ const varianceE = (s.count > 1 && s.species.type === "LJ")
     return { run };
 }
 
+
+// ==========================
+// UI / BUTTON HANDLER
+// ==========================
 document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll(".toolbox").forEach(box => {
+
         if (box.id !== "mc-tool") return;
 
         const sim = createMCSimulation(box);
@@ -381,60 +270,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const btn = box.querySelector(".jsbox-btn-primary");
 
-if (!btn) {
-    console.error("Run button not found in toolbox");
-    return;
-}
+        btn.addEventListener("click", () => {
 
-btn.addEventListener("click", () => {
+            const speciesType = box.querySelector(".species").value;
 
-            console.log("CLICK detected");
+            const base = speciesDB[speciesType];
+            let species = { ...base };
 
-    const speciesSelect = box.querySelector(".species");
-    if (!speciesSelect) {
-        console.error("Species selector not found inside toolbox");
-        return;
-    }
+            // ✅ read sigma ONLY for HS
+            if (speciesType === "HS") {
+                const sigmaInput = box.querySelector(".sigma");
+                if (sigmaInput) {
+                    const val = parseFloat(sigmaInput.value);
+                    if (!isNaN(val)) species.sig = val;
+                }
+            }
 
-const speciesType = speciesSelect.value;
-
-    const base = speciesDB[speciesType];
-    let species = { ...base };
-
-    // ✅ read sigma from UI
-    const sigmaInput = box.querySelector(".sigma");
-
-if (speciesType === "HS") {
-    if (!sigmaInput) {
-        console.warn("No sigma input found, using default:", species.sig);
-    } else {
-        const val = parseFloat(sigmaInput.value);
-        if (!isNaN(val)) {
-            species.sig = val;
-        } else {
-            console.warn("Invalid sigma value, using default:", species.sig);
-        }
-    }
-}
-
-    if (sigmaInput && !isNaN(parseFloat(sigmaInput.value))) {
-        species.sig = parseFloat(sigmaInput.value);
-    }
-
-    console.log("Species sent to sim:", species); // DEBUG
-
-    sim.run({
-        N: parseInt(box.querySelector(".npart").value),
-        boxSize: parseFloat(box.querySelector(".box").value),
-        T: parseFloat(box.querySelector(".temp").value),
-        dx: box.querySelector(".dx") 
-            ? parseFloat(box.querySelector(".dx").value)
-            : undefined,
-        maxSteps: parseInt(box.querySelector(".steps").value),
-        species: species
+            sim.run({
+                N: parseInt(box.querySelector(".npart").value),
+                boxSize: parseFloat(box.querySelector(".box").value),
+                T: parseFloat(box.querySelector(".temp").value),
+                dx: box.querySelector(".dx") 
+                    ? parseFloat(box.querySelector(".dx").value)
+                    : undefined,
+                maxSteps: parseInt(box.querySelector(".steps").value),
+                species: species
+            });
+        });
     });
-
-});
-    });
-
 });
