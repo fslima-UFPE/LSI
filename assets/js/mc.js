@@ -149,8 +149,12 @@ function createMCSimulation(box) {
 
                 // HARD SPHERE: reject overlaps
                 if (drNew < s.species.sig) {
-                return; // reject move immediately
+                    return; // reject move immediately
                 }
+
+            } else if (s.species.type === "IG") {
+                continue;
+            }
 
             // no energy, no virial contribution
             } else {
@@ -314,12 +318,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const sim = createMCSimulation(box);
 
         const speciesDB = {
-            Xe: { eps: 218.18, sig: 4.055 },
-            Ar: { eps: 116.81, sig: 3.401 },
-            Ne: { eps: 36.831, sig: 2.775 },
-            He: { eps: 5.465, sig: 2.628 },
-            HS: { eps: 0.0001, sig: 4.0 },
-            IG: { eps: 0.000001, sig: 1.0 }
+            Xe: { eps: 218.18, sig: 4.055, type: "LJ" },
+            Ar: { eps: 116.81, sig: 3.401, type: "LJ" },
+            Ne: { eps: 36.831, sig: 2.775, type: "LJ" },
+            He: { eps: 5.465, sig: 2.628, type: "LJ" },
+            HS: { sig: 4.0, type: "HS" },
+            IG: { type: "IG" }
         };
 
         box.querySelector(".jsbox-btn-primary").addEventListener("click", () => {
