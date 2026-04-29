@@ -168,7 +168,7 @@ function createMCSimulation(box) {
 
             s.eta = (Math.PI / 6) * rho * sigma**3;
 
-            s.Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+            s.Z = (1 + s.eta + s.eta**2 - s.eta**3) / (1 - s.eta)**3;
 
             // compute pressure DIRECTLY (Pa → bar)
             P = s.pid * s.Z;
