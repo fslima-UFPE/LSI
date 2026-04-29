@@ -38,10 +38,10 @@ Vou ver se funciona.
             <input type="number" class="jsbox-input temp" value="300">
           </div>
 
-          <div class="jsbox-input-row">
+/*          <div class="jsbox-input-row">
             <label>dx (Å)</label>
             <input type="number" class="jsbox-input dx" value="5">
-          </div>
+          </div> */
 
           <div class="jsbox-input-row">
             <label>Steps</label>
