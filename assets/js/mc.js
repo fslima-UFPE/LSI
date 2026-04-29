@@ -142,11 +142,30 @@ function createMCSimulation(box) {
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
 
-            const oldRes = LJ(drOld, s.species.eps, s.species.sig);
-            const newRes = LJ(drNew, s.species.eps, s.species.sig);
+            let oldE = 0, newE = 0;
+            let oldXi = 0, newXi = 0;
 
-            dE += newRes.en - oldRes.en;
-            dXi += newRes.xi - oldRes.xi;
+            if (s.species.type === "HS") {
+
+                // HARD SPHERE: reject overlaps
+                if (drNew < s.species.sig) {
+                return; // reject move immediately
+                }
+
+            // no energy, no virial contribution
+            } else {
+
+                const oldRes = LJ(drOld, s.species.eps, s.species.sig);
+                const newRes = LJ(drNew, s.species.eps, s.species.sig);
+
+                oldE = oldRes.en;
+                newE = newRes.en;
+                oldXi = oldRes.xi;
+                newXi = newRes.xi;
+            }
+
+            dE += newE - oldE;
+            dXi += newXi - oldXi;
         }
 
         if (dE < 0 || Math.random() < Math.exp(-dE/s.T)) {
