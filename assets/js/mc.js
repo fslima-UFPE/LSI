@@ -202,20 +202,50 @@ function createMCSimulation(box) {
 
         // histogram
         const bins = 30;
-        const min = Math.min(...s.hist);
-        const max = Math.max(...s.hist);
+
+        if (s.hist.length === 0) return;
+
+        let min = s.hist[0];
+        let max = s.hist[0];
+
+        // safer than Math.min(...array) for large arrays
+        for (let i = 1; i < s.hist.length; i++) {
+            if (s.hist[i] < min) min = s.hist[i];
+            if (s.hist[i] > max) max = s.hist[i];
+        }
+
+        // 🔥 CRITICAL FIX: avoid zero-width distribution
+        if (Math.abs(max - min) < 1e-12) {
+            max = min + 1e-6;
+        }
 
         const hist = new Array(bins).fill(0);
 
-        s.hist.forEach(v=>{
-            const i = Math.floor((v-min)/(max-min)*bins);
-            hist[Math.min(i,bins-1)]++;
-        });
+        for (let v of s.hist) {
+            let i = Math.floor((v - min) / (max - min) * bins);
 
-        histChart.data.labels = hist.map((_,i)=>i);
-        histChart.data.datasets[0].data = hist;
+            if (i < 0) i = 0;
+            if (i >= bins) i = bins - 1;
+
+            hist[i]++;
+        }
+
+        // optional normalization (keeps shape nicer)
+        const total = s.hist.length;
+        const histNorm = hist.map(v => v / total);
+
+        // better labels (energy scale, not index)
+        const labels = [];
+        for (let i = 0; i < bins; i++) {
+            labels.push(
+                (min + (i + 0.5) * (max - min) / bins).toFixed(2)
+            );
+        }
+
+        histChart.data.labels = labels;
+        histChart.data.datasets[0].data = histNorm;
+
         histChart.update();
-    }
 
     function run(params) {
 
