@@ -163,7 +163,7 @@ function createMCSimulation(box) {
 
         } else if (s.species.type === "HS") {
 
-            const sigma = s.species.sig * 1e-10;
+            const sigma = s.species.sig;
             const rho = s.N / s.V;
 
             s.eta = (Math.PI / 6) * rho * sigma**3;
@@ -226,6 +226,41 @@ function createMCSimulation(box) {
              Cv(real) = ${cv_real.toFixed(2)} J/mol·K |
              Cv(ideal) = ${cv_ideal.toFixed(2)} J/mol·K |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
+
+        const bins = 30;
+
+if (s.hist.length === 0) return;
+
+let min = Math.min(...s.hist);
+let max = Math.max(...s.hist);
+
+if (Math.abs(max - min) < 1e-12) {
+    max = min + 1e-6;
+}
+
+const hist = new Array(bins).fill(0);
+
+for (let v of s.hist) {
+    let i = Math.floor((v - min) / (max - min) * bins);
+    if (i < 0) i = 0;
+    if (i >= bins) i = bins - 1;
+    hist[i]++;
+}
+
+const total = s.hist.length;
+const histNorm = hist.map(v => v / total);
+
+const labels = [];
+for (let i = 0; i < bins; i++) {
+    labels.push(
+        (min + (i + 0.5)*(max - min)/bins).toFixed(2)
+    );
+}
+
+histChart.data.labels = labels;
+histChart.data.datasets[0].data = histNorm;
+
+histChart.update();
     }
 
     function run(params) {
