@@ -209,23 +209,22 @@ function createMCSimulation(box) {
 
         if (s.species.type === "HS") {
 
-            const V = s.boxSize**3 * 1e-27; // Å³ → m³
-            const sigma = s.species.sig * 1e-10; // Å → m
+            const V = s.boxSize**3 * 1e-27;      // m³
+            const sigma = s.species.sig * 1e-10; // m
+            const rho = s.N / V;
 
-            const b = (2 * Math.PI / 3) * sigma**3;
+            const eta = (Math.PI / 6) * rho * sigma**3;
 
-            const Veff = V - s.N * b;
-
-            // avoid explosion if too dense
-            if (Veff <= 0) {
-                P = NaN;
-            } else {
-                P = 0.01 * s.N * kB * s.T / Veff; // in bar
-            }
+            if (eta >= 0.7) {
+            P = 1e6; // cap (bar)
+        } else {
+            const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+            P = s.pid * Z;  // cleaner
+        }
 
         } else {
 
-            P = s.xi*s.pcoef + s.pid;
+            P = s.xi * s.pcoef + s.pid;
         }
 
         // Welford update (stable variance!)
