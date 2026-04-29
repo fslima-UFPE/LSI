@@ -363,7 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
             Ar: { eps: 116.81, sig: 3.401, type: "LJ" },
             Ne: { eps: 36.831, sig: 2.775, type: "LJ" },
             He: { eps: 5.465, sig: 2.628, type: "LJ" },
-            HS: { sig: 4.0, type: "HS" },
+            HS: { sig: 8.0, type: "HS" },
             IG: { type: "IG" }
         };
 
