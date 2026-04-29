@@ -11,7 +11,7 @@ Vou ver se funciona.
 <div class="toolbox" id="mc-tool">
 
   <div class="toolbox-header">
-    <h2 class="toolbox-title">Monte Carlo Simulation (Lennard-Jones)</h2>
+    <h2 class="toolbox-title">Pressão de um gás real</h2>
   </div>
 
   <div class="toolbox-content">
@@ -21,7 +21,7 @@ Vou ver se funciona.
       <div class="jsbox-controls-grid">
 
         <div>
-          <div class="jsbox-col-title sys">System</div>
+          <div class="jsbox-col-title sys">Sistema</div>
 
           <div class="jsbox-input-row">
             <label>N</label>
@@ -29,7 +29,7 @@ Vou ver se funciona.
           </div>
 
           <div class="jsbox-input-row">
-            <label>Box (Å)</label>
+            <label>Aresta (Å)</label>
             <input type="number" class="jsbox-input box" value="50">
           </div>
 
@@ -44,26 +44,26 @@ Vou ver se funciona.
           </div> -->
 
           <div class="jsbox-input-row">
-            <label>Steps</label>
+            <label>Passos</label>
             <input type="number" class="jsbox-input steps" value="200000">
           </div>
 
           <div class="jsbox-input-row">
-            <label>Species</label>
+            <label>Espécie</label>
             <select class="jsbox-input species">
               <option value="Xe">Xe</option>
               <option value="Ar">Ar</option>
               <option value="Ne">Ne</option>
               <option value="He">He</option>
-              <option value="HS">Hard Sphere</option>
-              <option value="IG">Ideal Gas</option>
+              <option value="HS">Esferas rígidas</option>
+              <option value="IG">Gás Ideal</option>
             </select>
           </div>
         </div>
 
         <div style="display:flex;align-items:flex-end;">
           <button class="jsbox-btn jsbox-btn-primary">
-            Run Simulation
+            Rodar Simulação
           </button>
         </div>
 
@@ -76,21 +76,21 @@ Vou ver se funciona.
       <div class="jsbox-vis-right">
 
         <div class="jsbox-card">
-          <div class="jsbox-card-header">Energy</div>
+          <div class="jsbox-card-header">Energia</div>
           <div class="jsbox-card-body">
             <canvas id="energyChart" class="jsbox-chart"></canvas>
           </div>
         </div>
 
         <div class="jsbox-card">
-          <div class="jsbox-card-header">Pressure</div>
+          <div class="jsbox-card-header">Pressão</div>
           <div class="jsbox-card-body">
             <canvas id="pressureChart" class="jsbox-chart"></canvas>
           </div>
         </div>
 
         <div class="jsbox-card">
-          <div class="jsbox-card-header">Energy Histogram</div>
+          <div class="jsbox-card-header">Histograma de energia</div>
           <div class="jsbox-card-body">
             <canvas id="histChart" class="jsbox-chart"></canvas>
           </div>
@@ -102,7 +102,7 @@ Vou ver se funciona.
 
     <!-- RESULTS -->
     <div class="jsbox-alert results">
-      Results will appear here
+      Resultados da simulação
     </div>
 
   </div>
