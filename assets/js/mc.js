@@ -173,20 +173,22 @@ function createMCSimulation(box) {
             // compute pressure DIRECTLY (Pa → bar)
             P = s.pid * s.Z;
 
-        } else {
+        } else { // LJ
 
-            const E_dim = s.energy;
-            E = R * E_dim;
+    const E_dim = s.energy;
+    E = R * E_dim;
 
-            P = s.xi * s.pcoef + s.pid;
+    P = s.xi * s.pcoef + s.pid;
 
-            const delta = E_dim - s.meanE;
-            s.meanE += delta / (s.count);
-            s.M2E += delta * (E_dim - s.meanE);
-        }
+    // ✅ update stats ONLY here and consistently
+    s.count++;
 
-        s.count++;
-        s.meanP += (P - s.meanP) / s.count;
+    const delta = E_dim - s.meanE;
+    s.meanE += delta / s.count;
+    s.M2E += delta * (E_dim - s.meanE);
+
+    s.meanP += (P - s.meanP) / s.count;
+}
 
         s.hist.push(E);
 
@@ -200,7 +202,7 @@ function createMCSimulation(box) {
     }
 
     function finalize(s) {
-
+        
         const avgE = (s.species.type === "LJ") ? R * s.meanE : 0;
         const avgP = s.meanP;
 
@@ -221,37 +223,85 @@ function createMCSimulation(box) {
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
              ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
-             Cv(real) = ${cv_real.toFixed(2)} |
+             Cv(real) = ${cv_real.toFixed(2)} J/mol·K |
+             Cv(ideal) = ${cv_ideal.toFixed(2)} J/mol·K |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
     }
 
     function run(params) {
 
-        state = initSimulation(params);
+    state = initSimulation(params);
 
-        energyChart.data.labels = [];
-        pressureChart.data.labels = [];
+    // reset charts
+    energyChart.data.labels = [];
+    energyChart.data.datasets[0].data = [];
 
-        function loop() {
-            for (let i=0;i<200;i++) {
-                mcStep(state);
-                state.step++;
-                updateStats(state);
+    pressureChart.data.labels = [];
+    pressureChart.data.datasets[0].data = [];
 
-                if (state.step >= state.maxSteps) {
-                    finalize(state);
-                    return;
-                }
-            }
+    histChart.data.labels = [];
+    histChart.data.datasets[0].data = [];
 
-            energyChart.update();
-            pressureChart.update();
+    // 🚀 SHORT-CIRCUIT FOR IG / HS
+    if (state.species.type === "IG" || state.species.type === "HS") {
 
-            requestAnimationFrame(loop);
+        let E = 0;
+        let P;
+
+        if (state.species.type === "IG") {
+            P = state.pid;
+        } else {
+            const sigma = state.species.sig * 1e-10;
+            const rho = state.N / state.V;
+            const eta = (Math.PI / 6) * rho * sigma**3;
+            const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+
+            P = state.pid * Z;
         }
 
-        loop();
+        // fake flat plots
+        for (let i = 0; i < 100; i++) {
+            energyChart.data.labels.push(i);
+            energyChart.data.datasets[0].data.push(E);
+
+            pressureChart.data.labels.push(i);
+            pressureChart.data.datasets[0].data.push(P);
+        }
+
+        energyChart.update();
+        pressureChart.update();
+
+        box.querySelector(".results").innerHTML =
+            `⟨E⟩ = 0.00 kJ/mol |
+             ⟨P⟩ = ${P.toFixed(2)} bar <br>
+             Cv(real) = 0.00 |
+             Cv(ideal) = ${(1.5*Rj).toFixed(2)} |
+             Cv(total) = ${(1.5*Rj).toFixed(2)} J/mol·K`;
+
+        return;
     }
+
+    function loop() {
+
+        for (let i = 0; i < 200; i++) {
+            mcStep(state);        
+            state.step++;
+            updateStats(state);   
+
+            if (state.step >= state.maxSteps) {
+                finalize(state);
+                return;
+            }
+        }
+
+        energyChart.update();
+        pressureChart.update();
+
+        requestAnimationFrame(loop);
+    }
+
+    loop(); 
+}
 
     return { run };
 }
