@@ -247,6 +247,8 @@ function createMCSimulation(box) {
 
         histChart.update();
 
+    }
+
     function run(params) {
 
         state = initSimulation(params);
