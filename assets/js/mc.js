@@ -379,15 +379,43 @@ document.addEventListener("DOMContentLoaded", () => {
             IG: { type: "IG" }
         };
 
-        box.querySelector(".jsbox-btn-primary").addEventListener("click", () => {
+        const btn = box.querySelector(".jsbox-btn-primary");
 
-    const speciesType = box.querySelector(".species").value;
+if (!btn) {
+    console.error("Run button not found in toolbox");
+    return;
+}
+
+btn.addEventListener("click", () => {
+
+            console.log("CLICK detected");
+
+    const speciesSelect = box.querySelector(".species");
+    if (!speciesSelect) {
+        console.error("Species selector not found inside toolbox");
+        return;
+    }
+
+const speciesType = speciesSelect.value;
 
     const base = speciesDB[speciesType];
     let species = { ...base };
 
     // ✅ read sigma from UI
     const sigmaInput = box.querySelector(".sigma");
+
+if (speciesType === "HS") {
+    if (!sigmaInput) {
+        console.warn("No sigma input found, using default:", species.sig);
+    } else {
+        const val = parseFloat(sigmaInput.value);
+        if (!isNaN(val)) {
+            species.sig = val;
+        } else {
+            console.warn("Invalid sigma value, using default:", species.sig);
+        }
+    }
+}
 
     if (sigmaInput && !isNaN(parseFloat(sigmaInput.value))) {
         species.sig = parseFloat(sigmaInput.value);
