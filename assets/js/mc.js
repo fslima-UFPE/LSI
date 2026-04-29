@@ -182,29 +182,28 @@ function createMCSimulation(box) {
 
         if (s.step < s.eqStart) return;
 
-        if (s.species.type === "HS" || s.species.type === "IG") {
-        // enforce constant values explicitly
+        if (s.species.type === "IG") {
+
             const E = 0;
             const P = s.pid;
 
             if (s.step % s.sampleEvery === 0) {
-                energyChart.data.labels.push(s.step);
-                energyChart.data.datasets[0].data.push(E);
+            energyChart.data.labels.push(s.step);
+            energyChart.data.datasets[0].data.push(E);
 
-                pressureChart.data.labels.push(s.step);
-                pressureChart.data.datasets[0].data.push(P);
-            }
-
-            s.hist.push(E);
-
-            s.count++;
-            s.meanP += (P - s.meanP) / s.count;
-
-            return; // skip LJ-based stats
+            pressureChart.data.labels.push(s.step);
+            pressureChart.data.datasets[0].data.push(P);
         }
 
-        const E_dim = s.energy;           // K
-        const E = R * E_dim;              // kJ/mol
+        s.hist.push(E);
+        s.count++;
+        s.meanP += (P - s.meanP) / s.count;
+
+        return;
+        }
+
+        const E_dim = (s.species.type === "HS") ? 0 : s.energy;
+        const E = R * E_dim;
         let P;
 
         if (s.species.type === "HS") {
