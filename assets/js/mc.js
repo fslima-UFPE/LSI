@@ -168,7 +168,8 @@ function createMCSimulation(box) {
 
             const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
 
-            P = s.pid * Z;
+            // compute pressure DIRECTLY (Pa → bar)
+            P = 0.01 * rho * kB * s.T * Z;
 
         } else {
 
