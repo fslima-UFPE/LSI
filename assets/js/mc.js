@@ -179,7 +179,7 @@ function createMCSimulation(box) {
             P = s.xi * s.pcoef + s.pid;
 
             const delta = E_dim - s.meanE;
-            s.meanE += delta / (s.count + 1);
+            s.meanE += delta / (s.count);
             s.M2E += delta * (E_dim - s.meanE);
         }
 
