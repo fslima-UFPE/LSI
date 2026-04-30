@@ -187,7 +187,7 @@ if (s.species.type === "IG") {
 s.count++;
 s.meanP += (P - s.meanP) / s.count;
 
-if (s.step % s.sampleEvery === 0) {
+if (s.step > s.eqStart && s.step % 10 === 0) {
     s.hist.push(E);
 }
 
