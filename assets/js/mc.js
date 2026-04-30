@@ -225,7 +225,7 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
              Cv(ideal) = ${cv_ideal.toFixed(2)} J/mol·K |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
 
-        const bins = 30;
+        const bins = 80;
 
     if (s.hist.length === 0) return;
 
