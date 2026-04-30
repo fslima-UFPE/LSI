@@ -46,6 +46,9 @@ function createMCSimulation(box) {
 
     let state = null;
 
+    // =========================
+    // POTENTIAL FUNCTIONS
+    // =========================
     function LJ(dr, eps, sig) {
         const s = sig / dr;
         const s2 = s * s;
@@ -70,6 +73,9 @@ function createMCSimulation(box) {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
+    // =========================
+    // INIT
+    // =========================
     function initSimulation(p) {
 
         const positions = [];
@@ -99,7 +105,6 @@ function createMCSimulation(box) {
         let xi = 0;
 
         if (p.species.type === "LJ") {
-
             for (let i = 0; i < p.N; i++) {
                 for (let j = i + 1; j < p.N; j++) {
 
@@ -141,6 +146,9 @@ function createMCSimulation(box) {
         };
     }
 
+    // =========================
+    // MC STEP
+    // =========================
     function mcStep(s) {
 
         const i = Math.floor(Math.random() * s.N);
@@ -180,6 +188,9 @@ function createMCSimulation(box) {
         }
     }
 
+    // =========================
+    // STATS
+    // =========================
     function updateStats(s) {
 
         if (s.step < s.eqStart) return;
@@ -217,11 +228,8 @@ function createMCSimulation(box) {
 
         s.meanP += (P - s.meanP) / s.count;
 
-        if (s.step > s.eqStart && s.step % 10 === 0) {
-            s.hist.push(E);
-        }
-
         if (s.step % s.sampleEvery === 0) {
+            s.hist.push(E);
 
             energyChart.data.labels.push(s.step);
             energyChart.data.datasets[0].data.push(E);
@@ -231,6 +239,9 @@ function createMCSimulation(box) {
         }
     }
 
+    // =========================
+    // FINALIZE
+    // =========================
     function finalize(s) {
 
         const avgE = (s.species.type === "LJ") ? R * s.meanE : 0;
@@ -243,17 +254,23 @@ function createMCSimulation(box) {
 
         const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
         const cv_ideal = 1.5 * Rj;
+        const cv_total = cv_ideal + cv_real;
+
+        if (s.species.type === "HS") {
+            console.log("eta =", s.eta);
+            console.log("Z =", s.Z);
+        }
 
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
              ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
-             Cv(real) = ${cv_real.toFixed(2)} |
-             Cv(ideal) = ${cv_ideal.toFixed(2)} |
-             Cv(total) = ${(cv_real + cv_ideal).toFixed(2)}`;
-
-        const bins = 30;
+             Cv(real) = ${cv_real.toFixed(2)} J/mol·K |
+             Cv(ideal) = ${cv_ideal.toFixed(2)} J/mol·K |
+             Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
 
         if (s.hist.length === 0) return;
+
+        const bins = 30;
 
         let min = s.hist[0];
         let max = s.hist[0];
@@ -276,15 +293,11 @@ function createMCSimulation(box) {
             hist[i]++;
         }
 
-        const total = s.hist.length;
-        const histNorm = hist.map(v => v / total);
+        const histNorm = hist.map(v => v / s.hist.length);
 
         const labels = [];
-
         for (let i = 0; i < bins; i++) {
-            labels.push(
-                (min + (i + 0.5) * (max - min) / bins).toFixed(2)
-            );
+            labels.push((min + (i + 0.5) * (max - min) / bins).toFixed(2));
         }
 
         histChart.data.labels = labels;
@@ -293,6 +306,9 @@ function createMCSimulation(box) {
         histChart.update();
     }
 
+    // =========================
+    // RUN
+    // =========================
     function run(params) {
 
         state = initSimulation(params);
@@ -306,47 +322,10 @@ function createMCSimulation(box) {
         histChart.data.labels = [];
         histChart.data.datasets[0].data = [];
 
-        if (state.species.type === "IG" || state.species.type === "HS") {
-
-            let E = 0;
-            let P;
-
-            if (state.species.type === "IG") {
-                P = state.pid;
-            } else {
-                const sigma = state.species.sig;
-                const rho = state.N / state.V;
-                const eta = (Math.PI / 6) * rho * sigma ** 3;
-                const Z = (1 + eta + eta ** 2 - eta ** 3) / (1 - eta) ** 3;
-
-                P = state.pid * Z;
-            }
-
-            for (let i = 0; i < 100; i++) {
-
-                energyChart.data.labels.push(i);
-                energyChart.data.datasets[0].data.push(E);
-
-                pressureChart.data.labels.push(i);
-                pressureChart.data.datasets[0].data.push(P);
-            }
-
-            energyChart.update();
-            pressureChart.update();
-
-            box.querySelector(".results").innerHTML =
-                `⟨E⟩ = 0.00 kJ/mol |
-                 ⟨P⟩ = ${P.toFixed(2)} bar <br>
-                 Cv(real) = 0.00 |
-                 Cv(ideal) = ${(1.5 * Rj).toFixed(2)} |
-                 Cv(total) = ${(1.5 * Rj).toFixed(2)} J/mol·K`;
-
-            return;
-        }
-
         function loop() {
 
             for (let i = 0; i < 200; i++) {
+
                 mcStep(state);
                 state.step++;
                 updateStats(state);
