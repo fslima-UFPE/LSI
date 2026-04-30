@@ -185,7 +185,6 @@ if (s.species.type === "IG") {
         s.M2E += delta * (E_dim - s.meanE);    
 }
 
-   //     s.count++;
         s.meanP += (P - s.meanP) / s.count;
 
 if (s.step > s.eqStart && s.step % 10 === 0) {
@@ -227,7 +226,7 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
              Cv(ideal) = ${cv_ideal.toFixed(2)} J/mol·K |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
 
-        const bins = 80;
+        const bins = 50;
 
     if (s.hist.length === 0) return;
 
