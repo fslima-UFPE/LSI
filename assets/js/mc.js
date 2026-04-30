@@ -212,15 +212,25 @@ function createMCSimulation(box) {
         const cv_ideal = 1.5 * Rj;
         const cv_total = cv_ideal + cv_real;
 
+        // ==========================================
+        // COMPRESSIBILITY FACTOR (Z) CALCULATION
+        // ==========================================
+        // Z = P_real / P_ideal
+        // Since s.pid is exactly the ideal gas pressure, this safely 
+        // works for IG (returns 1), HS, and LJ!
+        const zFactor = avgP / s.pid;
+
         if (s.species.type === "HS") {
             console.log("FINAL HS VALUES:");
             console.log("eta =", s.eta);
             console.log("Z =", s.Z);
         }
 
+        // Updated innerHTML to include Z = zFactor.toFixed(3)
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
-             ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
+             ⟨P⟩ = ${avgP.toFixed(2)} bar |
+             Z = ${zFactor.toFixed(3)} <br>
              Cv(real) = ${cv_real.toFixed(2)} |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
 
