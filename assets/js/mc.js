@@ -276,7 +276,16 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
 
     state = initSimulation(params);
 
-    // reset charts
+    resetCharts();
+
+    const type = state.species.type;
+
+    if (type === "IG") return runIG(state);
+    if (type === "HS") return runHS(state);
+    return runLJ(state);
+}
+    function resetCharts() {
+
     energyChart.data.labels = [];
     energyChart.data.datasets[0].data = [];
 
@@ -285,14 +294,13 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
 
     histChart.data.labels = [];
     histChart.data.datasets[0].data = [];
+}
 
-    // 🚀 SHORT-CIRCUIT FOR IG / HS
-    if (state.species.type === "IG") {
+    function runIG(s) {
 
-    let E = 0;
-    let P = state.pid;
+    const E = 0;
+    const P = s.pid;
 
-    // fake plots
     for (let i = 0; i < 100; i++) {
         energyChart.data.labels.push(i);
         energyChart.data.datasets[0].data.push(E);
@@ -308,21 +316,22 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
         `⟨E⟩ = 0.00 kJ/mol |
          ⟨P⟩ = ${P.toFixed(2)} bar <br>
          Cv(real) = 0.00 |
-         Cv(ideal) = ${(1.5*Rj).toFixed(2)} |
-         Cv(total) = ${(1.5*Rj).toFixed(2)} J/mol·K`;
+         Cv(ideal) = ${(1.5 * Rj).toFixed(2)} |
+         Cv(total) = ${(1.5 * Rj).toFixed(2)} J/mol·K`;
 
-    return;      
-        }
+    return;
+}
 
-        if (state.species.type === "HS") {
+    function runHS(s) {
 
-    const sigma = state.species.sig;
-    const rho = state.N / state.V;
+    const sigma = s.species.sig;
+    const rho = s.N / s.V;
+
     const eta = (Math.PI / 6) * rho * sigma**3;
     const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
 
-    let E = 0;
-    let P = state.pid * Z;
+    const E = 0;
+    const P = s.pid * Z;
 
     for (let i = 0; i < 100; i++) {
         energyChart.data.labels.push(i);
@@ -335,18 +344,24 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
     energyChart.update();
     pressureChart.update();
 
+    console.log("HS FINAL:");
+    console.log("eta =", eta);
+    console.log("Z =", Z);
+
     return;
-    }
+}
+
+    function runLJ(s) {
 
     function loop() {
 
         for (let i = 0; i < 200; i++) {
-            mcStep(state);        
-            state.step++;
-            updateStats(state);   
+            mcStep(s);
+            s.step++;
+            updateStats(s);
 
-            if (state.step >= state.maxSteps) {
-                finalize(state);
+            if (s.step >= s.maxSteps) {
+                finalize(s);
                 return;
             }
         }
@@ -357,10 +372,8 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
         requestAnimationFrame(loop);
     }
 
-    loop(); 
+    loop();
 }
-
-    return { run };
 
 
 // ==========================
