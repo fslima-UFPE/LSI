@@ -235,7 +235,7 @@ function createMCSimulation(box) {
                 if (s.hist[i] > maxE) maxE = s.hist[i];
             }
 
-            const numBins = 30; 
+            const numBins = 50; 
             const binSize = (maxE - minE) / numBins || 1; 
 
             const counts = new Array(numBins).fill(0);
