@@ -224,13 +224,18 @@ function createMCSimulation(box) {
              Cv(real) = ${cv_real.toFixed(2)} |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
 
-        // FIX 2: Process the raw history into histogram bins
+        // Process the raw history into histogram bins safely
         if (s.hist.length > 0) {
-            const minE = Math.min(...s.hist);
-            const maxE = Math.max(...s.hist);
-            const numBins = 30; // You can adjust the number of bins
             
-            // Fallback to 1 if max == min to prevent division by zero in perfectly flat data
+            // FIX: Use a loop instead of the spread operator (...s.hist)
+            let minE = Infinity;
+            let maxE = -Infinity;
+            for (let i = 0; i < s.hist.length; i++) {
+                if (s.hist[i] < minE) minE = s.hist[i];
+                if (s.hist[i] > maxE) maxE = s.hist[i];
+            }
+
+            const numBins = 30; 
             const binSize = (maxE - minE) / numBins || 1; 
 
             const counts = new Array(numBins).fill(0);
@@ -240,7 +245,6 @@ function createMCSimulation(box) {
                 counts[idx]++;
             }
 
-            // Create labels representing the center of each bin
             histChart.data.labels = Array.from({length: numBins}, (_, i) => 
                 (minE + (i + 0.5) * binSize).toFixed(2)
             );
