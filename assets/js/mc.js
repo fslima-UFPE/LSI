@@ -230,6 +230,15 @@ function createMCSimulation(box) {
         state = initSimulation(params);
 
         energyChart.data.labels = [];
+        energyChart.data.datasets[0].data = [];
+
+        pressureChart.data.labels = [];
+        pressureChart.data.datasets[0].data = [];
+
+        histChart.data.labels = [];
+        histChart.data.datasets[0].data = [];
+
+        energyChart.data.labels = [];
         pressureChart.data.labels = [];
 
         function loop() {
