@@ -198,6 +198,10 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
             pressureChart.data.labels.push(s.step);
             pressureChart.data.datasets[0].data.push(P);
         }
+
+        if (s.species.type === "HS") {
+    console.log("HS Z =", s.Z, "eta =", s.eta, "P =", P);
+}
     }
 
     function finalize(s) {
