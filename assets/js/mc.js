@@ -157,6 +157,8 @@ function createMCSimulation(box) {
        let E = 0;
 let P = 0;
 
+        s.count++;
+
 if (s.species.type === "IG") {
 
     P = s.pid;
@@ -179,11 +181,11 @@ if (s.species.type === "IG") {
     P = s.xi * s.pcoef + s.pid;
 
         const delta = E_dim - s.meanE;
-        s.meanE += delta / (s.count + 1);
+        s.meanE += delta / (s.count);
         s.M2E += delta * (E_dim - s.meanE);    
 }
 
-        s.count++;
+   //     s.count++;
         s.meanP += (P - s.meanP) / s.count;
 
 if (s.step > s.eqStart && s.step % 10 === 0) {
