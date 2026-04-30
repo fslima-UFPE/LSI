@@ -187,7 +187,9 @@ if (s.species.type === "IG") {
 s.count++;
 s.meanP += (P - s.meanP) / s.count;
 
-s.hist.push(E);
+if (s.step % s.sampleEvery === 0) {
+    s.hist.push(E);
+}
 
         if (s.step % s.sampleEvery === 0) {
             energyChart.data.labels.push(s.step);
