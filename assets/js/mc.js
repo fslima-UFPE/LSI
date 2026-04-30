@@ -2,41 +2,19 @@ function createMCSimulation(box) {
 
     const energyChart = new Chart(box.querySelector("#energyChart"), {
         type: "line",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Energy (kJ/mol)",
-                data: [],
-                borderWidth: 2,
-                pointRadius: 0
-            }]
-        },
+        data: { labels: [], datasets: [{ label: "Energy (kJ/mol)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const pressureChart = new Chart(box.querySelector("#pressureChart"), {
         type: "line",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Pressure (bar)",
-                data: [],
-                borderWidth: 2,
-                pointRadius: 0
-            }]
-        },
+        data: { labels: [], datasets: [{ label: "Pressure (bar)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const histChart = new Chart(box.querySelector("#histChart"), {
         type: "bar",
-        data: {
-            labels: [],
-            datasets: [{
-                label: "Energy histogram (kJ/mol)",
-                data: []
-            }]
-        },
+        data: { labels: [], datasets: [{ label: "Energy histogram (kJ/mol)", data: [] }] },
         options: { animation: false }
     });
 
@@ -46,36 +24,30 @@ function createMCSimulation(box) {
 
     let state = null;
 
-    // =========================
-    // POTENTIAL FUNCTIONS
-    // =========================
     function LJ(dr, eps, sig) {
         const s = sig / dr;
-        const s2 = s * s;
-        const s6 = s2 * s2 * s2;
-        const s12 = s6 * s6;
+        const s2 = s*s;
+        const s6 = s2*s2*s2;
+        const s12 = s6*s6;
 
         return {
             en: 4 * eps * (s12 - s6),
-            xi: 24 * eps * (2 * s12 - s6)
+            xi: 24 * eps * (2*s12 - s6)
         };
     }
 
     function dist(a, b, box) {
-        let dx = a[0] - b[0];
-        let dy = a[1] - b[1];
-        let dz = a[2] - b[2];
+        let dx = a[0]-b[0];
+        let dy = a[1]-b[1];
+        let dz = a[2]-b[2];
 
-        dx -= Math.round(dx / box) * box;
-        dy -= Math.round(dy / box) * box;
-        dz -= Math.round(dz / box) * box;
+        dx -= Math.round(dx/box)*box;
+        dy -= Math.round(dy/box)*box;
+        dz -= Math.round(dz/box)*box;
 
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        return Math.sqrt(dx*dx+dy*dy+dz*dz);
     }
 
-    // =========================
-    // INIT
-    // =========================
     function initSimulation(p) {
 
         const positions = [];
@@ -83,19 +55,16 @@ function createMCSimulation(box) {
         const spacing = p.boxSize / ngrid;
 
         let count = 0;
-
-        for (let x = 0; x < ngrid; x++) {
-            for (let y = 0; y < ngrid; y++) {
-                for (let z = 0; z < ngrid; z++) {
-
+        for (let x=0;x<ngrid;x++){
+            for (let y=0;y<ngrid;y++){
+                for (let z=0;z<ngrid;z++){
                     if (count >= p.N) break;
 
                     positions.push([
-                        (x + 0.5) * spacing,
-                        (y + 0.5) * spacing,
-                        (z + 0.5) * spacing
+                        (x+0.5)*spacing,
+                        (y+0.5)*spacing,
+                        (z+0.5)*spacing
                     ]);
-
                     count++;
                 }
             }
@@ -105,12 +74,10 @@ function createMCSimulation(box) {
         let xi = 0;
 
         if (p.species.type === "LJ") {
-            for (let i = 0; i < p.N; i++) {
-                for (let j = i + 1; j < p.N; j++) {
-
+            for (let i=0;i<p.N;i++){
+                for (let j=i+1;j<p.N;j++){
                     const dr = dist(positions[i], positions[j], p.boxSize);
                     const res = LJ(dr, p.species.eps, p.species.sig);
-
                     energy += res.en;
                     xi += res.xi;
                 }
@@ -122,10 +89,9 @@ function createMCSimulation(box) {
             energy,
             xi,
             step: 0,
-            eqStart: Math.floor(0.2 * p.maxSteps),
-
+            eqStart: Math.floor(0.2*p.maxSteps),
             eta: 0,
-            Z: 1,
+            Z:1,        
 
             meanE: 0,
             M2E: 0,
@@ -138,31 +104,27 @@ function createMCSimulation(box) {
 
             dx: (p.dx !== undefined) ? p.dx : 5,
 
-            V: p.boxSize ** 3,
-            pid: p.N * kB * p.T / (p.boxSize ** 3),
-            pcoef: kB / (p.T * (p.boxSize ** 3)),
+            V: p.boxSize**3,
+            pid: p.N * kB * p.T / (p.boxSize**3),
+            pcoef: kB/(p.T*(p.boxSize**3)),
 
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300))
         };
     }
 
-    // =========================
-    // MC STEP
-    // =========================
     function mcStep(s) {
 
-        const i = Math.floor(Math.random() * s.N);
+        const i = Math.floor(Math.random()*s.N);
         const old = [...s.positions[i]];
 
-        let newPos = old.map(v => v + (Math.random() - 0.5) * s.dx);
-        newPos = newPos.map(v => (v + s.boxSize) % s.boxSize);
+        let newPos = old.map(v => v + (Math.random()-0.5)*s.dx);
+        newPos = newPos.map(v => (v+s.boxSize)%s.boxSize);
 
         let dE = 0;
         let dXi = 0;
 
-        for (let j = 0; j < s.N; j++) {
-
-            if (j === i) continue;
+        for (let j=0;j<s.N;j++){
+            if (j===i) continue;
 
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
@@ -181,16 +143,13 @@ function createMCSimulation(box) {
             dXi += newRes.xi - oldRes.xi;
         }
 
-        if (dE < 0 || Math.random() < Math.exp(-dE / s.T)) {
+        if (dE < 0 || Math.random() < Math.exp(-dE/s.T)) {
             s.positions[i] = newPos;
             s.energy += dE;
             s.xi += dXi;
         }
     }
 
-    // =========================
-    // STATS
-    // =========================
     function updateStats(s) {
 
         if (s.step < s.eqStart) return;
@@ -198,20 +157,20 @@ function createMCSimulation(box) {
         let E = 0;
         let P = 0;
 
-        s.count++;
-
         if (s.species.type === "IG") {
 
             P = s.pid;
 
         } else if (s.species.type === "HS") {
 
-            const sigma = s.species.sig;
+            const sigma = s.species.sig * 1e-10;
             const rho = s.N / s.V;
 
-            s.eta = (Math.PI / 6) * rho * sigma ** 3;
-            s.Z = (1 + s.eta + s.eta ** 2 - s.eta ** 3) / (1 - s.eta) ** 3;
+            s.eta = (Math.PI / 6) * rho * sigma**3;
 
+            s.Z = (1 + s.eta + s.eta**2 - s.eta**3) / (1 - s.eta)**3;
+
+            // compute pressure DIRECTLY (Pa → bar)
             P = s.pid * s.Z;
 
         } else {
@@ -222,15 +181,16 @@ function createMCSimulation(box) {
             P = s.xi * s.pcoef + s.pid;
 
             const delta = E_dim - s.meanE;
-            s.meanE += delta / s.count;
+            s.meanE += delta / (s.count);
             s.M2E += delta * (E_dim - s.meanE);
         }
 
+        s.count++;
         s.meanP += (P - s.meanP) / s.count;
 
-        if (s.step % s.sampleEvery === 0) {
-            s.hist.push(E);
+        s.hist.push(E);
 
+        if (s.step % s.sampleEvery === 0) {
             energyChart.data.labels.push(s.step);
             energyChart.data.datasets[0].data.push(E);
 
@@ -239,24 +199,21 @@ function createMCSimulation(box) {
         }
     }
 
-    // =========================
-    // FINALIZE
-    // =========================
     function finalize(s) {
 
         const avgE = (s.species.type === "LJ") ? R * s.meanE : 0;
         const avgP = s.meanP;
 
-        const varianceE =
-            (s.species.type === "LJ" && s.count > 1)
-                ? s.M2E / (s.count - 1)
-                : 0;
+        const varianceE = (s.species.type === "LJ" && s.count > 1)
+            ? s.M2E / (s.count - 1)
+            : 0;
 
         const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
         const cv_ideal = 1.5 * Rj;
         const cv_total = cv_ideal + cv_real;
 
         if (s.species.type === "HS") {
+            console.log("FINAL HS VALUES:");
             console.log("eta =", s.eta);
             console.log("Z =", s.Z);
         }
@@ -264,68 +221,19 @@ function createMCSimulation(box) {
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
              ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
-             Cv(real) = ${cv_real.toFixed(2)} J/mol·K |
-             Cv(ideal) = ${cv_ideal.toFixed(2)} J/mol·K |
+             Cv(real) = ${cv_real.toFixed(2)} |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
-
-        if (s.hist.length === 0) return;
-
-        const bins = 30;
-
-        let min = s.hist[0];
-        let max = s.hist[0];
-
-        for (let i = 1; i < s.hist.length; i++) {
-            if (s.hist[i] < min) min = s.hist[i];
-            if (s.hist[i] > max) max = s.hist[i];
-        }
-
-        if (Math.abs(max - min) < 1e-12) {
-            max = min + 1e-6;
-        }
-
-        const hist = new Array(bins).fill(0);
-
-        for (let v of s.hist) {
-            let i = Math.floor((v - min) / (max - min) * bins);
-            if (i < 0) i = 0;
-            if (i >= bins) i = bins - 1;
-            hist[i]++;
-        }
-
-        const histNorm = hist.map(v => v / s.hist.length);
-
-        const labels = [];
-        for (let i = 0; i < bins; i++) {
-            labels.push((min + (i + 0.5) * (max - min) / bins).toFixed(2));
-        }
-
-        histChart.data.labels = labels;
-        histChart.data.datasets[0].data = histNorm;
-
-        histChart.update();
     }
 
-    // =========================
-    // RUN
-    // =========================
     function run(params) {
 
         state = initSimulation(params);
 
         energyChart.data.labels = [];
-        energyChart.data.datasets[0].data = [];
-
         pressureChart.data.labels = [];
-        pressureChart.data.datasets[0].data = [];
-
-        histChart.data.labels = [];
-        histChart.data.datasets[0].data = [];
 
         function loop() {
-
-            for (let i = 0; i < 200; i++) {
-
+            for (let i=0;i<200;i++) {
                 mcStep(state);
                 state.step++;
                 updateStats(state);
@@ -347,3 +255,56 @@ function createMCSimulation(box) {
 
     return { run };
 }
+
+
+// ==========================
+// UI / BUTTON HANDLER
+// ==========================
+document.addEventListener("DOMContentLoaded", () => {
+
+    document.querySelectorAll(".toolbox").forEach(box => {
+
+        if (box.id !== "mc-tool") return;
+
+        const sim = createMCSimulation(box);
+
+        const speciesDB = {
+            Xe: { eps: 218.18, sig: 4.055, type: "LJ" },
+            Ar: { eps: 116.81, sig: 3.401, type: "LJ" },
+            Ne: { eps: 36.831, sig: 2.775, type: "LJ" },
+            He: { eps: 5.465, sig: 2.628, type: "LJ" },
+            HS: { sig: 8.0, type: "HS" },
+            IG: { type: "IG" }
+        };
+
+        const btn = box.querySelector(".jsbox-btn-primary");
+
+        btn.addEventListener("click", () => {
+
+            const speciesType = box.querySelector(".species").value;
+
+            const base = speciesDB[speciesType];
+            let species = { ...base };
+
+            // ✅ read sigma ONLY for HS
+            if (speciesType === "HS") {
+                const sigmaInput = box.querySelector(".sigma");
+                if (sigmaInput) {
+                    const val = parseFloat(sigmaInput.value);
+                    if (!isNaN(val)) species.sig = val;
+                }
+            }
+
+            sim.run({
+                N: parseInt(box.querySelector(".npart").value),
+                boxSize: parseFloat(box.querySelector(".box").value),
+                T: parseFloat(box.querySelector(".temp").value),
+                dx: box.querySelector(".dx") 
+                    ? parseFloat(box.querySelector(".dx").value)
+                    : undefined,
+                maxSteps: parseInt(box.querySelector(".steps").value),
+                species: species
+            });
+        });
+    });
+});
