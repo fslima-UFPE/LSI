@@ -61,7 +61,7 @@ Vou ver se funciona.
           </div>
 
           
-          <div class="jsbox-input-row">
+          <div class="jsbox-input-row" id="sigma-row" style="display: none;">
             <label>sigma (Å)</label>
             <input type="number" class="jsbox-input sigma" value="4">
           </div>
