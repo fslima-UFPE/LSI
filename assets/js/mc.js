@@ -32,7 +32,7 @@ function createMCSimulation(box) {
 
         return {
             en: 4 * eps * (s12 - s6),
-            xi: 24 * eps * (2*s12 - s6)
+            xi: eps * (2*s12 - s6)
         };
     }
 
