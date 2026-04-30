@@ -178,14 +178,13 @@ if (s.species.type === "IG") {
 
     P = s.xi * s.pcoef + s.pid;
 
-    const delta = E_dim - s.meanE;
-    s.meanE += delta / (s.count + 1);
-    s.M2E += delta * (E_dim - s.meanE);
+        const delta = E_dim - s.meanE;
+        s.meanE += delta / (s.count + 1);
+        s.M2E += delta * (E_dim - s.meanE);    
 }
 
-// ✅ COMMON UPDATE (ALL MODELS)
-s.count++;
-s.meanP += (P - s.meanP) / s.count;
+        s.count++;
+        s.meanP += (P - s.meanP) / s.count;
 
 if (s.step > s.eqStart && s.step % 10 === 0) {
     s.hist.push(E);
