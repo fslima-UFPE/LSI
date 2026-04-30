@@ -154,6 +154,9 @@ function createMCSimulation(box) {
 
         if (s.step < s.eqStart) return;
 
+        // FIX 1: Increment count FIRST to prevent divide-by-zero
+        s.count++; 
+
         let E = 0;
         let P = 0;
 
@@ -167,10 +170,8 @@ function createMCSimulation(box) {
             const rho = s.N / s.V;
 
             s.eta = (Math.PI / 6) * rho * sigma**3;
-
             s.Z = (1 + s.eta + s.eta**2 - s.eta**3) / (1 - s.eta)**3;
 
-            // compute pressure DIRECTLY (Pa → bar)
             P = s.pid * s.Z;
 
         } else {
@@ -181,11 +182,10 @@ function createMCSimulation(box) {
             P = s.xi * s.pcoef + s.pid;
 
             const delta = E_dim - s.meanE;
-            s.meanE += delta / (s.count);
+            s.meanE += delta / s.count; // Now perfectly safe!
             s.M2E += delta * (E_dim - s.meanE);
         }
 
-        s.count++;
         s.meanP += (P - s.meanP) / s.count;
 
         s.hist.push(E);
@@ -223,6 +223,30 @@ function createMCSimulation(box) {
              ⟨P⟩ = ${avgP.toFixed(2)} bar <br>
              Cv(real) = ${cv_real.toFixed(2)} |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
+
+        // FIX 2: Process the raw history into histogram bins
+        if (s.hist.length > 0) {
+            const minE = Math.min(...s.hist);
+            const maxE = Math.max(...s.hist);
+            const numBins = 30; // You can adjust the number of bins
+            
+            // Fallback to 1 if max == min to prevent division by zero in perfectly flat data
+            const binSize = (maxE - minE) / numBins || 1; 
+
+            const counts = new Array(numBins).fill(0);
+            
+            for (let val of s.hist) {
+                const idx = Math.min(Math.floor((val - minE) / binSize), numBins - 1);
+                counts[idx]++;
+            }
+
+            // Create labels representing the center of each bin
+            histChart.data.labels = Array.from({length: numBins}, (_, i) => 
+                (minE + (i + 0.5) * binSize).toFixed(2)
+            );
+            histChart.data.datasets[0].data = counts;
+            histChart.update();
+        }
     }
 
     function run(params) {
