@@ -266,6 +266,47 @@ function createMCSimulation(box) {
         histChart.data.labels = [];
         histChart.data.datasets[0].data = [];
 
+        // ==========================================
+        // 🚀 BYPASS FOR IDEAL GAS & HARD SPHERES
+        // ==========================================
+        if (state.species.type === "IG" || state.species.type === "HS") {
+            let P = 0;
+
+            if (state.species.type === "IG") {
+                P = state.pid;
+            } else { // Hard Spheres
+                const rho = state.N / state.V;
+                const sigma = state.species.sig;
+                state.eta = (Math.PI / 6) * rho * sigma**3;
+                state.Z = (1 + state.eta + state.eta**2 - state.eta**3) / (1 - state.eta)**3;
+                P = state.pid * state.Z;
+            }
+
+            // 1. Draw perfectly flat lines for E and P from step 0 to maxSteps
+            energyChart.data.labels = [0, state.maxSteps];
+            energyChart.data.datasets[0].data = [0, 0];
+            
+            pressureChart.data.labels = [0, state.maxSteps];
+            pressureChart.data.datasets[0].data = [P, P];
+
+            energyChart.update();
+            pressureChart.update();
+
+            // 2. Fake the state statistics so finalize() formats the text correctly
+            state.meanE = 0; 
+            state.meanP = P;
+            state.count = state.maxSteps; // Pretend we ran all steps
+            state.M2E = 0;
+            
+            // 3. Put a single zero in the history so the histogram renders a spike at 0
+            state.hist = [0]; 
+
+            // 4. Instantly print results and EXIT (skip the MC loop)
+            finalize(state);
+            return; 
+        }
+        // ==========================================
+
         function loop() {
             for (let i=0;i<200;i++) {
                 mcStep(state);
