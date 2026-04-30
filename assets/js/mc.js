@@ -106,7 +106,7 @@ function createMCSimulation(box) {
 
             V: p.boxSize**3,
             pid: p.N * kB * p.T / (p.boxSize**3),
-            pcoef: kB/(p.T*(p.boxSize**3)),
+            pcoef: 8*kB/(p.T*(p.boxSize**3)),
 
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300))
         };
@@ -163,7 +163,7 @@ function createMCSimulation(box) {
 
         } else if (s.species.type === "HS") {
 
-            const sigma = s.species.sig * 1e-10;
+            const sigma = s.species.sig;
             const rho = s.N / s.V;
 
             s.eta = (Math.PI / 6) * rho * sigma**3;
