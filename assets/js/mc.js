@@ -287,42 +287,56 @@ if (s.step > s.eqStart && s.step % 10 === 0) {
     histChart.data.datasets[0].data = [];
 
     // 🚀 SHORT-CIRCUIT FOR IG / HS
-    if (state.species.type === "IG" || state.species.type === "HS") {
+    if (state.species.type === "IG") {
 
-        let E = 0;
-        let P;
+    let E = 0;
+    let P = state.pid;
 
-        if (state.species.type === "IG") {
-            P = state.pid;
-        } else {
-            const sigma = state.species.sig * 1e-10;
-            const rho = state.N / state.V;
-            const eta = (Math.PI / 6) * rho * sigma**3;
-            const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+    // fake plots
+    for (let i = 0; i < 100; i++) {
+        energyChart.data.labels.push(i);
+        energyChart.data.datasets[0].data.push(E);
 
-            P = state.pid * Z;
+        pressureChart.data.labels.push(i);
+        pressureChart.data.datasets[0].data.push(P);
+    }
+
+    energyChart.update();
+    pressureChart.update();
+
+    box.querySelector(".results").innerHTML =
+        `⟨E⟩ = 0.00 kJ/mol |
+         ⟨P⟩ = ${P.toFixed(2)} bar <br>
+         Cv(real) = 0.00 |
+         Cv(ideal) = ${(1.5*Rj).toFixed(2)} |
+         Cv(total) = ${(1.5*Rj).toFixed(2)} J/mol·K`;
+
+    return;      
         }
 
-        // fake flat plots
-        for (let i = 0; i < 100; i++) {
-            energyChart.data.labels.push(i);
-            energyChart.data.datasets[0].data.push(E);
+        if (state.species.type === "HS") {
 
-            pressureChart.data.labels.push(i);
-            pressureChart.data.datasets[0].data.push(P);
-        }
+    const sigma = state.species.sig;
+    const rho = state.N / state.V;
+    const eta = (Math.PI / 6) * rho * sigma**3;
+    const Z = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
 
-        energyChart.update();
-        pressureChart.update();
+    let E = 0;
+    let P = state.pid * Z;
 
-        box.querySelector(".results").innerHTML =
-            `⟨E⟩ = 0.00 kJ/mol |
-             ⟨P⟩ = ${P.toFixed(2)} bar <br>
-             Cv(real) = 0.00 |
-             Cv(ideal) = ${(1.5*Rj).toFixed(2)} |
-             Cv(total) = ${(1.5*Rj).toFixed(2)} J/mol·K`;
+    for (let i = 0; i < 100; i++) {
+        energyChart.data.labels.push(i);
+        energyChart.data.datasets[0].data.push(E);
 
-        return;
+        pressureChart.data.labels.push(i);
+        pressureChart.data.datasets[0].data.push(P);
+    }
+
+    energyChart.update();
+    pressureChart.update();
+
+    return;
+}
     }
 
     function loop() {
