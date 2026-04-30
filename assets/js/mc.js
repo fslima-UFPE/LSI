@@ -312,6 +312,22 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         const btn = box.querySelector(".jsbox-btn-primary");
+        
+        // --- NEW CODE START ---
+        const speciesSelect = box.querySelector(".species");
+        const sigmaRow = box.querySelector("#sigma-row");
+
+        // Listen for changes in the dropdown menu
+        speciesSelect.addEventListener("change", (e) => {
+            if (e.target.value === "HS") {
+                // 'flex' or 'block' depending on how your CSS is set up. 
+                // Usually 'flex' works best for input rows.
+                sigmaRow.style.display = "flex"; 
+            } else {
+                sigmaRow.style.display = "none";
+            }
+        });
+        // --- NEW CODE END ---
 
         btn.addEventListener("click", () => {
 
@@ -320,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const base = speciesDB[speciesType];
             let species = { ...base };
 
-            // ✅ read sigma ONLY for HS
+            // ✅ read sigma ONLY for HS (This stays exactly as you had it!)
             if (speciesType === "HS") {
                 const sigmaInput = box.querySelector(".sigma");
                 if (sigmaInput) {
