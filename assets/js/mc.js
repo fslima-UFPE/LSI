@@ -228,8 +228,13 @@ s.hist.push(E);
 
 if (s.hist.length === 0) return;
 
-let min = Math.min(...s.hist);
-let max = Math.max(...s.hist);
+let min = s.hist[0];
+let max = s.hist[0];
+
+for (let i = 1; i < s.hist.length; i++) {
+    if (s.hist[i] < min) min = s.hist[i];
+    if (s.hist[i] > max) max = s.hist[i];
+}
 
 if (Math.abs(max - min) < 1e-12) {
     max = min + 1e-6;
