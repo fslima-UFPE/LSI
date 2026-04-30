@@ -230,7 +230,7 @@ function createMCSimulation(box) {
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
              ⟨P⟩ = ${avgP.toFixed(2)} bar |
-             P(ideal) = ${pid.toFixed(2)} bar |
+             P(ideal) = ${s.pid.toFixed(2)} bar |
              Z = ${zFactor.toFixed(3)} <br>
              Cv(real) = ${cv_real.toFixed(2)} |
              Cv(total) = ${cv_total.toFixed(2)} J/mol·K`;
