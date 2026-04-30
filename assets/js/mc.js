@@ -106,7 +106,7 @@ function createMCSimulation(box) {
 
             V: p.boxSize**3,
             pid: p.N * kB * p.T / (p.boxSize**3),
-            pcoef: 8*kB/(p.T*(p.boxSize**3)),
+            pcoef: 8*kB/((p.boxSize**3)),
 
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300))
         };
