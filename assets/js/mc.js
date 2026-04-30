@@ -238,9 +238,6 @@ function createMCSimulation(box) {
         histChart.data.labels = [];
         histChart.data.datasets[0].data = [];
 
-        energyChart.data.labels = [];
-        pressureChart.data.labels = [];
-
         function loop() {
             for (let i=0;i<200;i++) {
                 mcStep(state);
