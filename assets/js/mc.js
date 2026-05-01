@@ -226,9 +226,9 @@ function createMCSimulation(box) {
              ⟨P⟩ = ${avgP.toFixed(2)} bar |
              P<sub>id</sub> = ${s.pid.toFixed(2)} bar |
              Z = ${zFactor.toFixed(3)} <br>
-             C<sub>V<sub>(real) = ${cv_real.toFixed(2)} |
-             C<sub>V<sub>(ideal) = ${cv_ideal.toFixed(2)} |
-             C<sub>V<sub>(total) = ${cv_total.toFixed(2)} J/mol·K`;
+             C<sub>V</sub>(real) = ${cv_real.toFixed(2)} |
+             C<sub>V</sub>(ideal) = ${cv_ideal.toFixed(2)} |
+             C<sub>V</sub>(total) = ${cv_total.toFixed(2)} J/mol·K`;
 
         // Process the raw history into histogram bins safely
         if (s.hist.length > 0) {
