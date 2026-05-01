@@ -51,15 +51,16 @@ Vou ver se funciona.
           <div class="jsbox-input-row">
             <label>Espécie</label>
             <select class="jsbox-input species">
-              <option value="Xe">Xe</option>
-              <option value="Ar">Ar</option>
-              <option value="Ne">Ne</option>
-              <option value="He">He</option>
-              <option value="HS">Esferas rígidas</option>
-              <option value="IG">Gás Ideal</option>
+              <option value="Xe">Xe (LJ)</option>
+              <option value="Ar">Ar (LJ)</option>
+              <option value="Ne">Ne (LJ)</option>
+              <option value="He">He (LJ)</option>
+              <option value="HS">Esfera rígida</option>
+              <option value="IG">Gás ideal</option>
             </select>
           </div>
 
+          <div class="species-info" style="font-size: 0.85em; color: #666; margin-bottom: 10px; min-height: 1.2em;"></div>
           
           <div class="jsbox-input-row" id="sigma-row" style="display: none;">
             <label>sigma (Å)</label>
