@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let stepP = 1;
     let snapThresholdP = 0; 
     
-    // NEW: Global boundaries for our warnings
     let globalMinP = 0; 
     let globalMaxP = 0;
 
@@ -136,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let results = calculateMaxwellTraces(newP);
         let diff = Math.abs(results.a1 - results.a2);
         let total = results.a1 + results.a2;
-        // Fallback to 0 if total area is zero to prevent NaN
         let err = total > 0 ? (diff / total) * 100 : 0; 
 
         let finalP = newP;
@@ -167,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (a2Label) a2Label.innerText = results.a2.toFixed(3);
         if (pValLabel) pValLabel.innerText = finalP.toFixed(2);
 
-        // NEW: Warning logic for out-of-bounds pressure
         if (pDisplayBox) {
             pDisplayBox.classList.remove("snapped");
             
@@ -178,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (diffLabel) diffLabel.innerText = "N/A";
                 pDisplayBox.innerHTML = `⚠️ Pressure is below local min! (<b id="currentP-val">${finalP.toFixed(2)}</b> bar)`;
             } else {
-                // Normal operations
                 if (diffLabel) diffLabel.innerText = results.crossings === 3 ? err.toFixed(1) + "%" : "N/A";
                 
                 if ((isSnapped || err < 1.0) && results.crossings === 3) {
@@ -214,8 +210,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const T = parseFloat(tempInput.value);
         const { a, b, Tc } = substanceDB[molKey];
         
+        // --- NEW: Badge Updates ---
         const tcBadge = document.getElementById('tcBadge');
         if (tcBadge) tcBadge.innerText = `Tc = ${Tc.toFixed(1)} K`;
+
+        const aBadge = document.getElementById('aBadge');
+        if (aBadge) aBadge.innerHTML = `a = ${a.toFixed(3)} bar&middot;L&sup2;/mol&sup2;`;
+
+        const bBadge = document.getElementById('bBadge');
+        if (bBadge) bBadge.innerText = `b = ${b.toFixed(5)} L/mol`;
+        // --------------------------
         
         const tcAlert = document.getElementById('tcAlert');
 
