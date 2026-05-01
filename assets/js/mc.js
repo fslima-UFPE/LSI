@@ -392,7 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Handle LJ Parameter Display
             if (spec && spec.type === "LJ") {
-                infoArea.innerHTML = `Parameters: σ = <b>${spec.sig}</b> Å, ε/k<sub>B</sub> = <b>${spec.eps}</b> K`;
+                infoArea.innerHTML = `Parâmetros: σ = <b>${spec.sig}</b> Å, ε/k<sub>B</sub> = <b>${spec.eps}</b> K`;
             } else {
                 infoArea.innerHTML = ""; 
             }
