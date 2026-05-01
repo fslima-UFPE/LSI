@@ -54,17 +54,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Visualization & Interactive Logic
     // ==========================================
     const chartDiv = document.getElementById('isothermChart');
+    
+    // SAFETY CHECK: If the script loads but the div isn't found, stop here to prevent crashes.
+    if (!chartDiv) return; 
+
     const a1Label = document.getElementById('a1-val');
     const a2Label = document.getElementById('a2-val');
     const diffLabel = document.getElementById('diff-val');
     const equalAlert = document.getElementById('equalAlert');
-
-    chartDiv.on('plotly_relayout', function(eventData) {
-        if (eventData['shapes[0].y0'] !== undefined) {
-            const newPGuess = eventData['shapes[0].y0'];
-            updateAreasUI(newPGuess);
-        }
-    });
 
     function updateAreasUI(P_guess) {
         const results = calculateLoopAreas(P_guess);
@@ -148,10 +145,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const config = { responsive: true, displayModeBar: false, edits: { shapePosition: true } };
 
+        // THE FIX: We wrap the listener INSIDE the .then() block
         Plotly.newPlot(chartDiv, data, layout, config).then(() => {
+            // 1. Calculate the initial areas
             updateAreasUI(initialPGuess);
+            
+            // 2. Clear any old listeners (prevents ghost listeners if user changes temp)
+            if (chartDiv.removeAllListeners) {
+                chartDiv.removeAllListeners('plotly_relayout');
+            }
+
+            // 3. Attach the drag listener NOW that Plotly has created the canvas
+            chartDiv.on('plotly_relayout', function(eventData) {
+                if (eventData['shapes[0].y0'] !== undefined) {
+                    const newPGuess = eventData['shapes[0].y0'];
+                    updateAreasUI(newPGuess);
+                }
+            });
         });
     }
+
+    // ==========================================
+    // 3. Initialization Listeners
+    // ==========================================
+    document.getElementById('moleculeSelect').addEventListener('change', drawIsotherm);
+    document.getElementById('tempInput').addEventListener('change', drawIsotherm);
+
+    // Run on Load
+    drawIsotherm();
+});
 
     // ==========================================
     // 3. Initialization Listeners
