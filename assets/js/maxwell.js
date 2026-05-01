@@ -71,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Detect Intersection
             if (isBelow !== currentlyBelow) {
                 // Precise intersection using linear interpolation
-                // x = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
                 const V_interp = V_prev + (P_test - P_prev) * (V_curr - V_prev) / (P_curr - P_prev);
 
                 if (crossings === 0) { // C1: Entering Loop 1 (A1)
@@ -117,6 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Visualization & Interactive Logic
     // ==========================================
     const chartDiv = document.getElementById('isothermChart');
+    
+    // SAFETY: If the chart container doesn't exist on this page, stop running the script.
     if (!chartDiv) return; 
 
     const a1Label = document.getElementById('a1-val');
@@ -145,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (results.crossings === 3 && err < 5.0 && err > 0.05) {
             finalP = exactPsat;
             isSnapped = true;
-            // Recalculate everything against the true truth
             results = calculateMaxwellTraces(finalP);
             err = 0; 
         }
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. DYNAMIC COLOR LOGIC
         let colorA1, colorA2;
         
-        if (err < 1.0) { // The BALANCED state
+        if (err < 1.0) { // BALANCED state
             colorA1 = colorPurpleSnap;
             colorA2 = colorPurpleSnap;
         } else if (results.a1 > results.a2) { // A1 > A2
@@ -166,151 +166,30 @@ document.addEventListener('DOMContentLoaded', () => {
             colorA2 = colorBlueMax;
         }
 
-        // 2. UI Updates (Text/Labels)
-        a1Label.innerText = results.a1.toFixed(3);
-        a2Label.innerText = results.a2.toFixed(3);
-        diffLabel.innerText = err.toFixed(1) + "%";
-        pValLabel.innerText = finalP.toFixed(2);
+        // 2. UI Updates (Safety checks included)
+        if (a1Label) a1Label.innerText = results.a1.toFixed(3);
+        if (a2Label) a2Label.innerText = results.a2.toFixed(3);
+        if (diffLabel) diffLabel.innerText = err.toFixed(1) + "%";
+        if (pValLabel) pValLabel.innerText = finalP.toFixed(2);
 
-        if (err < 1.0 && results.crossings === 3) {
-            pDisplayBox.classList.add("snapped");
-            pDisplayBox.innerHTML = `🎉 Sucesso! Pressão de Saturação: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
-        } else {
-            pDisplayBox.classList.remove("snapped");
-            pDisplayBox.innerHTML = `Pressão de Teste Atual: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+        if (pDisplayBox) {
+            if (err < 1.0 && results.crossings === 3) {
+                pDisplayBox.classList.add("snapped");
+                pDisplayBox.innerHTML = `🎉 Success! Saturation Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+            } else {
+                pDisplayBox.classList.remove("snapped");
+                pDisplayBox.innerHTML = `Current Test Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+            }
         }
 
-        // 3. PLOTLY UPDATE (Restyle)
-        // Move the line physically if needed
+        // 3. PLOTLY UPDATE
         if (isSnapped || !isFromDrag) {
             Plotly.relayout(chartDiv, { 'shapes[0].y0': finalP, 'shapes[0].y1': finalP });
         }
 
-        // Update Trace 1 (A1 Fill) and Trace 2 (A2 Fill) with new polygon data and colors
-        // Restyle uses arrays of indices [1, 2] to apply to both traces simultaneously
         const newTraceData = {
             'x': [results.a1_poly ? results.a1_poly.x : [], results.a2_poly ? results.a2_poly.x : []],
             'y': [results.a1_poly ? results.a1_poly.y : [], results.a2_poly ? results.a2_poly.y : []],
             'fillcolor': [colorA1, colorA2]
         };
         Plotly.restyle(chartDiv, newTraceData, [1, 2]);
-    }
-
-    function drawIsotherm() {
-        const molKey = document.getElementById('moleculeSelect').value;
-        const T = parseFloat(document.getElementById('tempInput').value);
-        const { a, b, Tc } = substanceDB[molKey];
-        
-        document.getElementById('tcBadge').innerText = `Tc = ${Tc.toFixed(1)} K`;
-        const tcAlert = document.getElementById('tcAlert');
-
-        if (T >= Tc) {
-            tcAlert.innerText = `⚠️ Escolha T < ${Tc.toFixed(1)} K`;
-            Plotly.purge(chartDiv); 
-            btnUp.disabled = true; btnDown.disabled = true;
-            pDisplayBox.style.display = "none";
-            return;
-        } else {
-            tcAlert.innerText = "";
-            btnUp.disabled = false; btnDown.disabled = false;
-            pDisplayBox.style.display = "block";
-        }
-
-        currentVArray = [];
-        currentPArray = [];
-        let V = b * 1.02; 
-        const maxV = b * 50; 
-        const numPoints = 1500; 
-        const dV = (maxV - V) / numPoints;
-
-        let localMinP = null, localMaxP = null, localMaxV = null;
-        let goingUp = false;
-
-        // Generate full high-res isotherm data
-        for (let i = 0; i <= numPoints; i++) {
-            const P = (R * T) / (V - b) - (a / (V * V));
-            currentVArray.push(V); currentPArray.push(P);
-            if (i > 0) {
-                if (!goingUp && P > currentPArray[i-1]) {
-                    localMinP = currentPArray[i-1]; goingUp = true;
-                } else if (goingUp && P < currentPArray[i-1]) {
-                    localMaxP = currentPArray[i-1]; localMaxV = currentVArray[i-1]; goingUp = false;
-                }
-            }
-            V += dV;
-        }
-
-        let yDomain = [0, 100], xDomain = [b, b * 20], initialPGuess = 50;
-
-        if (localMinP !== null && localMaxP !== null) {
-            const yPadding = (localMaxP - localMinP) * 0.2;
-            yDomain = [localMinP - yPadding, localMaxP + yPadding];
-            xDomain = [b * 1.1, localMaxV * 5]; 
-            initialPGuess = localMinP + (localMaxP - localMinP) * 0.15; 
-            
-            exactPsat = findExactPsat(localMinP, localMaxP);
-            stepP = (localMaxP - localMinP) / 100;
-        }
-
-        // --- DEFINING THE 3 TRACES ---
-
-        // Trace 0: The Isotherm Line (Solid, no fill)
-        const isothermTrace = {
-            x: currentVArray, y: currentPArray, mode: 'lines', name: 'Isoterma',
-            line: { color: '#0056b3', width: 3 }, hoverinfo: 'none'
-        };
-
-        // Trace 1: A1 Loop Fill (Closed polygon, solid color)
-        const a1FillTrace = {
-            x: [], y: [], fill: 'toself', mode: 'lines', line: { width: 0 },
-            name: 'Área 1', hoverinfo: 'none', fillcolor: colorRedMin
-        };
-
-        // Trace 2: A2 Loop Fill
-        const a2FillTrace = {
-            x: [], y: [], fill: 'toself', mode: 'lines', line: { width: 0 },
-            name: 'Área 2', hoverinfo: 'none', fillcolor: colorBlueMax
-        };
-
-        const layout = {
-            title: { text: `Isoterma vdW (${molKey}) a ${T} K`, font: { family: 'Segoe UI', size: 16 } },
-            xaxis: { title: 'Volume Molar (L/mol)', range: xDomain, zeroline: false },
-            yaxis: { title: 'Pressão (bar)', range: yDomain, zeroline: false },
-            // Red draggable line
-            shapes: [{
-                type: 'line', xref: 'paper', x0: 0, x1: 1, y0: initialPGuess, y1: initialPGuess,
-                line: { color: '#dc3545', width: 3, dash: 'dash' }, editable: true
-            }],
-            margin: { l: 60, r: 30, b: 60, t: 60 },
-            plot_bgcolor: "white", paper_bgcolor: "#f8f9fa", dragmode: 'pan',
-            showlegend: false // Legend is clutter here
-        };
-
-        const data = [isothermTrace, a1FillTrace, a2FillTrace];
-
-        Plotly.newPlot(chartDiv, data, layout, { responsive: true, displayModeBar: false, edits: { shapePosition: true } }).then(() => {
-            // Initial render
-            handlePressureChange(initialPGuess, false);
-            
-            if (chartDiv.removeAllListeners) chartDiv.removeAllListeners('plotly_relayout');
-
-            chartDiv.on('plotly_relayout', function(eventData) {
-                if (eventData['shapes[0].y0'] !== undefined) {
-                    const draggedP = eventData['shapes[0].y0'];
-                    if (Math.abs(draggedP - exactPsat) < 1e-4) return; 
-                    handlePressureChange(draggedP, true);
-                }
-            });
-        });
-    }
-
-    // Button Listeners
-    btnUp.onclick = () => handlePressureChange(currentP_global + stepP, false);
-    btnDown.onclick = () => handlePressureChange(currentP_global - stepP, false);
-
-    // Initial Listeners
-    document.getElementById('moleculeSelect').addEventListener('change', drawIsotherm);
-    document.getElementById('tempInput').addEventListener('change', drawIsotherm);
-
-    drawIsotherm();
-});
