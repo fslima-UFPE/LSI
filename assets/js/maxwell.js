@@ -140,4 +140,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 editable: true
             }],
             margin: { l: 60, r: 30, b: 60, t: 80 },
-            plot_bgcolor: "white", paper_
+            plot_bgcolor: "white", paper_bgcolor: "#f8f9fa"
+        };
+
+        const config = { responsive: true, displayModeBar: false, edits: { shapePosition: true } };
+
+        Plotly.newPlot(chartDiv, data, layout, config).then(() => {
+            updateAreasUI(initialPGuess);
+            
+            if (chartDiv.removeAllListeners) {
+                chartDiv.removeAllListeners('plotly_relayout');
+            }
+
+            chartDiv.on('plotly_relayout', function(eventData) {
+                if (eventData['shapes[0].y0'] !== undefined) {
+                    const newPGuess = eventData['shapes[0].y0'];
+                    updateAreasUI(newPGuess);
+                }
+            });
+        });
+    }
+
+    // ==========================================
+    // 3. Initialization Listeners
+    // ==========================================
+    document.getElementById('moleculeSelect').addEventListener('change', drawIsotherm);
+    document.getElementById('tempInput').addEventListener('change', drawIsotherm);
+
+    // Run on Load
+    drawIsotherm();
+});
