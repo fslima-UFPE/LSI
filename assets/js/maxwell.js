@@ -14,13 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentVArray = [];
     let currentPArray = [];
     
-    // Globals for state management
     let exactPsat = 0; 
     let currentP_global = 0;
     let stepP = 1;
-    let snapThresholdP = 0; // New global for pressure-based snapping
+    let snapThresholdP = 0; 
 
-    // Numerical Solver for exact Psat (no fills, just math)
     function mathOnlyAreas(P_test) {
         if (currentPArray.length === 0) return { a1: 0, a2: 0 };
         let a1 = 0, a2 = 0, crossings = 0;
@@ -54,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return (low + high) / 2;
     }
 
-    // Engine: Generates Trace Coordinates and Area Data
     function calculateMaxwellTraces(P_test) {
         if (currentPArray.length === 0) return { a1: 0, a2: 0, crossings: 0, a1_poly: null, a2_poly: null };
 
@@ -69,28 +66,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const isBelow = P_curr < P_test;
             
-            // Detect Intersection
             if (isBelow !== currentlyBelow) {
-                // Precise intersection using linear interpolation
                 const V_interp = V_prev + (P_test - P_prev) * (V_curr - V_prev) / (P_curr - P_prev);
 
-                if (crossings === 0) { // C1: Entering Loop 1 (A1)
+                if (crossings === 0) { 
                     a1_X = [V_interp, V_curr]; a1_Y = [P_test, P_curr];
-                } else if (crossings === 1) { // C2: Exiting Loop 1, Entering Loop 2 (A2)
-                    a1_X.push(V_interp); a1_Y.push(P_test); // Finalize A1 path
-                    a2_X = [V_interp, V_curr]; a2_Y = [P_test, P_curr]; // Start A2 path
-                } else if (crossings === 2) { // C3: Exiting Loop 2
-                    a2_X.push(V_interp); a2_Y.push(P_test); // Finalize A2 path
+                } else if (crossings === 1) { 
+                    a1_X.push(V_interp); a1_Y.push(P_test); 
+                    a2_X = [V_interp, V_curr]; a2_Y = [P_test, P_curr]; 
+                } else if (crossings === 2) { 
+                    a2_X.push(V_interp); a2_Y.push(P_test); 
                 }
                 crossings++;
                 currentlyBelow = isBelow;
             } else {
-                // Just moving along the isotherm curve
                 if (crossings === 1) { a1_X.push(V_curr); a1_Y.push(P_curr); }
                 else if (crossings === 2) { a2_X.push(V_curr); a2_Y.push(P_curr); }
             }
 
-            // Area math using Trapezoidal rule
             if (crossings === 1 && a1_X.length > 2) {
                 a1 += 0.5 * ((P_test - P_prev) + (P_test - P_curr)) * dV;
             } else if (crossings === 2 && a2_X.length > 2) {
@@ -98,12 +91,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Close the polygons (loop back to P_test)
-        if (a1_X.length > 3) {
-            a1_X.push(a1_X[0]); a1_Y.push(P_test);
-        }
-        if (a2_X.length > 3) {
-            a2_X.push(a2_X[0]); a2_Y.push(P_test);
+        if (crossings === 3) {
+            if (a1_X.length > 3) {
+                a1_X.push(a1_X[0]); a1_Y.push(P_test);
+            }
+            if (a2_X.length > 3) {
+                a2_X.push(a2_X[0]); a2_Y.push(P_test);
+            }
+        } else {
+            a1_X = []; a1_Y = []; a2_X = []; a2_Y = [];
+            a1 = 0; a2 = 0;
         }
 
         return {
@@ -117,8 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Visualization & Interactive Logic
     // ==========================================
     const chartDiv = document.getElementById('isothermChart');
-    
-    // SAFETY: If the chart container doesn't exist on this page, stop running the script.
     if (!chartDiv) return; 
 
     const a1Label = document.getElementById('a1-val');
@@ -129,12 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnUp = document.getElementById('btnUp');
     const btnDown = document.getElementById('btnDown');
 
-    // UI Colors (RGBA for transparency)
-    const colorRedMin = 'rgba(220, 53, 69, 0.7)'; // Loop is smaller
-    const colorBlueMax = 'rgba(0, 123, 255, 0.7)'; // Loop is larger
-    const colorPurpleSnap = 'rgba(111, 66, 193, 0.8)'; // Loop is balanced
+    const colorRedMin = 'rgba(220, 53, 69, 0.7)'; 
+    const colorBlueMax = 'rgba(0, 123, 255, 0.7)'; 
+    const colorPurpleSnap = 'rgba(111, 66, 193, 0.8)'; 
 
-    function handlePressureChange(newP, isFromDrag = false) {
+    function handlePressureChange(newP) {
         let results = calculateMaxwellTraces(newP);
         let diff = Math.abs(results.a1 - results.a2);
         let total = results.a1 + results.a2;
@@ -143,41 +137,30 @@ document.addEventListener('DOMContentLoaded', () => {
         let finalP = newP;
         let isSnapped = false;
         
-        // Calculate how far the cursor is from the exact solution in Pressure units
         let distToExact = Math.abs(newP - exactPsat);
 
-        // NEW MAGNETIC SNAP: Snap if cursor is within the pressure threshold (e.g., 2.5% of wave height)
-        // We use > 1e-4 so Plotly doesn't get caught in an infinite loop confirming its own snap
         if (results.crossings === 3 && distToExact < snapThresholdP && distToExact > 1e-4) {
             finalP = exactPsat;
             isSnapped = true;
-            // Recalculate everything against the true truth
             results = calculateMaxwellTraces(finalP);
             err = 0; 
-            // Force visual numerical balance to prevent math rounding confusion for students
             results.a2 = results.a1; 
         }
 
         currentP_global = finalP;
 
-        // 1. DYNAMIC COLOR LOGIC
         let colorA1, colorA2;
-        
-        if (isSnapped || err < 1.0) { // BALANCED state
-            colorA1 = colorPurpleSnap;
-            colorA2 = colorPurpleSnap;
-        } else if (results.a1 > results.a2) { // A1 > A2
-            colorA1 = colorBlueMax;
-            colorA2 = colorRedMin;
-        } else { // A2 > A1
-            colorA1 = colorRedMin;
-            colorA2 = colorBlueMax;
+        if (isSnapped || err < 1.0) { 
+            colorA1 = colorPurpleSnap; colorA2 = colorPurpleSnap;
+        } else if (results.a1 > results.a2) { 
+            colorA1 = colorBlueMax; colorA2 = colorRedMin;
+        } else { 
+            colorA1 = colorRedMin; colorA2 = colorBlueMax;
         }
 
-        // 2. UI Updates (Safety checks included)
         if (a1Label) a1Label.innerText = results.a1.toFixed(3);
         if (a2Label) a2Label.innerText = results.a2.toFixed(3);
-        if (diffLabel) diffLabel.innerText = err.toFixed(1) + "%";
+        if (diffLabel) diffLabel.innerText = results.crossings === 3 ? err.toFixed(1) + "%" : "N/A";
         if (pValLabel) pValLabel.innerText = finalP.toFixed(2);
 
         if (pDisplayBox) {
@@ -190,10 +173,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 3. PLOTLY UPDATE
-        if (isSnapped || !isFromDrag) {
-            Plotly.relayout(chartDiv, { 'shapes[0].y0': finalP, 'shapes[0].y1': finalP });
-        }
+        Plotly.relayout(chartDiv, { 
+            'shapes[0].y0': finalP, 
+            'shapes[0].y1': finalP,
+            'shapes[0].x0': 0, 
+            'shapes[0].x1': 1  
+        });
 
         const newTraceData = {
             'x': [results.a1_poly ? results.a1_poly.x : [], results.a2_poly ? results.a2_poly.x : []],
@@ -206,8 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawIsotherm() {
         const molSelect = document.getElementById('moleculeSelect');
         const tempInput = document.getElementById('tempInput');
-        
-        // Safety check to ensure inputs exist before trying to read them
         if (!molSelect || !tempInput) return;
 
         const molKey = molSelect.value;
@@ -222,30 +205,33 @@ document.addEventListener('DOMContentLoaded', () => {
         if (T >= Tc) {
             if (tcAlert) tcAlert.innerText = `⚠️ Choose T < ${Tc.toFixed(1)} K`;
             Plotly.purge(chartDiv); 
-            if (btnUp) btnUp.disabled = true; 
-            if (btnDown) btnDown.disabled = true;
+            if (btnUp) btnUp.disabled = true; if (btnDown) btnDown.disabled = true;
             if (pDisplayBox) pDisplayBox.style.display = "none";
             return;
         } else {
             if (tcAlert) tcAlert.innerText = "";
-            if (btnUp) btnUp.disabled = false; 
-            if (btnDown) btnDown.disabled = false;
+            if (btnUp) btnUp.disabled = false; if (btnDown) btnDown.disabled = false;
             if (pDisplayBox) pDisplayBox.style.display = "block";
         }
 
         currentVArray = [];
         currentPArray = [];
-        let V = b * 1.02; 
-        const maxV = b * 50; 
-        const numPoints = 1500; 
-        const dV = (maxV - V) / numPoints;
+
+        const maxV = Math.max(b * 1000, (R * T) / 0.01); 
+        const numPoints = 2000; 
+        const logVStart = Math.log(b * 1.02);
+        const logVEnd = Math.log(maxV);
+        const dLogV = (logVEnd - logVStart) / numPoints;
 
         let localMinP = null, localMaxP = null, localMaxV = null;
         let goingUp = false;
 
         for (let i = 0; i <= numPoints; i++) {
+            const V = Math.exp(logVStart + i * dLogV);
             const P = (R * T) / (V - b) - (a / (V * V));
+            
             currentVArray.push(V); currentPArray.push(P);
+            
             if (i > 0) {
                 if (!goingUp && P > currentPArray[i-1]) {
                     localMinP = currentPArray[i-1]; goingUp = true;
@@ -253,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     localMaxP = currentPArray[i-1]; localMaxV = currentVArray[i-1]; goingUp = false;
                 }
             }
-            V += dV;
         }
 
         let yDomain = [0, 100], xDomain = [b, b * 20], initialPGuess = 50;
@@ -262,11 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const yPadding = (localMaxP - localMinP) * 0.2;
             yDomain = [localMinP - yPadding, localMaxP + yPadding];
             xDomain = [b * 1.1, localMaxV * 5]; 
-            initialPGuess = localMinP + (localMaxP - localMinP) * 0.15; 
             
+            initialPGuess = localMinP + (localMaxP - localMinP) * 0.15; 
             exactPsat = findExactPsat(localMinP, localMaxP);
-            stepP = (localMaxP - localMinP) / 100; // Buttons step by 1% of the wave
-            snapThresholdP = (localMaxP - localMinP) * 0.025; // Cursor snaps within 2.5% of the wave
+            stepP = (localMaxP - localMinP) / 100; 
+            snapThresholdP = (localMaxP - localMinP) * 0.025; 
         }
 
         const isothermTrace = {
@@ -286,21 +271,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const layout = {
             title: { text: `vdW Isotherm (${molKey}) at ${T} K`, font: { family: 'Segoe UI', size: 16 } },
-            xaxis: { title: 'Molar Volume (L/mol)', range: xDomain, zeroline: false },
-            yaxis: { title: 'Pressure (bar)', range: yDomain, zeroline: false },
+            // NEW FIX: fixedrange: true locks the zoom on mobile!
+            xaxis: { title: 'Molar Volume (L/mol)', range: xDomain, zeroline: false, fixedrange: true },
+            yaxis: { title: 'Pressure (bar)', range: yDomain, zeroline: false, fixedrange: true },
             shapes: [{
                 type: 'line', xref: 'paper', x0: 0, x1: 1, y0: initialPGuess, y1: initialPGuess,
                 line: { color: '#dc3545', width: 3, dash: 'dash' }, editable: true
             }],
             margin: { l: 60, r: 30, b: 60, t: 60 },
-            plot_bgcolor: "white", paper_bgcolor: "#f8f9fa", dragmode: 'pan',
+            plot_bgcolor: "white", paper_bgcolor: "#f8f9fa", 
+            // NEW FIX: Turns off background panning, ensuring touch only works on the line
+            dragmode: false, 
             showlegend: false 
         };
 
         const data = [isothermTrace, a1FillTrace, a2FillTrace];
 
         Plotly.newPlot(chartDiv, data, layout, { responsive: true, displayModeBar: false, edits: { shapePosition: true } }).then(() => {
-            handlePressureChange(initialPGuess, false);
+            handlePressureChange(initialPGuess);
             
             if (chartDiv.removeAllListeners) chartDiv.removeAllListeners('plotly_relayout');
 
@@ -308,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (eventData['shapes[0].y0'] !== undefined) {
                     const draggedP = eventData['shapes[0].y0'];
                     if (Math.abs(draggedP - exactPsat) < 1e-4) return; 
-                    handlePressureChange(draggedP, true);
+                    handlePressureChange(draggedP);
                 }
             });
         });
@@ -318,8 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Initialization Listeners & Safety
     // ==========================================
     
-    if (btnUp) btnUp.onclick = () => handlePressureChange(currentP_global + stepP, false);
-    if (btnDown) btnDown.onclick = () => handlePressureChange(currentP_global - stepP, false);
+    if (btnUp) btnUp.onclick = () => handlePressureChange(currentP_global + stepP);
+    if (btnDown) btnDown.onclick = () => handlePressureChange(currentP_global - stepP);
 
     const molSelectEl = document.getElementById('moleculeSelect');
     const tempInputEl = document.getElementById('tempInput');
@@ -327,7 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (molSelectEl) molSelectEl.addEventListener('change', drawIsotherm);
     if (tempInputEl) tempInputEl.addEventListener('change', drawIsotherm);
 
-    // Only run the initial draw if the core inputs exist
     if (molSelectEl && tempInputEl) {
         drawIsotherm();
     }
