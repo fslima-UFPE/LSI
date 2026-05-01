@@ -224,11 +224,11 @@ function createMCSimulation(box) {
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
              ⟨P⟩ = ${avgP.toFixed(2)} bar |
-             P<sub>id</sub> = ${s.pid.toFixed(2)} bar |
+             P<sup>id</sup> = ${s.pid.toFixed(2)} bar |
              Z = ${zFactor.toFixed(3)} <br>
-             C<sub>V</sub>(real) = ${cv_real.toFixed(2)} |
-             C<sub>V</sub>(ideal) = ${cv_ideal.toFixed(2)} |
-             C<sub>V</sub>(total) = ${cv_total.toFixed(2)} J/mol·K`;
+             C<sub>V</sub><sup>real</sup> = ${cv_real.toFixed(2)} |
+             C<sub>V</sub><sup>ideal</sup> = ${cv_ideal.toFixed(2)} |
+             C<sub>V</sub><sup>total</sup> = ${cv_total.toFixed(2)} J/mol·K`;
 
         // Process the raw history into histogram bins safely
         if (s.hist.length > 0) {
