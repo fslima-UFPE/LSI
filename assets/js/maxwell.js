@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // This force-locks the horizontal position
         Plotly.relayout(chartDiv, { 
             'shapes[0].y0': finalP, 
             'shapes[0].y1': finalP,
@@ -271,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const layout = {
             title: { text: `vdW Isotherm (${molKey}) at ${T} K`, font: { family: 'Segoe UI', size: 16 } },
-            // NEW FIX: fixedrange: true locks the zoom on mobile!
             xaxis: { title: 'Molar Volume (L/mol)', range: xDomain, zeroline: false, fixedrange: true },
             yaxis: { title: 'Pressure (bar)', range: yDomain, zeroline: false, fixedrange: true },
             shapes: [{
@@ -280,7 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }],
             margin: { l: 60, r: 30, b: 60, t: 60 },
             plot_bgcolor: "white", paper_bgcolor: "#f8f9fa", 
-            // NEW FIX: Turns off background panning, ensuring touch only works on the line
             dragmode: false, 
             showlegend: false 
         };
@@ -295,7 +294,11 @@ document.addEventListener('DOMContentLoaded', () => {
             chartDiv.on('plotly_relayout', function(eventData) {
                 if (eventData['shapes[0].y0'] !== undefined) {
                     const draggedP = eventData['shapes[0].y0'];
-                    if (Math.abs(draggedP - exactPsat) < 1e-4) return; 
+                    
+                    // THE FIX: This single line prevents the infinite loop!
+                    // If the line is already exactly where my code wants it, we ignore the event.
+                    if (Math.abs(draggedP - currentP_global) < 1e-4) return; 
+                    
                     handlePressureChange(draggedP);
                 }
             });
