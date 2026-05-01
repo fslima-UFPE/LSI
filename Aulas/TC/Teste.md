@@ -50,8 +50,8 @@ Vou ver se funciona.
 
           <div class="jsbox-input-row">
             <label>Espécie</label>
-            <select class="jsbox-input species">
-              <option value="IG">Gás ideal</option>
+            <select class="jsbox-input species" autocomplete="off">
+              <option value="IG" selected>Gás ideal</option>
               <option value="HS">Esfera rígida</option>
               <option value="He">He (LJ)</option>              
               <option value="Ne">Ne (LJ)</option>
