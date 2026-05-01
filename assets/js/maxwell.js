@@ -18,6 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentP_global = 0;
     let stepP = 1;
     let snapThresholdP = 0; 
+    
+    // NEW: Global boundaries for our warnings
+    let globalMinP = 0; 
+    let globalMaxP = 0;
 
     function mathOnlyAreas(P_test) {
         if (currentPArray.length === 0) return { a1: 0, a2: 0 };
@@ -132,7 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let results = calculateMaxwellTraces(newP);
         let diff = Math.abs(results.a1 - results.a2);
         let total = results.a1 + results.a2;
-        let err = total > 0 ? (diff / total) * 100 : 100;
+        // Fallback to 0 if total area is zero to prevent NaN
+        let err = total > 0 ? (diff / total) * 100 : 0; 
 
         let finalP = newP;
         let isSnapped = false;
@@ -150,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentP_global = finalP;
 
         let colorA1, colorA2;
-        if (isSnapped || err < 1.0) { 
+        if (isSnapped || (err < 1.0 && results.crossings === 3)) { 
             colorA1 = colorPurpleSnap; colorA2 = colorPurpleSnap;
         } else if (results.a1 > results.a2) { 
             colorA1 = colorBlueMax; colorA2 = colorRedMin;
@@ -160,20 +165,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (a1Label) a1Label.innerText = results.a1.toFixed(3);
         if (a2Label) a2Label.innerText = results.a2.toFixed(3);
-        if (diffLabel) diffLabel.innerText = results.crossings === 3 ? err.toFixed(1) + "%" : "N/A";
         if (pValLabel) pValLabel.innerText = finalP.toFixed(2);
 
+        // NEW: Warning logic for out-of-bounds pressure
         if (pDisplayBox) {
-            if ((isSnapped || err < 1.0) && results.crossings === 3) {
-                pDisplayBox.classList.add("snapped");
-                pDisplayBox.innerHTML = `🎉 Success! Saturation Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+            pDisplayBox.classList.remove("snapped");
+            
+            if (finalP > globalMaxP && globalMaxP !== null) {
+                if (diffLabel) diffLabel.innerText = "N/A";
+                pDisplayBox.innerHTML = `⚠️ Pressure is above local max! (<b id="currentP-val">${finalP.toFixed(2)}</b> bar)`;
+            } else if (finalP < globalMinP && globalMinP !== null) {
+                if (diffLabel) diffLabel.innerText = "N/A";
+                pDisplayBox.innerHTML = `⚠️ Pressure is below local min! (<b id="currentP-val">${finalP.toFixed(2)}</b> bar)`;
             } else {
-                pDisplayBox.classList.remove("snapped");
-                pDisplayBox.innerHTML = `Current Test Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+                // Normal operations
+                if (diffLabel) diffLabel.innerText = results.crossings === 3 ? err.toFixed(1) + "%" : "N/A";
+                
+                if ((isSnapped || err < 1.0) && results.crossings === 3) {
+                    pDisplayBox.classList.add("snapped");
+                    pDisplayBox.innerHTML = `🎉 Success! Saturation Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+                } else {
+                    pDisplayBox.innerHTML = `Current Test Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+                }
             }
         }
 
-        // This force-locks the horizontal position
         Plotly.relayout(chartDiv, { 
             'shapes[0].y0': finalP, 
             'shapes[0].y1': finalP,
@@ -224,7 +240,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const logVEnd = Math.log(maxV);
         const dLogV = (logVEnd - logVStart) / numPoints;
 
-        let localMinP = null, localMaxP = null, localMaxV = null;
+        globalMinP = null; 
+        globalMaxP = null; 
+        let localMaxV = null;
         let goingUp = false;
 
         for (let i = 0; i <= numPoints; i++) {
@@ -235,24 +253,24 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (i > 0) {
                 if (!goingUp && P > currentPArray[i-1]) {
-                    localMinP = currentPArray[i-1]; goingUp = true;
+                    globalMinP = currentPArray[i-1]; goingUp = true;
                 } else if (goingUp && P < currentPArray[i-1]) {
-                    localMaxP = currentPArray[i-1]; localMaxV = currentVArray[i-1]; goingUp = false;
+                    globalMaxP = currentPArray[i-1]; localMaxV = currentVArray[i-1]; goingUp = false;
                 }
             }
         }
 
         let yDomain = [0, 100], xDomain = [b, b * 20], initialPGuess = 50;
 
-        if (localMinP !== null && localMaxP !== null) {
-            const yPadding = (localMaxP - localMinP) * 0.2;
-            yDomain = [localMinP - yPadding, localMaxP + yPadding];
+        if (globalMinP !== null && globalMaxP !== null) {
+            const yPadding = (globalMaxP - globalMinP) * 0.2;
+            yDomain = [globalMinP - yPadding, globalMaxP + yPadding];
             xDomain = [b * 1.1, localMaxV * 5]; 
             
-            initialPGuess = localMinP + (localMaxP - localMinP) * 0.15; 
-            exactPsat = findExactPsat(localMinP, localMaxP);
-            stepP = (localMaxP - localMinP) / 100; 
-            snapThresholdP = (localMaxP - localMinP) * 0.025; 
+            initialPGuess = globalMinP + (globalMaxP - globalMinP) * 0.15; 
+            exactPsat = findExactPsat(globalMinP, globalMaxP);
+            stepP = (globalMaxP - globalMinP) / 100; 
+            snapThresholdP = (globalMaxP - globalMinP) * 0.025; 
         }
 
         const isothermTrace = {
@@ -294,11 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chartDiv.on('plotly_relayout', function(eventData) {
                 if (eventData['shapes[0].y0'] !== undefined) {
                     const draggedP = eventData['shapes[0].y0'];
-                    
-                    // THE FIX: This single line prevents the infinite loop!
-                    // If the line is already exactly where my code wants it, we ignore the event.
                     if (Math.abs(draggedP - currentP_global) < 1e-4) return; 
-                    
                     handlePressureChange(draggedP);
                 }
             });
