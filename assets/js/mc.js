@@ -2,19 +2,19 @@ function createMCSimulation(box) {
 
     const energyChart = new Chart(box.querySelector("#energyChart"), {
         type: "line",
-        data: { labels: [], datasets: [{ label: "Energy (kJ/mol)", data: [], borderWidth: 2, pointRadius: 0 }] },
+        data: { labels: [], datasets: [{ label: "Energia (kJ/mol)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const pressureChart = new Chart(box.querySelector("#pressureChart"), {
         type: "line",
-        data: { labels: [], datasets: [{ label: "Pressure (bar)", data: [], borderWidth: 2, pointRadius: 0 }] },
+        data: { labels: [], datasets: [{ label: "Pressão (bar)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const histChart = new Chart(box.querySelector("#histChart"), {
         type: "bar",
-        data: { labels: [], datasets: [{ label: "Energy histogram (kJ/mol)", data: [] }] },
+        data: { labels: [], datasets: [{ label: "Histograma de Energia (kJ/mol)", data: [] }] },
         options: { animation: false }
     });
 
