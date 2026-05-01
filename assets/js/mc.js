@@ -219,11 +219,6 @@ function createMCSimulation(box) {
         // Since s.pid is exactly the ideal gas pressure, this safely 
         // works for IG (returns 1), HS, and LJ!
         const zFactor = avgP / s.pid;
-
-        if (s.species.type === "HS") {
-            console.log("FINAL HS VALUES:");
-            console.log("eta =", s.eta);
-            console.log("Z =", s.Z);
         }
 
         // Updated innerHTML to include Z = zFactor.toFixed(3)
@@ -357,6 +352,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const speciesDB = {
             Xe: { eps: 218.18, sig: 4.055, type: "LJ" },
+            Kr: { eps: 164.60, sig: 3.650, type: "LJ" },
             Ar: { eps: 116.81, sig: 3.401, type: "LJ" },
             Ne: { eps: 36.831, sig: 2.775, type: "LJ" },
             He: { eps: 5.465, sig: 2.628, type: "LJ" },
