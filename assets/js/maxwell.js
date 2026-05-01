@@ -193,3 +193,133 @@ document.addEventListener('DOMContentLoaded', () => {
             'fillcolor': [colorA1, colorA2]
         };
         Plotly.restyle(chartDiv, newTraceData, [1, 2]);
+    }
+
+    function drawIsotherm() {
+        const molSelect = document.getElementById('moleculeSelect');
+        const tempInput = document.getElementById('tempInput');
+        
+        // Safety check to ensure inputs exist before trying to read them
+        if (!molSelect || !tempInput) return;
+
+        const molKey = molSelect.value;
+        const T = parseFloat(tempInput.value);
+        const { a, b, Tc } = substanceDB[molKey];
+        
+        const tcBadge = document.getElementById('tcBadge');
+        if (tcBadge) tcBadge.innerText = `Tc = ${Tc.toFixed(1)} K`;
+        
+        const tcAlert = document.getElementById('tcAlert');
+
+        if (T >= Tc) {
+            if (tcAlert) tcAlert.innerText = `⚠️ Choose T < ${Tc.toFixed(1)} K`;
+            Plotly.purge(chartDiv); 
+            if (btnUp) btnUp.disabled = true; 
+            if (btnDown) btnDown.disabled = true;
+            if (pDisplayBox) pDisplayBox.style.display = "none";
+            return;
+        } else {
+            if (tcAlert) tcAlert.innerText = "";
+            if (btnUp) btnUp.disabled = false; 
+            if (btnDown) btnDown.disabled = false;
+            if (pDisplayBox) pDisplayBox.style.display = "block";
+        }
+
+        currentVArray = [];
+        currentPArray = [];
+        let V = b * 1.02; 
+        const maxV = b * 50; 
+        const numPoints = 1500; 
+        const dV = (maxV - V) / numPoints;
+
+        let localMinP = null, localMaxP = null, localMaxV = null;
+        let goingUp = false;
+
+        for (let i = 0; i <= numPoints; i++) {
+            const P = (R * T) / (V - b) - (a / (V * V));
+            currentVArray.push(V); currentPArray.push(P);
+            if (i > 0) {
+                if (!goingUp && P > currentPArray[i-1]) {
+                    localMinP = currentPArray[i-1]; goingUp = true;
+                } else if (goingUp && P < currentPArray[i-1]) {
+                    localMaxP = currentPArray[i-1]; localMaxV = currentVArray[i-1]; goingUp = false;
+                }
+            }
+            V += dV;
+        }
+
+        let yDomain = [0, 100], xDomain = [b, b * 20], initialPGuess = 50;
+
+        if (localMinP !== null && localMaxP !== null) {
+            const yPadding = (localMaxP - localMinP) * 0.2;
+            yDomain = [localMinP - yPadding, localMaxP + yPadding];
+            xDomain = [b * 1.1, localMaxV * 5]; 
+            initialPGuess = localMinP + (localMaxP - localMinP) * 0.15; 
+            
+            exactPsat = findExactPsat(localMinP, localMaxP);
+            stepP = (localMaxP - localMinP) / 100;
+        }
+
+        const isothermTrace = {
+            x: currentVArray, y: currentPArray, mode: 'lines', name: 'Isotherm',
+            line: { color: '#0056b3', width: 3 }, hoverinfo: 'none'
+        };
+
+        const a1FillTrace = {
+            x: [], y: [], fill: 'toself', mode: 'lines', line: { width: 0 },
+            name: 'Area 1', hoverinfo: 'none', fillcolor: colorRedMin
+        };
+
+        const a2FillTrace = {
+            x: [], y: [], fill: 'toself', mode: 'lines', line: { width: 0 },
+            name: 'Area 2', hoverinfo: 'none', fillcolor: colorBlueMax
+        };
+
+        const layout = {
+            title: { text: `vdW Isotherm (${molKey}) at ${T} K`, font: { family: 'Segoe UI', size: 16 } },
+            xaxis: { title: 'Molar Volume (L/mol)', range: xDomain, zeroline: false },
+            yaxis: { title: 'Pressure (bar)', range: yDomain, zeroline: false },
+            shapes: [{
+                type: 'line', xref: 'paper', x0: 0, x1: 1, y0: initialPGuess, y1: initialPGuess,
+                line: { color: '#dc3545', width: 3, dash: 'dash' }, editable: true
+            }],
+            margin: { l: 60, r: 30, b: 60, t: 60 },
+            plot_bgcolor: "white", paper_bgcolor: "#f8f9fa", dragmode: 'pan',
+            showlegend: false 
+        };
+
+        const data = [isothermTrace, a1FillTrace, a2FillTrace];
+
+        Plotly.newPlot(chartDiv, data, layout, { responsive: true, displayModeBar: false, edits: { shapePosition: true } }).then(() => {
+            handlePressureChange(initialPGuess, false);
+            
+            if (chartDiv.removeAllListeners) chartDiv.removeAllListeners('plotly_relayout');
+
+            chartDiv.on('plotly_relayout', function(eventData) {
+                if (eventData['shapes[0].y0'] !== undefined) {
+                    const draggedP = eventData['shapes[0].y0'];
+                    if (Math.abs(draggedP - exactPsat) < 1e-4) return; 
+                    handlePressureChange(draggedP, true);
+                }
+            });
+        });
+    }
+
+    // ==========================================
+    // 3. Initialization Listeners & Safety
+    // ==========================================
+    
+    if (btnUp) btnUp.onclick = () => handlePressureChange(currentP_global + stepP, false);
+    if (btnDown) btnDown.onclick = () => handlePressureChange(currentP_global - stepP, false);
+
+    const molSelectEl = document.getElementById('moleculeSelect');
+    const tempInputEl = document.getElementById('tempInput');
+
+    if (molSelectEl) molSelectEl.addEventListener('change', drawIsotherm);
+    if (tempInputEl) tempInputEl.addEventListener('change', drawIsotherm);
+
+    // Only run the initial draw if the core inputs exist
+    if (molSelectEl && tempInputEl) {
+        drawIsotherm();
+    }
+});
