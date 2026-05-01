@@ -42,7 +42,9 @@ Arraste a linha tracejada vermelha no gráfico ou use os botões de ajuste fino.
                     <option value="CO2">Dióxido de Carbono (CO2)</option>
                     <option value="N2">Nitrogênio (N2)</option>
                 </select>
-                <span id="tcBadge" class="tc-badge"></span>
+                <span id="tcBadge" class="badge bg-secondary"></span>
+                <span id="aBadge" class="badge bg-info text-dark"></span>
+                <span id="bBadge" class="badge bg-warning text-dark"></span>
             </div>
             <div class="input-group">
                 <label>Temperatura (K):</label>
