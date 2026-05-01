@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let exactPsat = 0; 
     let currentP_global = 0;
     let stepP = 1;
+    let snapThresholdP = 0; // New global for pressure-based snapping
 
     // Numerical Solver for exact Psat (no fills, just math)
     function mathOnlyAreas(P_test) {
@@ -141,13 +142,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let finalP = newP;
         let isSnapped = false;
+        
+        // Calculate how far the cursor is from the exact solution in Pressure units
+        let distToExact = Math.abs(newP - exactPsat);
 
-        // MAGNETIC SNAP: If error < 5%
-        if (results.crossings === 3 && err < 5.0 && err > 0.05) {
+        // NEW MAGNETIC SNAP: Snap if cursor is within the pressure threshold (e.g., 2.5% of wave height)
+        // We use > 1e-4 so Plotly doesn't get caught in an infinite loop confirming its own snap
+        if (results.crossings === 3 && distToExact < snapThresholdP && distToExact > 1e-4) {
             finalP = exactPsat;
             isSnapped = true;
+            // Recalculate everything against the true truth
             results = calculateMaxwellTraces(finalP);
             err = 0; 
+            // Force visual numerical balance to prevent math rounding confusion for students
+            results.a2 = results.a1; 
         }
 
         currentP_global = finalP;
@@ -155,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. DYNAMIC COLOR LOGIC
         let colorA1, colorA2;
         
-        if (err < 1.0) { // BALANCED state
+        if (isSnapped || err < 1.0) { // BALANCED state
             colorA1 = colorPurpleSnap;
             colorA2 = colorPurpleSnap;
         } else if (results.a1 > results.a2) { // A1 > A2
@@ -173,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pValLabel) pValLabel.innerText = finalP.toFixed(2);
 
         if (pDisplayBox) {
-            if (err < 1.0 && results.crossings === 3) {
+            if ((isSnapped || err < 1.0) && results.crossings === 3) {
                 pDisplayBox.classList.add("snapped");
                 pDisplayBox.innerHTML = `🎉 Success! Saturation Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
             } else {
@@ -257,7 +265,8 @@ document.addEventListener('DOMContentLoaded', () => {
             initialPGuess = localMinP + (localMaxP - localMinP) * 0.15; 
             
             exactPsat = findExactPsat(localMinP, localMaxP);
-            stepP = (localMaxP - localMinP) / 100;
+            stepP = (localMaxP - localMinP) / 100; // Buttons step by 1% of the wave
+            snapThresholdP = (localMaxP - localMinP) * 0.025; // Cursor snaps within 2.5% of the wave
         }
 
         const isothermTrace = {
