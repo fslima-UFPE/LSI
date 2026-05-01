@@ -276,6 +276,7 @@ function createMCSimulation(box) {
 
         histChart.data.labels = [];
         histChart.data.datasets[0].data = [];
+        histChart.update();
 
         // ==========================================
         // 🚀 BYPASS FOR IDEAL GAS & HARD SPHERES
@@ -369,17 +370,35 @@ document.addEventListener("DOMContentLoaded", () => {
         const speciesSelect = box.querySelector(".species");
         const sigmaRow = box.querySelector("#sigma-row");
 
-        // Listen for changes in the dropdown menu
+        // 1. Create the info display element
+        let infoArea = box.querySelector(".species-info");
+        if (!infoArea) {
+            infoArea = document.createElement("div");
+            infoArea.className = "species-info";
+            infoArea.style.fontSize = "0.85em";
+            infoArea.style.margin = "5px 0 10px 0";
+            infoArea.style.color = "#555";
+            // Injects it right after the species dropdown
+            speciesSelect.parentNode.appendChild(infoArea);
+        }
+
+        // 2. The Logic to show Sigma/Epsilon
         speciesSelect.addEventListener("change", (e) => {
-            if (e.target.value === "HS") {
-                // 'flex' or 'block' depending on how your CSS is set up. 
-                // Usually 'flex' works best for input rows.
-                sigmaRow.style.display = "flex"; 
+            const val = e.target.value;
+            const spec = speciesDB[val];
+
+            // Handle Hard Sphere row visibility
+            sigmaRow.style.display = (val === "HS") ? "flex" : "none";
+
+            // Handle LJ Parameter Display
+            if (spec && spec.type === "LJ") {
+                infoArea.innerHTML = `Parameters: σ = <b>${spec.sig}</b> Å, ε/k<sub>B</sub> = <b>${spec.eps}</b> K`;
             } else {
-                sigmaRow.style.display = "none";
+                infoArea.innerHTML = ""; 
             }
         });
-        // --- NEW CODE END ---
+
+        // ==========================================        
 
         btn.addEventListener("click", () => {
 
