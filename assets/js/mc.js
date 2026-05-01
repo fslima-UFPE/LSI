@@ -412,6 +412,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
+            box.querySelector(".results").innerHTML = "Calculando simulação... aguarde.";
+
             sim.run({
                 N: parseInt(box.querySelector(".npart").value),
                 boxSize: parseFloat(box.querySelector(".box").value),
