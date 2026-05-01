@@ -218,8 +218,7 @@ function createMCSimulation(box) {
         // Z = P_real / P_ideal
         // Since s.pid is exactly the ideal gas pressure, this safely 
         // works for IG (returns 1), HS, and LJ!
-        const zFactor = avgP / s.pid;
-        }
+        const zFactor = avgP / s.pid;        
 
         // Updated innerHTML to include Z = zFactor.toFixed(3)
         box.querySelector(".results").innerHTML =
@@ -257,7 +256,7 @@ function createMCSimulation(box) {
             histChart.data.datasets[0].data = counts;
             histChart.update();
         }
-    }
+    }    
 
     function run(params) {
 
