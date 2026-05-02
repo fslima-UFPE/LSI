@@ -45,7 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const m = parseFloat(getEl("inp-m1").value);
         edgeLength = parseFloat(getEl("inp-edge").value);
         
-        // GI visualiza sigma=1, HS usa o input real
         const sigmaEffective = isHardSphereMode ? parseFloat(inputSigma.value) : 1.0;
         const dt = parseFloat(getEl("inp-dt")?.value || 0.005);
         totalSteps = parseInt(getEl("inp-steps")?.value || 15000);
@@ -55,14 +54,16 @@ document.addEventListener("DOMContentLoaded", () => {
         historyY = new Float32Array(numParticles * totalSteps);
         historyR = new Uint8Array(numParticles * totalSteps);
 
-        const speedBoost = getVisualSpeedMultiplier(T);
-        const vBase = Math.sqrt(T / m) * 5 * speedBoost; 
+        // --- CORREÇÃO: Física e Estética Separadas ---
+        const vBaseFisico = Math.sqrt(T / m) * 5; // Referência física real
+        const boost = getVisualSpeedMultiplier(T);
+        const vVisualBase = vBaseFisico * boost; // Velocidade visual estetica
 
         let particles = Array.from({ length: numParticles }, () => ({
             x: particleRadius + Math.random() * (edgeLength - sigmaEffective),
             y: particleRadius + Math.random() * (edgeLength - sigmaEffective),
-            vx: (Math.random() - 0.5) * vBase,
-            vy: (Math.random() - 0.5) * vBase
+            vx: (Math.random() - 0.5) * vVisualBase,
+            vy: (Math.random() - 0.5) * vVisualBase
         }));
 
         getEl("ui-progress").style.display = "block";
@@ -104,12 +105,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 if (step % 50 === 0) currentWallFreqData.push(collisionsThisStep);
+                
+                // --- CORREÇÃO DO CÁLCULO DE COR ---
                 let offset = step * numParticles;
                 for (let i = 0; i < numParticles; i++) {
                     historyX[offset+i] = particles[i].x;
                     historyY[offset+i] = particles[i].y;
-                    let v = Math.sqrt(particles[i].vx**2 + particles[i].vy**2);
-                    historyR[offset+i] = Math.min(255, Math.round((v/(2*vBase))*255));
+                    
+                    let p = particles[i];
+                    // Recuperamos a velocidade física real dividindo pelo boost visual
+                    let vFisicaInstantanea = Math.sqrt(p.vx**2 + p.vy**2) / boost;
+                    
+                    // Mapeia vFisica para R (0 a 255). 
+                    // Partículas com 2.5x a velocidade física base são Max Vermelho.
+                    let ratio = Math.min(1, vFisicaInstantanea / (vBaseFisico * 2.5));
+                    let redIndex = Math.round(ratio * 255);
+                    historyR[offset + i] = redIndex;
                 }
             }
             getEl("progress-text").innerText = `Calculando: ${Math.floor((step/totalSteps)*100)}%`;
@@ -126,18 +137,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (scrubber) { scrubber.max = totalSteps - 1; scrubber.value = 0; }
         
         const totalTime = totalSteps * dt;
-        const P_2D = totalMomentum / (totalTime * (4 * edgeLength));
+        const perimeter = 4 * edgeLength;
+        const area = edgeLength * edgeLength;
+        const P_2D = totalMomentum / (totalTime * perimeter);
         const avgWallFreq = totalWallCollisions / totalTime;
 
         if (isHardSphereMode) {
             if (hsSection) hsSection.style.display = "block";
-            const Z = (P_2D * (edgeLength**2)) / (numParticles * 8.314 * T);
-            const eta = (numParticles * Math.PI * (particleRadius**2)) / (edgeLength**2);
+            const Z = (P_2D * area) / (numParticles * 8.314 * T);
+            const eta = (numParticles * Math.PI * (particleRadius**2)) / area;
             simulationResults.push({ T, N: numParticles, sigma: sigmaEffective, eta, P: P_2D, Z, f: avgWallFreq });
             if (historyBox) historyBox.innerHTML = `<b>Z:</b> ${Z.toFixed(3)} | <b>&eta;:</b> ${eta.toFixed(3)} | <b>P:</b> ${P_2D.toFixed(2)}`;
             drawScatterPlot();
         } else {
-            if (historyBox) historyBox.innerHTML = `<p style="color:green;">Freq: ${avgWallFreq.toFixed(1)} Hz</p>`;
+            if (historyBox) historyBox.innerHTML = `<p style="color:green;">GI Concluído. Freq: ${avgWallFreq.toFixed(1)} Hz</p>`;
         }
         drawFrame(0);
     }
@@ -147,6 +160,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const scale = canvas.width / edgeLength;
         const offset = frame * numParticles;
         for (let i = 0; i < numParticles; i++) {
+            // Desenha a cor usando o índice R corrigido (0-255)
+            // Fixamos G=60 e B=100 da marca
             ctx.fillStyle = `rgb(${historyR[offset+i]}, 60, 100)`;
             ctx.beginPath();
             ctx.arc(historyX[offset+i]*scale, historyY[offset+i]*scale, particleRadius*scale, 0, Math.PI*2);
@@ -176,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
         g.clearRect(0,0,c.width,c.height);
         const maxX = Math.max(...simulationResults.map(d=>d[vX]))*1.1;
         const maxY = Math.max(...simulationResults.map(d=>d[vY]))*1.1;
-        g.fillStyle = "#444";
+        g.fillStyle = "rgb(0, 60, 100)"; // Pontos na cor Azul da marca
         simulationResults.forEach(d => {
             let px = 40 + (d[vX]/maxX)*(c.width-60);
             let py = (c.height-40)-(d[vY]/maxY)*(c.height-60);
