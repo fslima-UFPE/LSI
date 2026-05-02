@@ -206,6 +206,11 @@ document.addEventListener('DOMContentLoaded', function() {
              if (overlap > 0) {
                p1.x -= (dx / safeDist) * (overlap / 2); p1.y -= (dy / safeDist) * (overlap / 2);
                p2.x += (dx / safeDist) * (overlap / 2); p2.y += (dy / safeDist) * (overlap / 2);
+
+               p1.x = Math.max(p1.radius, Math.min(params.edge - p1.radius, p1.x));
+               p1.y = Math.max(p1.radius, Math.min(params.edge - p1.radius, p1.y));
+               p2.x = Math.max(p2.radius, Math.min(params.edge - p2.radius, p2.x));
+               p2.y = Math.max(p2.radius, Math.min(params.edge - p2.radius, p2.y));
              }
           }
         }
