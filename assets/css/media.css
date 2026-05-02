@@ -79,3 +79,31 @@
     width: auto;
   }
 }
+
+/* Fix for Inputs and Buttons overflowing */
+.responsive-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.responsive-controls > * {
+  max-width: 100%;
+}
+
+/* Fix for cramped side-by-side charts */
+#ui-visualization {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#ui-visualization > div {
+  flex: 1 1 320px;
+  max-width: 100%;
+}
