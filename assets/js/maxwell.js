@@ -210,16 +210,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const T = parseFloat(tempInput.value);
         const { a, b, Tc } = substanceDB[molKey];
         
-        // --- NEW: Badge Updates ---
-        const tcBadge = document.getElementById('tcBadge');
-        if (tcBadge) tcBadge.innerText = `Tc = ${Tc.toFixed(1)} K`;
-
-        const aBadge = document.getElementById('aBadge');
-        if (aBadge) aBadge.innerHTML = `a = ${a.toFixed(3)} bar&middot;L&sup2;/mol&sup2;`;
-
-        const bBadge = document.getElementById('bBadge');
-        if (bBadge) bBadge.innerText = `b = ${b.toFixed(5)} L/mol`;
-        // --------------------------
+        // --- NEW: Single Box Update ---
+        const thermoPropsBox = document.getElementById('thermoPropsBox');
+        if (thermoPropsBox) {
+            thermoPropsBox.innerHTML = `<b>T<sub>c</sub>:</b> ${Tc.toFixed(1)} K &nbsp;&nbsp;|&nbsp;&nbsp; <b>a:</b> ${a.toFixed(3)} bar&middot;L&sup2;/mol&sup2; &nbsp;&nbsp;|&nbsp;&nbsp; <b>b:</b> ${b.toFixed(5)} L/mol`;
+        }
+        // ------------------------------
         
         const tcAlert = document.getElementById('tcAlert');
 
