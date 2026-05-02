@@ -71,6 +71,10 @@ document.addEventListener("DOMContentLoaded", () => {
         let step = 0;
         let wallMomentumTransfer = 0;
         let wallCollisionCount = 0;
+        
+        // Variables to calculate moving frequency in Hz
+        let intervalCollisions = 0;
+        const intervalSteps = 50; 
         currentWallFreqData = [];
 
         function computeChunk() {
@@ -106,7 +110,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 
-                if (step % 50 === 0) currentWallFreqData.push(collisionsThisStep);
+                // Accumulate collisions and calculate Hz every 50 steps
+                intervalCollisions += collisionsThisStep;
+                if ((step + 1) % intervalSteps === 0) {
+                    let freqHz = intervalCollisions / (intervalSteps * dt);
+                    currentWallFreqData.push(freqHz);
+                    intervalCollisions = 0;
+                }
                 
                 let offset = step * numParticles;
                 for (let i = 0; i < numParticles; i++) {
@@ -139,7 +149,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const avgWallFreq = totalWallCollisions / totalTime;
 
         if (historyBox) {
-            // Remove the default "no simulation" text if it's still there
             if (historyBox.innerHTML.includes("Nenhuma simulação realizada")) {
                 historyBox.innerHTML = "";
             }
@@ -185,7 +194,6 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (currentWallFreqData.length === 0) return;
 
-        // Increased margins to accommodate labels and titles
         const marginX = 60; 
         const marginY = 50; 
         const drawW = c.width - marginX - 20;
@@ -195,9 +203,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const maxFreq = Math.max(...currentWallFreqData);
         const minFreq = Math.min(...currentWallFreqData);
         
-        // 10% scaling factor
-        let yMax = 1.10 * (maxFreq - minFreq) + maxFreq;
-        let yMin = minFreq - 1.10 * (maxFreq - minFreq);
+        // Corrected: 10% padding (0.10) instead of 1.10
+        const padding = 0.10 * (maxFreq - minFreq);
+        let yMax = maxFreq + padding;
+        let yMin = Math.max(0, minFreq - padding); // Prevent negative frequency
 
         // Fallback safety to avoid flatline out of bounds if max == min
         if (yMax === yMin) {
@@ -205,8 +214,9 @@ document.addEventListener("DOMContentLoaded", () => {
             yMin = Math.max(0, yMin - 5);
         }
 
-        // Draw Axes Lines
-        g.strokeStyle = "#ccc"; g.lineWidth = 1;
+        // Draw Axes Lines with Thicker Borders
+        g.strokeStyle = "#333"; // Darker color
+        g.lineWidth = 2.5;      // Thicker line
         g.beginPath();
         g.moveTo(marginX, 20); g.lineTo(marginX, c.height - marginY); // Y Axis
         g.lineTo(c.width - 20, c.height - marginY); // X Axis
@@ -228,7 +238,6 @@ document.addEventListener("DOMContentLoaded", () => {
         g.fillText("Frequência de Colisão (Hz)", 0, 0);
         g.restore();
 
-        // Font size for ticks
         g.font = "11px monospace";
 
         // Y-Axis Ticks & Labels (5 major, 5 minor)
@@ -239,14 +248,13 @@ document.addEventListener("DOMContentLoaded", () => {
             let yPos = (c.height - marginY) - frac * drawH;
             let yVal = yMin + frac * (yMax - yMin);
 
-            // Major tick
+            g.lineWidth = 1.5;
             g.beginPath(); g.moveTo(marginX - 6, yPos); g.lineTo(marginX, yPos); g.stroke();
-            // Major label
             g.fillText(yVal.toFixed(1), marginX - 10, yPos);
 
-            // Minor tick (drawn halfway to the next major tick)
             if (i < yMajorTicks) {
                 let yPosMinor = (c.height - marginY) - (frac + 0.5 / yMajorTicks) * drawH;
+                g.lineWidth = 1;
                 g.beginPath(); g.moveTo(marginX - 3, yPosMinor); g.lineTo(marginX, yPosMinor); g.stroke();
             }
         }
@@ -258,33 +266,30 @@ document.addEventListener("DOMContentLoaded", () => {
         for (let i = 0; i <= xMajorTicks; i++) {
             let frac = i / xMajorTicks;
             let xPos = marginX + frac * drawW;
-            let xVal = Math.floor(frac * totalSteps); // totalSteps is accessed from the outer scope
+            let xVal = Math.floor(frac * totalSteps); 
 
-            // Major tick
+            g.lineWidth = 1.5;
             g.beginPath(); g.moveTo(xPos, c.height - marginY); g.lineTo(xPos, c.height - marginY + 6); g.stroke();
-            // Major label
             g.fillText(xVal, xPos, c.height - marginY + 10);
 
-            // Minor tick
             if (i < xMajorTicks) {
                 let xPosMinor = marginX + (frac + 0.5 / xMajorTicks) * drawW;
+                g.lineWidth = 1;
                 g.beginPath(); g.moveTo(xPosMinor, c.height - marginY); g.lineTo(xPosMinor, c.height - marginY + 3); g.stroke();
             }
         }
 
         // Plot data line
         g.strokeStyle = "#d9534f"; 
-        g.lineWidth = 1.5; 
+        g.lineWidth = 2.0; // Thicker data line
         g.beginPath();
         const points = Math.floor(currentWallFreqData.length * progressRatio);
-        // Prevent division by zero if there's only 1 point
         const stepX = drawW / Math.max(1, currentWallFreqData.length - 1);
         
         for(let i=0; i<points; i++) {
             let x = marginX + i * stepX; 
             let y = (c.height - marginY) - ((currentWallFreqData[i] - yMin) / (yMax - yMin)) * drawH;
             
-            // Clip line drawing to fit within the box boundaries
             y = Math.max(20, Math.min(c.height - marginY, y));
 
             if(i === 0) g.moveTo(x,y); else g.lineTo(x,y);
@@ -293,6 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Draw average line
         g.strokeStyle = "rgba(0, 51, 102, 0.6)"; 
+        g.lineWidth = 1.5;
         g.setLineDash([5, 5]); 
         g.beginPath();
         let yAvg = (c.height - marginY) - ((avgFreq - yMin) / (yMax - yMin)) * drawH;
