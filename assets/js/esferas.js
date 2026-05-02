@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctx = canvas.getContext("2d");
     const isHardSphereMode = !!inputSigma; 
 
-    // Reintroduzindo historyR para armazenar o valor da cor (0 a 255)
     let historyX, historyY, historyR; 
     let totalSteps, numParticles, edgeLength, particleRadius;
     let simulationResults = [];
@@ -30,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnClear) {
         btnClear.addEventListener("click", () => {
             simulationResults = [];
-            if (historyBox) historyBox.innerHTML = '<p style="color: #999; font-style: italic;">Histórico limpo.</p>';
+            if (historyBox) historyBox.innerHTML = '';
             drawScatterPlot();
         });
     }
@@ -53,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
         particleRadius = sigmaEffective / 2;
         historyX = new Float32Array(numParticles * totalSteps);
         historyY = new Float32Array(numParticles * totalSteps);
-        historyR = new Uint8Array(numParticles * totalSteps); // Array para a cor
+        historyR = new Uint8Array(numParticles * totalSteps);
 
         const vBaseFisico = Math.sqrt(T / m) * 5; 
         const boost = getVisualSpeedMultiplier(T);
@@ -77,6 +76,9 @@ document.addEventListener("DOMContentLoaded", () => {
         function computeChunk() {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
+
+            // A max expected physical speed for color mapping
+            const maxExpectedV = vBaseFisico * 0.8; 
 
             for (; step < end; step++) {
                 let collisionsThisStep = 0;
@@ -113,11 +115,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     historyX[offset+i] = p.x;
                     historyY[offset+i] = p.y;
 
-                    // Mapeamento de Cor baseado na velocidade FÍSICA
+                    // Calculates real physical velocity and scales to [0, 255]
                     let vFisicaInstantanea = Math.sqrt(p.vx**2 + p.vy**2) / boost;
-                    
-                    // Consideramos 2.5x a velocidade base como o "limite superior" para a cor vermelha máxima
-                    let ratio = Math.min(1, vFisicaInstantanea / (vBaseFisico * 2.5));
+                    let ratio = Math.min(1, vFisicaInstantanea / maxExpectedV);
                     historyR[offset + i] = Math.round(ratio * 255);
                 }
             }
@@ -140,16 +140,25 @@ document.addEventListener("DOMContentLoaded", () => {
         const P_2D = totalMomentum / (totalTime * perimeter);
         const avgWallFreq = totalWallCollisions / totalTime;
 
-        if (isHardSphereMode) {
-            if (hsSection) hsSection.style.display = "block";
-            const Z = (P_2D * area) / (numParticles * 8.314 * T);
-            const eta = (numParticles * Math.PI * (particleRadius**2)) / area;
-            simulationResults.push({ T, N: numParticles, sigma: sigmaEffective, eta, P: P_2D, Z, f: avgWallFreq });
-            if (historyBox) historyBox.innerHTML = `<b>Z:</b> ${Z.toFixed(3)} | <b>&eta;:</b> ${eta.toFixed(3)} | <b>P:</b> ${P_2D.toFixed(2)}`;
+        if (historyBox) {
+            // Append format so students can compare history!
+            let entry = `<div style="border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 0.9em;">`;
+            entry += `<b>T:</b> ${T}K | <b>N:</b> ${numParticles} | <b>L:</b> ${edgeLength} <br/>`;
+            if (isHardSphereMode) {
+                const Z = (P_2D * area) / (numParticles * 8.314 * T);
+                const eta = (numParticles * Math.PI * (particleRadius**2)) / area;
+                simulationResults.push({ T, N: numParticles, sigma: sigmaEffective, eta, P: P_2D, Z, f: avgWallFreq });
+                entry += `<b>Z:</b> ${Z.toFixed(3)} | <b>&eta;:</b> ${eta.toFixed(3)} | <b>P:</b> ${P_2D.toFixed(2)} | <b>Freq:</b> ${avgWallFreq.toFixed(1)} Hz`;
+            } else {
+                entry += `<b>Freq. Colisão:</b> ${avgWallFreq.toFixed(1)} Hz`;
+            }
+            entry += `</div>`;
+            historyBox.innerHTML += entry;
+            
+            if (isHardSphereMode && hsSection) hsSection.style.display = "block";
             drawScatterPlot();
-        } else {
-            if (historyBox) historyBox.innerHTML = `GI Concluído. Freq: ${avgWallFreq.toFixed(1)} Hz`;
         }
+
         drawFrame(0);
     }
 
@@ -159,7 +168,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const offset = frame * numParticles;
         
         for (let i = 0; i < numParticles; i++) {
-            // Aplicando o valor de R calculado, mantendo G e B constantes (Logo color base)
             ctx.fillStyle = `rgb(${historyR[offset+i]}, 60, 100)`;
             ctx.beginPath();
             ctx.arc(historyX[offset+i]*scale, historyY[offset+i]*scale, particleRadius*scale, 0, Math.PI*2);
@@ -172,22 +180,58 @@ document.addEventListener("DOMContentLoaded", () => {
         const c = getEl("freq-canvas"); if (!c) return;
         const g = c.getContext("2d");
         g.clearRect(0,0,c.width,c.height);
-        g.strokeStyle = "#d9534f"; g.lineWidth = 2; g.beginPath();
         
         if (currentWallFreqData.length === 0) return;
+
+        // Margins for axes
+        const marginX = 40;
+        const marginY = 30;
+        const drawW = c.width - marginX - 10;
+        const drawH = c.height - marginY - 20;
         
+        // Calculate Y scale focused on average
+        const avgFreq = currentWallFreqData.reduce((a,b)=>a+b,0) / currentWallFreqData.length;
+        const maxFreqData = Math.max(...currentWallFreqData);
+        const minFreqData = Math.min(...currentWallFreqData);
+        let padding = Math.max((maxFreqData - minFreqData) * 0.5, 5); // padding above max/min
+        
+        const yMax = avgFreq + padding;
+        const yMin = Math.max(0, avgFreq - padding);
+
+        // Draw Axes
+        g.strokeStyle = "#ccc"; g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(marginX, 10); g.lineTo(marginX, c.height - marginY); // Y Axis
+        g.lineTo(c.width - 10, c.height - marginY); // X Axis
+        g.stroke();
+
+        // Axis Labels
+        g.fillStyle = "#666"; g.font = "12px sans-serif";
+        g.fillText("Freq", 5, 20);
+        g.fillText("Tempo (passos)", c.width - 90, c.height - 10);
+
+        // Plot data
+        g.strokeStyle = "#d9534f"; g.lineWidth = 2; g.beginPath();
         const points = Math.floor(currentWallFreqData.length * progressRatio);
-        const stepX = (c.width - 40) / currentWallFreqData.length;
-        
-        const maxFreq = Math.max(...currentWallFreqData) || 1;
-        const usableHeight = c.height - 40; 
+        const stepX = drawW / currentWallFreqData.length;
         
         for(let i=0; i<points; i++) {
-            let x = 30 + i * stepX; 
-            let y = (c.height - 20) - (currentWallFreqData[i] / maxFreq) * usableHeight;
+            let x = marginX + i * stepX; 
+            let y = (c.height - marginY) - ((currentWallFreqData[i] - yMin) / (yMax - yMin)) * drawH;
+            
+            // Clip to drawing area
+            y = Math.max(10, Math.min(c.height - marginY, y));
+
             if(i === 0) g.moveTo(x,y); else g.lineTo(x,y);
         }
         g.stroke();
+
+        // Draw average line
+        g.strokeStyle = "rgba(0, 51, 102, 0.5)"; // Logo Blue with opacity
+        g.setLineDash([5, 5]); g.beginPath();
+        let yAvg = (c.height - marginY) - ((avgFreq - yMin) / (yMax - yMin)) * drawH;
+        g.moveTo(marginX, yAvg); g.lineTo(c.width - 10, yAvg);
+        g.stroke(); g.setLineDash([]);
     }
 
     function drawScatterPlot() {
@@ -195,8 +239,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const g = c.getContext("2d");
         const vX = selX.value, vY = selY.value;
         g.clearRect(0,0,c.width,c.height);
-        const maxX = Math.max(...simulationResults.map(d=>d[vX]))*1.1;
-        const maxY = Math.max(...simulationResults.map(d=>d[vY]))*1.1;
+        const maxX = Math.max(...simulationResults.map(d=>d[vX]))*1.1 || 1;
+        const maxY = Math.max(...simulationResults.map(d=>d[vY]))*1.1 || 1;
         
         g.fillStyle = "rgb(0, 60, 100)"; 
         
