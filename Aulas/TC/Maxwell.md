@@ -42,9 +42,8 @@ Arraste a linha tracejada vermelha no gráfico ou use os botões de ajuste fino.
                     <option value="CO2">Dióxido de Carbono (CO2)</option>
                     <option value="N2">Nitrogênio (N2)</option>
                 </select>
-                <span id="tcBadge" class="badge bg-secondary"></span>
-                <span id="aBadge" class="badge bg-info text-dark"></span>
-                <span id="bBadge" class="badge bg-warning text-dark"></span>
+                <div id="thermoPropsBox" class="border rounded px-3 py-2 mt-2 mb-3 bg-white text-dark text-center shadow-sm" style="font-size: 0.95em;">
+    </div>
             </div>
             <div class="input-group">
                 <label>Temperatura (K):</label>
