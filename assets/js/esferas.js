@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnClear) {
         btnClear.addEventListener("click", () => {
             simulationResults = [];
-            if (historyBox) historyBox.innerHTML = '';
+            if (historyBox) historyBox.innerHTML = '<p style="color: #999; font-style: italic; font-size: 0.85em;">Nenhuma simulação realizada.</p>';
             drawScatterPlot();
         });
     }
@@ -77,7 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
 
-            // A max expected physical speed for color mapping
             const maxExpectedV = vBaseFisico * 0.8; 
 
             for (; step < end; step++) {
@@ -115,7 +114,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     historyX[offset+i] = p.x;
                     historyY[offset+i] = p.y;
 
-                    // Calculates real physical velocity and scales to [0, 255]
                     let vFisicaInstantanea = Math.sqrt(p.vx**2 + p.vy**2) / boost;
                     let ratio = Math.min(1, vFisicaInstantanea / maxExpectedV);
                     historyR[offset + i] = Math.round(ratio * 255);
@@ -141,7 +139,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const avgWallFreq = totalWallCollisions / totalTime;
 
         if (historyBox) {
-            // Append format so students can compare history!
+            // Remove the default "no simulation" text if it's still there
+            if (historyBox.innerHTML.includes("Nenhuma simulação realizada")) {
+                historyBox.innerHTML = "";
+            }
+
             let entry = `<div style="border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 0.9em;">`;
             entry += `<b>T:</b> ${T}K | <b>N:</b> ${numParticles} | <b>L:</b> ${edgeLength} <br/>`;
             if (isHardSphereMode) {
@@ -183,20 +185,24 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (currentWallFreqData.length === 0) return;
 
-        // Margins for axes
         const marginX = 40;
         const marginY = 30;
         const drawW = c.width - marginX - 10;
         const drawH = c.height - marginY - 20;
         
-        // Calculate Y scale focused on average
         const avgFreq = currentWallFreqData.reduce((a,b)=>a+b,0) / currentWallFreqData.length;
-        const maxFreqData = Math.max(...currentWallFreqData);
-        const minFreqData = Math.min(...currentWallFreqData);
-        let padding = Math.max((maxFreqData - minFreqData) * 0.5, 5); // padding above max/min
+        const maxFreq = Math.max(...currentWallFreqData);
+        const minFreq = Math.min(...currentWallFreqData);
         
-        const yMax = avgFreq + padding;
-        const yMin = Math.max(0, avgFreq - padding);
+        // Updated formula for y-range based on max and min diff
+        let yMax = 1.25 * (maxFreq - minFreq) + maxFreq;
+        let yMin = minFreq - 1.25 * (maxFreq - minFreq);
+
+        // Fallback safety to avoid drawing a flatline out of bounds if max == min
+        if (yMax === yMin) {
+            yMax += 5;
+            yMin = Math.max(0, yMin - 5);
+        }
 
         // Draw Axes
         g.strokeStyle = "#ccc"; g.lineWidth = 1;
@@ -219,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let x = marginX + i * stepX; 
             let y = (c.height - marginY) - ((currentWallFreqData[i] - yMin) / (yMax - yMin)) * drawH;
             
-            // Clip to drawing area
+            // Clip to drawing area in case yMax/yMin calculations are pushed slightly by rounding
             y = Math.max(10, Math.min(c.height - marginY, y));
 
             if(i === 0) g.moveTo(x,y); else g.lineTo(x,y);
@@ -230,6 +236,8 @@ document.addEventListener("DOMContentLoaded", () => {
         g.strokeStyle = "rgba(0, 51, 102, 0.5)"; // Logo Blue with opacity
         g.setLineDash([5, 5]); g.beginPath();
         let yAvg = (c.height - marginY) - ((avgFreq - yMin) / (yMax - yMin)) * drawH;
+        // Avoid drawing outside the box
+        yAvg = Math.max(10, Math.min(c.height - marginY, yAvg));
         g.moveTo(marginX, yAvg); g.lineTo(c.width - 10, yAvg);
         g.stroke(); g.setLineDash([]);
     }
