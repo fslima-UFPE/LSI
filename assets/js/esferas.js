@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctx = canvas.getContext("2d");
     const isHardSphereMode = !!inputSigma; 
 
+    // Reintroduzindo historyR para armazenar o valor da cor (0 a 255)
     let historyX, historyY, historyR; 
     let totalSteps, numParticles, edgeLength, particleRadius;
     let simulationResults = [];
@@ -52,12 +53,11 @@ document.addEventListener("DOMContentLoaded", () => {
         particleRadius = sigmaEffective / 2;
         historyX = new Float32Array(numParticles * totalSteps);
         historyY = new Float32Array(numParticles * totalSteps);
-        historyR = new Uint8Array(numParticles * totalSteps);
+        historyR = new Uint8Array(numParticles * totalSteps); // Array para a cor
 
-        // --- CORREÇÃO: Física e Estética Separadas ---
-        const vBaseFisico = Math.sqrt(T / m) * 5; // Referência física real
+        const vBaseFisico = Math.sqrt(T / m) * 5; 
         const boost = getVisualSpeedMultiplier(T);
-        const vVisualBase = vBaseFisico * boost; // Velocidade visual estetica
+        const vVisualBase = vBaseFisico * boost; 
 
         let particles = Array.from({ length: numParticles }, () => ({
             x: particleRadius + Math.random() * (edgeLength - sigmaEffective),
@@ -104,23 +104,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
                 }
+                
                 if (step % 50 === 0) currentWallFreqData.push(collisionsThisStep);
                 
-                // --- CORREÇÃO DO CÁLCULO DE COR ---
                 let offset = step * numParticles;
                 for (let i = 0; i < numParticles; i++) {
-                    historyX[offset+i] = particles[i].x;
-                    historyY[offset+i] = particles[i].y;
-                    
                     let p = particles[i];
-                    // Recuperamos a velocidade física real dividindo pelo boost visual
+                    historyX[offset+i] = p.x;
+                    historyY[offset+i] = p.y;
+
+                    // Mapeamento de Cor baseado na velocidade FÍSICA
                     let vFisicaInstantanea = Math.sqrt(p.vx**2 + p.vy**2) / boost;
                     
-                    // Mapeia vFisica para R (0 a 255). 
-                    // Partículas com 2.5x a velocidade física base são Max Vermelho.
+                    // Consideramos 2.5x a velocidade base como o "limite superior" para a cor vermelha máxima
                     let ratio = Math.min(1, vFisicaInstantanea / (vBaseFisico * 2.5));
-                    let redIndex = Math.round(ratio * 255);
-                    historyR[offset + i] = redIndex;
+                    historyR[offset + i] = Math.round(ratio * 255);
                 }
             }
             getEl("progress-text").innerText = `Calculando: ${Math.floor((step/totalSteps)*100)}%`;
@@ -150,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (historyBox) historyBox.innerHTML = `<b>Z:</b> ${Z.toFixed(3)} | <b>&eta;:</b> ${eta.toFixed(3)} | <b>P:</b> ${P_2D.toFixed(2)}`;
             drawScatterPlot();
         } else {
-            if (historyBox) historyBox.innerHTML = `<p style="color:green;">GI Concluído. Freq: ${avgWallFreq.toFixed(1)} Hz</p>`;
+            if (historyBox) historyBox.innerHTML = `GI Concluído. Freq: ${avgWallFreq.toFixed(1)} Hz`;
         }
         drawFrame(0);
     }
@@ -159,9 +157,9 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const scale = canvas.width / edgeLength;
         const offset = frame * numParticles;
+        
         for (let i = 0; i < numParticles; i++) {
-            // Desenha a cor usando o índice R corrigido (0-255)
-            // Fixamos G=60 e B=100 da marca
+            // Aplicando o valor de R calculado, mantendo G e B constantes (Logo color base)
             ctx.fillStyle = `rgb(${historyR[offset+i]}, 60, 100)`;
             ctx.beginPath();
             ctx.arc(historyX[offset+i]*scale, historyY[offset+i]*scale, particleRadius*scale, 0, Math.PI*2);
@@ -175,11 +173,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const g = c.getContext("2d");
         g.clearRect(0,0,c.width,c.height);
         g.strokeStyle = "#d9534f"; g.lineWidth = 2; g.beginPath();
+        
+        if (currentWallFreqData.length === 0) return;
+        
         const points = Math.floor(currentWallFreqData.length * progressRatio);
-        const stepX = (c.width-40)/currentWallFreqData.length;
+        const stepX = (c.width - 40) / currentWallFreqData.length;
+        
+        const maxFreq = Math.max(...currentWallFreqData) || 1;
+        const usableHeight = c.height - 40; 
+        
         for(let i=0; i<points; i++) {
-            let x = 30 + i*stepX; let y = (c.height-20)-(currentWallFreqData[i]*12);
-            if(i===0) g.moveTo(x,y); else g.lineTo(x,y);
+            let x = 30 + i * stepX; 
+            let y = (c.height - 20) - (currentWallFreqData[i] / maxFreq) * usableHeight;
+            if(i === 0) g.moveTo(x,y); else g.lineTo(x,y);
         }
         g.stroke();
     }
@@ -191,7 +197,9 @@ document.addEventListener("DOMContentLoaded", () => {
         g.clearRect(0,0,c.width,c.height);
         const maxX = Math.max(...simulationResults.map(d=>d[vX]))*1.1;
         const maxY = Math.max(...simulationResults.map(d=>d[vY]))*1.1;
-        g.fillStyle = "rgb(0, 60, 100)"; // Pontos na cor Azul da marca
+        
+        g.fillStyle = "rgb(0, 60, 100)"; 
+        
         simulationResults.forEach(d => {
             let px = 40 + (d[vX]/maxX)*(c.width-60);
             let py = (c.height-40)-(d[vY]/maxY)*(c.height-60);
