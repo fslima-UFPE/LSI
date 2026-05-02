@@ -185,61 +185,121 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (currentWallFreqData.length === 0) return;
 
-        const marginX = 40;
-        const marginY = 30;
-        const drawW = c.width - marginX - 10;
+        // Increased margins to accommodate labels and titles
+        const marginX = 60; 
+        const marginY = 50; 
+        const drawW = c.width - marginX - 20;
         const drawH = c.height - marginY - 20;
         
         const avgFreq = currentWallFreqData.reduce((a,b)=>a+b,0) / currentWallFreqData.length;
         const maxFreq = Math.max(...currentWallFreqData);
         const minFreq = Math.min(...currentWallFreqData);
         
-        // Updated formula for y-range based on max and min diff
-        let yMax = 1.25 * (maxFreq - minFreq) + maxFreq;
-        let yMin = minFreq - 1.25 * (maxFreq - minFreq);
+        // 10% scaling factor
+        let yMax = 1.10 * (maxFreq - minFreq) + maxFreq;
+        let yMin = minFreq - 1.10 * (maxFreq - minFreq);
 
-        // Fallback safety to avoid drawing a flatline out of bounds if max == min
+        // Fallback safety to avoid flatline out of bounds if max == min
         if (yMax === yMin) {
             yMax += 5;
             yMin = Math.max(0, yMin - 5);
         }
 
-        // Draw Axes
+        // Draw Axes Lines
         g.strokeStyle = "#ccc"; g.lineWidth = 1;
         g.beginPath();
-        g.moveTo(marginX, 10); g.lineTo(marginX, c.height - marginY); // Y Axis
-        g.lineTo(c.width - 10, c.height - marginY); // X Axis
+        g.moveTo(marginX, 20); g.lineTo(marginX, c.height - marginY); // Y Axis
+        g.lineTo(c.width - 20, c.height - marginY); // X Axis
         g.stroke();
 
-        // Axis Labels
-        g.fillStyle = "#666"; g.font = "12px sans-serif";
-        g.fillText("Freq", 5, 20);
-        g.fillText("Tempo (passos)", c.width - 90, c.height - 10);
+        // Setup Text Styles for Titles
+        g.fillStyle = "#666"; 
+        g.font = "14px sans-serif";
+        g.textAlign = "center";
+        g.textBaseline = "middle";
 
-        // Plot data
-        g.strokeStyle = "#d9534f"; g.lineWidth = 2; g.beginPath();
+        // X-Axis Title
+        g.fillText("Tempo (Passos da Simulação)", marginX + drawW / 2, c.height - 15);
+        
+        // Y-Axis Title (Rotated)
+        g.save();
+        g.translate(15, 20 + drawH / 2);
+        g.rotate(-Math.PI / 2);
+        g.fillText("Frequência de Colisão (Hz)", 0, 0);
+        g.restore();
+
+        // Font size for ticks
+        g.font = "11px monospace";
+
+        // Y-Axis Ticks & Labels (5 major, 5 minor)
+        const yMajorTicks = 5;
+        g.textAlign = "right";
+        for (let i = 0; i <= yMajorTicks; i++) {
+            let frac = i / yMajorTicks;
+            let yPos = (c.height - marginY) - frac * drawH;
+            let yVal = yMin + frac * (yMax - yMin);
+
+            // Major tick
+            g.beginPath(); g.moveTo(marginX - 6, yPos); g.lineTo(marginX, yPos); g.stroke();
+            // Major label
+            g.fillText(yVal.toFixed(1), marginX - 10, yPos);
+
+            // Minor tick (drawn halfway to the next major tick)
+            if (i < yMajorTicks) {
+                let yPosMinor = (c.height - marginY) - (frac + 0.5 / yMajorTicks) * drawH;
+                g.beginPath(); g.moveTo(marginX - 3, yPosMinor); g.lineTo(marginX, yPosMinor); g.stroke();
+            }
+        }
+
+        // X-Axis Ticks & Labels (10 major, 10 minor)
+        const xMajorTicks = 10;
+        g.textAlign = "center";
+        g.textBaseline = "top";
+        for (let i = 0; i <= xMajorTicks; i++) {
+            let frac = i / xMajorTicks;
+            let xPos = marginX + frac * drawW;
+            let xVal = Math.floor(frac * totalSteps); // totalSteps is accessed from the outer scope
+
+            // Major tick
+            g.beginPath(); g.moveTo(xPos, c.height - marginY); g.lineTo(xPos, c.height - marginY + 6); g.stroke();
+            // Major label
+            g.fillText(xVal, xPos, c.height - marginY + 10);
+
+            // Minor tick
+            if (i < xMajorTicks) {
+                let xPosMinor = marginX + (frac + 0.5 / xMajorTicks) * drawW;
+                g.beginPath(); g.moveTo(xPosMinor, c.height - marginY); g.lineTo(xPosMinor, c.height - marginY + 3); g.stroke();
+            }
+        }
+
+        // Plot data line
+        g.strokeStyle = "#d9534f"; 
+        g.lineWidth = 1.5; 
+        g.beginPath();
         const points = Math.floor(currentWallFreqData.length * progressRatio);
-        const stepX = drawW / currentWallFreqData.length;
+        // Prevent division by zero if there's only 1 point
+        const stepX = drawW / Math.max(1, currentWallFreqData.length - 1);
         
         for(let i=0; i<points; i++) {
             let x = marginX + i * stepX; 
             let y = (c.height - marginY) - ((currentWallFreqData[i] - yMin) / (yMax - yMin)) * drawH;
             
-            // Clip to drawing area in case yMax/yMin calculations are pushed slightly by rounding
-            y = Math.max(10, Math.min(c.height - marginY, y));
+            // Clip line drawing to fit within the box boundaries
+            y = Math.max(20, Math.min(c.height - marginY, y));
 
             if(i === 0) g.moveTo(x,y); else g.lineTo(x,y);
         }
         g.stroke();
 
         // Draw average line
-        g.strokeStyle = "rgba(0, 51, 102, 0.5)"; // Logo Blue with opacity
-        g.setLineDash([5, 5]); g.beginPath();
+        g.strokeStyle = "rgba(0, 51, 102, 0.6)"; 
+        g.setLineDash([5, 5]); 
+        g.beginPath();
         let yAvg = (c.height - marginY) - ((avgFreq - yMin) / (yMax - yMin)) * drawH;
-        // Avoid drawing outside the box
-        yAvg = Math.max(10, Math.min(c.height - marginY, yAvg));
-        g.moveTo(marginX, yAvg); g.lineTo(c.width - 10, yAvg);
-        g.stroke(); g.setLineDash([]);
+        yAvg = Math.max(20, Math.min(c.height - marginY, yAvg));
+        g.moveTo(marginX, yAvg); g.lineTo(marginX + drawW, yAvg);
+        g.stroke(); 
+        g.setLineDash([]);
     }
 
     function drawScatterPlot() {
