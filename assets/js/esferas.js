@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
         historyR = new Uint8Array(numParticles * totalSteps);
 
         const boost = getVisualSpeedMultiplier(T);
-        const R = 8.314; // Your constant from the Z calculation
+        const R = 8.314; 
 
         // Generates normally distributed numbers (Gaussian)
         function randomGaussian() {
@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
         }
 
-        // FIX 1: Rejection Sampling & Maxwell-Boltzmann Initialization
+        // --- 1. INITIALIZATION ---
         let particles = [];
         for (let i = 0; i < numParticles; i++) {
             let p;
@@ -76,73 +76,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 p = {
                     x: particleRadius + Math.random() * (edgeLength - sigmaEffective),
                     y: particleRadius + Math.random() * (edgeLength - sigmaEffective),
-                    vx: randomGaussian(), // Start with standard normal distribution
+                    vx: randomGaussian(),
                     vy: randomGaussian()
                 };
                 
-                if (isHardSphereMode && sigmaEffective > 0) {
-                        for (let j = i + 1; j < numParticles; j++) {
-                            let p2 = particles[j];
-                            
-                            // Vector pointing from p2 to p
-                            let dx = p.x - p2.x; 
-                            let dy = p.y - p2.y;
-                            let distSq = dx*dx + dy*dy;
-                            
-                            if (distSq < sigmaEffective * sigmaEffective) {
-                                // Relative velocity
-                                let dvx = p.vx - p2.vx;
-                                let dvy = p.vy - p2.vy;
-                                
-                                // FIX 1: The Dot Product Check (Prevents Sticking)
-                                // If < 0, they are approaching. If > 0, they are already separating!
-                                if (dx * dvx + dy * dvy < 0) {
-                                    
-                                    // FIX 2: True 2D Hard-Sphere Elastic Collision
-                                    // Calculate the magnitude of momentum exchange along the normal
-                                    let dotProduct = (dx * dvx + dy * dvy) / distSq;
-                                    
-                                    // Apply the impulse along the normal vector
-                                    p.vx -= dotProduct * dx;
-                                    p.vy -= dotProduct * dy;
-                                    p2.vx += dotProduct * dx;
-                                    p2.vy += dotProduct * dy;
-                                }
-                            }
-                        }
-                    }
-                attempts++;
-            }
-            particles.push(p);
-        }
-
-        // --- NEW: Exact Temperature Scaling ---
-        
-        // 1. Remove net center-of-mass momentum (prevents the whole gas drifting)
-        let vCMx = 0, vCMy = 0;
-        for (let p of particles) { vCMx += p.vx; vCMy += p.vy; }
-        vCMx /= numParticles; vCMy /= numParticles;
-        for (let p of particles) { p.vx -= vCMx; p.vy -= vCMy; }
-
-        // 2. Measure the current random kinetic energy
-        let currentKinetic = 0;
-        for (let p of particles) {
-            currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
-        }
-
-        // 3. Rescale velocities to match EXACT target temperature T
-        // In 2D, Equipartition Theorem states: Total KE = N * R * T
-        let targetKinetic = numParticles * R * T;
-        let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
-
-        // Apply physical scale factor AND your visual boost
-        for (let p of particles) {
-            p.vx *= scaleFactor * boost;
-            p.vy *= scaleFactor * boost;
-        }
-                
+                // Initialization Check: Make sure new particle doesn't spawn inside existing ones
                 overlap = false;
-                if (isHardSphereMode) {
+                if (isHardSphereMode && sigmaEffective > 0) {
                     for (let j = 0; j < particles.length; j++) {
                         let dx = p.x - particles[j].x;
                         let dy = p.y - particles[j].y;
@@ -157,6 +97,25 @@ document.addEventListener("DOMContentLoaded", () => {
             particles.push(p);
         }
 
+        // --- 2. TEMPERATURE SCALING ---
+        let vCMx = 0, vCMy = 0;
+        for (let p of particles) { vCMx += p.vx; vCMy += p.vy; }
+        vCMx /= numParticles; vCMy /= numParticles;
+        for (let p of particles) { p.vx -= vCMx; p.vy -= vCMy; }
+
+        let currentKinetic = 0;
+        for (let p of particles) {
+            currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
+        }
+
+        let targetKinetic = numParticles * R * T;
+        let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
+
+        for (let p of particles) {
+            p.vx *= scaleFactor * boost;
+            p.vy *= scaleFactor * boost;
+        }
+
         getEl("ui-progress").style.display = "block";
         btnRun.disabled = true;
 
@@ -168,18 +127,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const intervalSteps = 50; 
         currentWallFreqData = [];
 
-        equilibriumStep = Math.floor(totalSteps * 0.20); // 20% Threshold
+        equilibriumStep = Math.floor(totalSteps * 0.20); 
 
+        // --- 3. SIMULATION LOOP ---
         function computeChunk() {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
-            const maxExpectedV = vBaseFisico * 0.8; 
+            
+            // Fixed the missing 'vBaseFisico' issue by using physics
+            const maxExpectedV = Math.sqrt(R * T) * 1.5; 
 
             for (; step < end; step++) {
                 let collisionsThisStep = 0;
                 let isEquilibrated = step >= equilibriumStep; 
 
-                // Clear any junk data collected right at the threshold
                 if (step === equilibriumStep) {
                     intervalCollisions = 0;
                     currentWallFreqData = [];
@@ -191,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     if (p.x <= particleRadius || p.x >= edgeLength - particleRadius) {
                         p.vx *= -1; 
-                        if (isEquilibrated) { // FIX 2: Only count post-equilibrium
+                        if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vx);
                             wallCollisionCount++;
@@ -199,20 +160,34 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                     if (p.y <= particleRadius || p.y >= edgeLength - particleRadius) {
                         p.vy *= -1; 
-                        if (isEquilibrated) { // FIX 2: Only count post-equilibrium
+                        if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vy);
                             wallCollisionCount++;
                         }
                     }
 
+                    // --- THE TRUE 2D COLLISION FIX ---
                     if (isHardSphereMode && sigmaEffective > 0) {
                         for (let j = i + 1; j < numParticles; j++) {
                             let p2 = particles[j];
-                            let dx = p2.x - p.x, dy = p2.y - p.y;
-                            if (dx*dx + dy*dy < sigmaEffective * sigmaEffective) {
-                                let tvx = p.vx; p.vx = p2.vx; p2.vx = tvx;
-                                let tvy = p.vy; p.vy = p2.vy; p2.vy = tvy;
+                            let dx = p.x - p2.x; 
+                            let dy = p.y - p2.y;
+                            let distSq = dx*dx + dy*dy;
+                            
+                            if (distSq < sigmaEffective * sigmaEffective) {
+                                let dvx = p.vx - p2.vx;
+                                let dvy = p.vy - p2.vy;
+                                
+                                // Dot Product Check
+                                if (dx * dvx + dy * dvy < 0) {
+                                    let dotProduct = (dx * dvx + dy * dvy) / distSq;
+                                    
+                                    p.vx -= dotProduct * dx;
+                                    p.vy -= dotProduct * dy;
+                                    p2.vx += dotProduct * dx;
+                                    p2.vy += dotProduct * dy;
+                                }
                             }
                         }
                     }
@@ -252,7 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         computeChunk();
     });
-
+    
     function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep) {
         getEl("ui-progress").style.display = "none";
         btnRun.disabled = false;
