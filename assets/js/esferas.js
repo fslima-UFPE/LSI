@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const sigmaEffective = isHardSphereMode ? parseFloat(inputSigma.value) : 1.0;
         const dt = parseFloat(getEl("inp-dt")?.value || 0.005);
-        totalSteps = parseInt(getEl("inp-steps")?.value || 2000000);
+        totalSteps = parseInt(getEl("inp-steps")?.value || 200000);
         
         particleRadius = sigmaEffective / 2;
         historyX = new Float32Array(numParticles * totalSteps);
