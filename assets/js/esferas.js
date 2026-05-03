@@ -55,11 +55,18 @@ document.addEventListener("DOMContentLoaded", () => {
         historyY = new Float32Array(numParticles * totalSteps);
         historyR = new Uint8Array(numParticles * totalSteps);
 
-        const vBaseFisico = Math.sqrt(T / m) * 5; 
         const boost = getVisualSpeedMultiplier(T);
-        const vVisualBase = vBaseFisico * boost; 
+        const R = 8.314; // Your constant from the Z calculation
 
-        // FIX 1: Rejection Sampling to prevent overlapping particles
+        // Generates normally distributed numbers (Gaussian)
+        function randomGaussian() {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        // FIX 1: Rejection Sampling & Maxwell-Boltzmann Initialization
         let particles = [];
         for (let i = 0; i < numParticles; i++) {
             let p;
@@ -70,9 +77,50 @@ document.addEventListener("DOMContentLoaded", () => {
                 p = {
                     x: particleRadius + Math.random() * (edgeLength - sigmaEffective),
                     y: particleRadius + Math.random() * (edgeLength - sigmaEffective),
-                    vx: (Math.random() - 0.5) * vVisualBase,
-                    vy: (Math.random() - 0.5) * vVisualBase
+                    vx: randomGaussian(), // Start with standard normal distribution
+                    vy: randomGaussian()
                 };
+                
+                overlap = false;
+                if (isHardSphereMode) {
+                    for (let j = 0; j < particles.length; j++) {
+                        let dx = p.x - particles[j].x;
+                        let dy = p.y - particles[j].y;
+                        if (dx*dx + dy*dy < sigmaEffective * sigmaEffective) {
+                            overlap = true;
+                            break;
+                        }
+                    }
+                }
+                attempts++;
+            }
+            particles.push(p);
+        }
+
+        // --- NEW: Exact Temperature Scaling ---
+        
+        // 1. Remove net center-of-mass momentum (prevents the whole gas drifting)
+        let vCMx = 0, vCMy = 0;
+        for (let p of particles) { vCMx += p.vx; vCMy += p.vy; }
+        vCMx /= numParticles; vCMy /= numParticles;
+        for (let p of particles) { p.vx -= vCMx; p.vy -= vCMy; }
+
+        // 2. Measure the current random kinetic energy
+        let currentKinetic = 0;
+        for (let p of particles) {
+            currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
+        }
+
+        // 3. Rescale velocities to match EXACT target temperature T
+        // In 2D, Equipartition Theorem states: Total KE = N * R * T
+        let targetKinetic = numParticles * R * T;
+        let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
+
+        // Apply physical scale factor AND your visual boost
+        for (let p of particles) {
+            p.vx *= scaleFactor * boost;
+            p.vy *= scaleFactor * boost;
+        }
                 
                 overlap = false;
                 if (isHardSphereMode) {
