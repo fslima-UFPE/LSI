@@ -22,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let simulationResults = [];
     let currentWallFreqData = []; 
     let isPlaying = false, currentFrame = 0, animationId = null;
+    let stateChart = null; // Added for Chart.js state curve
 
     if (selX) selX.addEventListener("change", drawScatterPlot);
     if (selY) selY.addEventListener("change", drawScatterPlot);
@@ -72,10 +73,11 @@ document.addEventListener("DOMContentLoaded", () => {
         let wallMomentumTransfer = 0;
         let wallCollisionCount = 0;
         
-        // Variables to calculate moving frequency in Hz
         let intervalCollisions = 0;
         const intervalSteps = 50; 
         currentWallFreqData = [];
+
+        const equilibriumStep = Math.floor(totalSteps * 0.20); // 20% Threshold
 
         function computeChunk() {
             const chunkSize = 800;
@@ -85,17 +87,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
             for (; step < end; step++) {
                 let collisionsThisStep = 0;
+                let isEquilibrated = step >= equilibriumStep; // Check if past 20%
+
                 for (let i = 0; i < numParticles; i++) {
                     let p = particles[i];
                     p.x += p.vx * dt; p.y += p.vy * dt;
 
                     if (p.x <= particleRadius || p.x >= edgeLength - particleRadius) {
-                        p.vx *= -1; wallMomentumTransfer += 2 * m * Math.abs(p.vx);
-                        collisionsThisStep++; wallCollisionCount++;
+                        p.vx *= -1; 
+                        collisionsThisStep++; 
+                        if (isEquilibrated) { // Only count if equilibrated
+                            wallMomentumTransfer += 2 * m * Math.abs(p.vx);
+                            wallCollisionCount++;
+                        }
                     }
                     if (p.y <= particleRadius || p.y >= edgeLength - particleRadius) {
-                        p.vy *= -1; wallMomentumTransfer += 2 * m * Math.abs(p.vy);
-                        collisionsThisStep++; wallCollisionCount++;
+                        p.vy *= -1; 
+                        collisionsThisStep++; 
+                        if (isEquilibrated) { // Only count if equilibrated
+                            wallMomentumTransfer += 2 * m * Math.abs(p.vy);
+                            wallCollisionCount++;
+                        }
                     }
 
                     if (isHardSphereMode && sigmaEffective > 0) {
@@ -110,7 +122,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 
-                // Accumulate collisions and calculate Hz every 50 steps
                 intervalCollisions += collisionsThisStep;
                 if ((step + 1) % intervalSteps === 0) {
                     let freqHz = intervalCollisions / (intervalSteps * dt);
@@ -129,24 +140,32 @@ document.addEventListener("DOMContentLoaded", () => {
                     historyR[offset + i] = Math.round(ratio * 255);
                 }
             }
-            getEl("progress-text").innerText = `Calculando: ${Math.floor((step/totalSteps)*100)}%`;
+            
+            const pct = Math.floor((step/totalSteps)*100);
+            if (step < equilibriumStep) {
+                getEl("progress-text").innerText = `Termalizando o sistema: ${pct}%`;
+            } else {
+                getEl("progress-text").innerText = `Calculando médias: ${pct}%`;
+            }
+
             if (step < totalSteps) setTimeout(computeChunk, 0);
-            else finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective);
+            else finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective, equilibriumStep);
         }
         computeChunk();
     });
 
-    function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective) {
+    function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep) {
         getEl("ui-progress").style.display = "none";
         btnRun.disabled = false;
         uiVisualization.style.display = "flex";
         if (scrubber) { scrubber.max = totalSteps - 1; scrubber.value = 0; }
         
-        const totalTime = totalSteps * dt;
+        // Calculate averages using ONLY the active (post-equilibrium) time
+        const activeTime = (totalSteps - equilibriumStep) * dt; 
         const perimeter = 4 * edgeLength;
         const area = edgeLength * edgeLength;
-        const P_2D = totalMomentum / (totalTime * perimeter);
-        const avgWallFreq = totalWallCollisions / totalTime;
+        const P_2D = totalMomentum / (activeTime * perimeter);
+        const avgWallFreq = totalWallCollisions / activeTime;
 
         if (historyBox) {
             if (historyBox.innerHTML.includes("Nenhuma simulação realizada")) {
@@ -203,35 +222,29 @@ document.addEventListener("DOMContentLoaded", () => {
         const maxFreq = Math.max(...currentWallFreqData);
         const minFreq = Math.min(...currentWallFreqData);
         
-        // Corrected: 10% padding (0.10) instead of 1.10
         const padding = 0.10 * (maxFreq - minFreq);
         let yMax = maxFreq + padding;
-        let yMin = Math.max(0, minFreq - padding); // Prevent negative frequency
+        let yMin = Math.max(0, minFreq - padding);
 
-        // Fallback safety to avoid flatline out of bounds if max == min
         if (yMax === yMin) {
             yMax += 5;
             yMin = Math.max(0, yMin - 5);
         }
 
-        // Draw Axes Lines with Thicker Borders
-        g.strokeStyle = "#333"; // Darker color
-        g.lineWidth = 2.5;      // Thicker line
+        g.strokeStyle = "#333"; 
+        g.lineWidth = 2.5;      
         g.beginPath();
-        g.moveTo(marginX, 20); g.lineTo(marginX, c.height - marginY); // Y Axis
-        g.lineTo(c.width - 20, c.height - marginY); // X Axis
+        g.moveTo(marginX, 20); g.lineTo(marginX, c.height - marginY); 
+        g.lineTo(c.width - 20, c.height - marginY); 
         g.stroke();
 
-        // Setup Text Styles for Titles
         g.fillStyle = "#666"; 
         g.font = "14px sans-serif";
         g.textAlign = "center";
         g.textBaseline = "middle";
 
-        // X-Axis Title
         g.fillText("Tempo (Passos da Simulação)", marginX + drawW / 2, c.height - 15);
         
-        // Y-Axis Title (Rotated)
         g.save();
         g.translate(15, 20 + drawH / 2);
         g.rotate(-Math.PI / 2);
@@ -239,8 +252,6 @@ document.addEventListener("DOMContentLoaded", () => {
         g.restore();
 
         g.font = "11px monospace";
-
-        // Y-Axis Ticks & Labels (5 major, 5 minor)
         const yMajorTicks = 5;
         g.textAlign = "right";
         for (let i = 0; i <= yMajorTicks; i++) {
@@ -259,7 +270,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // X-Axis Ticks & Labels (10 major, 10 minor)
         const xMajorTicks = 10;
         g.textAlign = "center";
         g.textBaseline = "top";
@@ -279,9 +289,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Plot data line
         g.strokeStyle = "#d9534f"; 
-        g.lineWidth = 2.0; // Thicker data line
+        g.lineWidth = 2.0; 
         g.beginPath();
         const points = Math.floor(currentWallFreqData.length * progressRatio);
         const stepX = drawW / Math.max(1, currentWallFreqData.length - 1);
@@ -296,7 +305,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         g.stroke();
 
-        // Draw average line
         g.strokeStyle = "rgba(0, 51, 102, 0.6)"; 
         g.lineWidth = 1.5;
         g.setLineDash([5, 5]); 
@@ -308,21 +316,81 @@ document.addEventListener("DOMContentLoaded", () => {
         g.setLineDash([]);
     }
 
+    // UPDATED: Replaced manual canvas drawing with Chart.js
     function drawScatterPlot() {
-        const c = getEl("plot-canvas"); if (!c || !simulationResults.length) return;
-        const g = c.getContext("2d");
-        const vX = selX.value, vY = selY.value;
-        g.clearRect(0,0,c.width,c.height);
-        const maxX = Math.max(...simulationResults.map(d=>d[vX]))*1.1 || 1;
-        const maxY = Math.max(...simulationResults.map(d=>d[vY]))*1.1 || 1;
-        
-        g.fillStyle = "rgb(0, 60, 100)"; 
-        
-        simulationResults.forEach(d => {
-            let px = 40 + (d[vX]/maxX)*(c.width-60);
-            let py = (c.height-40)-(d[vY]/maxY)*(c.height-60);
-            g.beginPath(); g.arc(px,py,4,0,Math.PI*2); g.fill();
-        });
+        const canvasEl = getEl("plot-canvas"); 
+        if (!canvasEl) return;
+
+        if (simulationResults.length === 0) {
+            if (stateChart) {
+                stateChart.destroy();
+                stateChart = null;
+            }
+            return;
+        }
+
+        const vX = selX.value;
+        const vY = selY.value;
+
+        const labels = {
+            "eta": "Fração de Empacotamento (η)",
+            "sigma": "Diâmetro da Partícula (σ)",
+            "T": "Temperatura (T)",
+            "N": "Número de Partículas (N)",
+            "Z": "Fator de Compressibilidade (Z)",
+            "P": "Pressão 2D (P)",
+            "f": "Frequência de Colisão (Hz)"
+        };
+
+        const chartData = simulationResults.map(d => ({ x: d[vX], y: d[vY] }));
+
+        if (stateChart) {
+            stateChart.data.datasets[0].data = chartData;
+            stateChart.options.scales.x.title.text = labels[vX];
+            stateChart.options.scales.y.title.text = labels[vY];
+            stateChart.update();
+        } else {
+            const ctxChart = canvasEl.getContext('2d');
+            stateChart = new Chart(ctxChart, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Resultados da Simulação',
+                        data: chartData,
+                        backgroundColor: '#d9534f',
+                        borderColor: '#003366',
+                        borderWidth: 1.5,
+                        pointRadius: 6,
+                        pointHoverRadius: 9
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear', position: 'bottom',
+                            title: { display: true, text: labels[vX], font: { size: 14, weight: 'bold' } },
+                            grid: { color: '#e9ecef' }
+                        },
+                        y: {
+                            title: { display: true, text: labels[vY], font: { size: 14, weight: 'bold' } },
+                            grid: { color: '#e9ecef' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${labels[vX]}: ${context.parsed.x.toFixed(3)} | ${labels[vY]}: ${context.parsed.y.toFixed(3)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 
     if (btnPlay) {
