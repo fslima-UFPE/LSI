@@ -262,7 +262,6 @@ function createMCSimulation(box) {
              C<sub>V</sub><sup>total</sup> = ${cv_total.toFixed(2)} J/mol·K`;
 
         if (s.hist.length > 0) {
-            
             let minE = Infinity;
             let maxE = -Infinity;
             for (let i = 0; i < s.hist.length; i++) {
@@ -270,7 +269,39 @@ function createMCSimulation(box) {
                 if (s.hist[i] > maxE) maxE = s.hist[i];
             }
 
-            const numBins = 50; 
+            let numBins = 50; // Default fallback
+
+            // 1. Detect if the data is discrete (like Square Well)
+            const uniqueSet = new Set();
+            // Sample up to 1000 points to keep it fast
+            const sampleStep = Math.max(1, Math.floor(s.hist.length / 1000));
+            for (let i = 0; i < s.hist.length; i += sampleStep) {
+                uniqueSet.add(s.hist[i].toFixed(4));
+            }
+
+            if (uniqueSet.size < 100 && uniqueSet.size > 1) {
+                // DISCRETE LOGIC: Find the minimum energy gap to perfectly map 1 state per bin
+                const sortedVals = Array.from(uniqueSet).map(Number).sort((a, b) => a - b);
+                let minGap = Infinity;
+                for (let i = 1; i < sortedVals.length; i++) {
+                    const gap = sortedVals[i] - sortedVals[i - 1];
+                    if (gap > 1e-5 && gap < minGap) minGap = gap;
+                }
+                if (minGap !== Infinity) {
+                    numBins = Math.round((maxE - minE) / minGap) + 1;
+                }
+            } else {
+                // CONTINUOUS LOGIC: Use Scott's Rule based on data spread
+                const stdDev = Math.sqrt(varianceE) * R; // Scale dimensionless variance to kJ/mol
+                if (stdDev > 0) {
+                    const idealBinWidth = (3.49 * stdDev) / Math.cbrt(s.hist.length);
+                    numBins = Math.ceil((maxE - minE) / idealBinWidth);
+                }
+            }
+
+            // Clamp bins to ensure Chart.js doesn't freeze or look overly sparse
+            numBins = Math.max(10, Math.min(numBins, 100));
+
             const binSize = (maxE - minE) / numBins || 1; 
 
             const counts = new Array(numBins).fill(0);
