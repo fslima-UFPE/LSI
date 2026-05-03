@@ -36,8 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function getVisualSpeedMultiplier(T) {
-        if (T <= 300) return 1 + (T / 300);
-        return 2 + (T - 300) * (4 / 700);
+        return Math.pow(T, 0.5) / 10;
     }
 
     btnRun.addEventListener("click", () => {
@@ -81,17 +80,37 @@ document.addEventListener("DOMContentLoaded", () => {
                     vy: randomGaussian()
                 };
                 
-                overlap = false;
-                if (isHardSphereMode) {
-                    for (let j = 0; j < particles.length; j++) {
-                        let dx = p.x - particles[j].x;
-                        let dy = p.y - particles[j].y;
-                        if (dx*dx + dy*dy < sigmaEffective * sigmaEffective) {
-                            overlap = true;
-                            break;
+                if (isHardSphereMode && sigmaEffective > 0) {
+                        for (let j = i + 1; j < numParticles; j++) {
+                            let p2 = particles[j];
+                            
+                            // Vector pointing from p2 to p
+                            let dx = p.x - p2.x; 
+                            let dy = p.y - p2.y;
+                            let distSq = dx*dx + dy*dy;
+                            
+                            if (distSq < sigmaEffective * sigmaEffective) {
+                                // Relative velocity
+                                let dvx = p.vx - p2.vx;
+                                let dvy = p.vy - p2.vy;
+                                
+                                // FIX 1: The Dot Product Check (Prevents Sticking)
+                                // If < 0, they are approaching. If > 0, they are already separating!
+                                if (dx * dvx + dy * dvy < 0) {
+                                    
+                                    // FIX 2: True 2D Hard-Sphere Elastic Collision
+                                    // Calculate the magnitude of momentum exchange along the normal
+                                    let dotProduct = (dx * dvx + dy * dvy) / distSq;
+                                    
+                                    // Apply the impulse along the normal vector
+                                    p.vx -= dotProduct * dx;
+                                    p.vy -= dotProduct * dy;
+                                    p2.vx += dotProduct * dx;
+                                    p2.vy += dotProduct * dy;
+                                }
+                            }
                         }
                     }
-                }
                 attempts++;
             }
             particles.push(p);
