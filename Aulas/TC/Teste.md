@@ -16,7 +16,6 @@ Vou ver se funciona.
 
   <div class="toolbox-content">
 
-    <!-- CONTROLS -->
     <div class="jsbox-control-panel">
       <div class="jsbox-controls-grid">
 
@@ -38,11 +37,6 @@ Vou ver se funciona.
             <input type="number" class="jsbox-input temp" value="300">
           </div>
 
-<!--          <div class="jsbox-input-row">
-            <label>dx (Å)</label>
-            <input type="number" class="jsbox-input dx" value="5">
-          </div> -->
-
           <div class="jsbox-input-row">
             <label>Passos</label>
             <input type="number" class="jsbox-input steps" value="200000">
@@ -52,7 +46,9 @@ Vou ver se funciona.
             <label>Espécie</label>
             <select class="jsbox-input species" autocomplete="off">
               <option value="IG" selected>Gás ideal</option>
-              <option value="HS">Esfera rígida</option>
+              <option value="HS">Esfera rígida (HS)</option>
+              <option value="SW">Poço quadrado (SW)</option>
+              <option value="VDW">van der Waals (vdW)</option>
               <option value="He">He (LJ)</option>              
               <option value="Ne">Ne (LJ)</option>
               <option value="Ar">Ar (LJ)</option>
@@ -64,10 +60,19 @@ Vou ver se funciona.
           <div class="species-info" style="font-size: 0.85em; color: #666; margin-bottom: 10px; min-height: 1.2em;"></div>
           
           <div class="jsbox-input-row" id="sigma-row" style="display: none;">
-            <label>sigma (Å)</label>
-            <input type="number" class="jsbox-input sigma" value="4">
+            <label>σ (Å)</label>
+            <input type="number" step="0.1" class="jsbox-input sigma" value="4.0">
+          </div>
+          
+          <div class="jsbox-input-row" id="eps-row" style="display: none;">
+            <label>ε/kB (K)</label>
+            <input type="number" step="1" class="jsbox-input eps" value="120">
           </div>
 
+          <div class="jsbox-input-row" id="lambda-row" style="display: none;">
+            <label>λ</label>
+            <input type="number" step="0.1" class="jsbox-input lambda" value="1.5">
+          </div>
           
         </div>      
 
@@ -80,7 +85,6 @@ Vou ver se funciona.
       </div>
     </div>
 
-    <!-- VISUALIZATION (ONLY GRAPHS NOW) -->
     <div class="jsbox-vis-layout">
 
       <div class="jsbox-vis-right">
@@ -110,7 +114,6 @@ Vou ver se funciona.
 
     </div>
 
-    <!-- RESULTS -->
     <div class="jsbox-alert results">
       Resultados da simulação
     </div>
