@@ -14,8 +14,29 @@ function createMCSimulation(box) {
 
     const histChart = new Chart(box.querySelector("#histChart"), {
         type: "bar",
-        data: { labels: [], datasets: [{ label: "Histograma de Energia (kJ/mol)", data: [] }] },
-        options: { animation: false }
+        data: { 
+            labels: [], 
+            datasets: [{ 
+                label: "Histograma de Energia (kJ/mol)", 
+                data: [],
+                // Make bars touch like a real histogram
+                barPercentage: 1.0, 
+                categoryPercentage: 1.0 
+            }] 
+        },
+        options: { 
+            animation: false,
+            scales: {
+                x: {
+                    ticks: {
+                        // This is the magic line for the axis scale! 
+                        // It forces Chart.js to skip labels if it gets too crowded.
+                        maxTicksLimit: 15, 
+                        maxRotation: 45
+                    }
+                }
+            }
+        }
     });
 
     const R = 0.0083145;
