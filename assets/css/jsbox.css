@@ -36,6 +36,8 @@
   margin-top: 0;
   margin-bottom: 0.3rem;
   font-family: "Montserrat";
+  border-bottom: none !important; 
+  text-decoration: none !important;
 }
 
 .toolbox-title::after {
