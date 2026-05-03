@@ -24,6 +24,9 @@ function createMCSimulation(box) {
 
     let state = null;
 
+    // ==========================================
+    // POTENTIAL FUNCTIONS
+    // ==========================================
     function LJ(dr, eps, sig) {
         const s = sig / dr;
         const s2 = s*s;
@@ -34,6 +37,25 @@ function createMCSimulation(box) {
             en: 4 * eps * (s12 - s6),
             xi: eps * (2*s12 - s6)
         };
+    }
+
+    function VDW(dr, eps, sig) {
+        if (dr <= sig) return { en: Infinity, xi: 0 }; // Hard core handles rejection
+        
+        const s = sig / dr;
+        const s2 = s*s;
+        const s6 = s2*s2*s2;
+        
+        return {
+            en: -4 * eps * s6, // Purely attractive dispersion tail
+            xi: -eps * s6      // Virial strictly for the r^-6 term
+        };
+    }
+
+    function SW(dr, eps, sig, lambda) {
+        if (dr <= sig) return { en: Infinity, xi: 0 }; // Hard core
+        if (dr <= lambda * sig) return { en: -eps, xi: 0 }; // Flat well (Virial is 0)
+        return { en: 0, xi: 0 };
     }
 
     function dist(a, b, box) {
@@ -73,11 +95,16 @@ function createMCSimulation(box) {
         let energy = 0;
         let xi = 0;
 
-        if (p.species.type === "LJ") {
+        if (p.species.type === "LJ" || p.species.type === "VDW" || p.species.type === "SW") {
             for (let i=0;i<p.N;i++){
                 for (let j=i+1;j<p.N;j++){
                     const dr = dist(positions[i], positions[j], p.boxSize);
-                    const res = LJ(dr, p.species.eps, p.species.sig);
+                    let res = {en: 0, xi: 0};
+                    
+                    if (p.species.type === "LJ") res = LJ(dr, p.species.eps, p.species.sig);
+                    else if (p.species.type === "VDW") res = VDW(dr, p.species.eps, p.species.sig);
+                    else if (p.species.type === "SW") res = SW(dr, p.species.eps, p.species.sig, p.species.lambda);
+                    
                     energy += res.en;
                     xi += res.xi;
                 }
@@ -91,7 +118,7 @@ function createMCSimulation(box) {
             step: 0,
             eqStart: Math.floor(0.2*p.maxSteps),
             eta: 0,
-            Z:1,        
+            Z: 1,        
 
             meanE: 0,
             M2E: 0,
@@ -129,15 +156,26 @@ function createMCSimulation(box) {
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
 
-            if (s.species.type === "HS") {
-                if (drNew < s.species.sig) return;
-                continue;
+            // Universal Hard Core Rejection for HS, VDW, and SW
+            if (s.species.type === "HS" || s.species.type === "VDW" || s.species.type === "SW") {
+                if (drNew <= s.species.sig) return; 
             }
 
-            if (s.species.type === "IG") continue;
+            if (s.species.type === "HS" || s.species.type === "IG") continue;
 
-            const oldRes = LJ(drOld, s.species.eps, s.species.sig);
-            const newRes = LJ(drNew, s.species.eps, s.species.sig);
+            let oldRes = {en: 0, xi: 0};
+            let newRes = {en: 0, xi: 0};
+
+            if (s.species.type === "LJ") {
+                oldRes = LJ(drOld, s.species.eps, s.species.sig);
+                newRes = LJ(drNew, s.species.eps, s.species.sig);
+            } else if (s.species.type === "VDW") {
+                oldRes = VDW(drOld, s.species.eps, s.species.sig);
+                newRes = VDW(drNew, s.species.eps, s.species.sig);
+            } else if (s.species.type === "SW") {
+                oldRes = SW(drOld, s.species.eps, s.species.sig, s.species.lambda);
+                newRes = SW(drNew, s.species.eps, s.species.sig, s.species.lambda);
+            }
 
             dE += newRes.en - oldRes.en;
             dXi += newRes.xi - oldRes.xi;
@@ -154,35 +192,34 @@ function createMCSimulation(box) {
 
         if (s.step < s.eqStart) return;
 
-        // FIX 1: Increment count FIRST to prevent divide-by-zero
         s.count++; 
 
         let E = 0;
         let P = 0;
 
         if (s.species.type === "IG") {
-
             P = s.pid;
-
         } else if (s.species.type === "HS") {
-
-            const sigma = s.species.sig;
             const rho = s.N / s.V;
-
-            s.eta = (Math.PI / 6) * rho * sigma**3;
+            s.eta = (Math.PI / 6) * rho * s.species.sig**3;
             s.Z = (1 + s.eta + s.eta**2 - s.eta**3) / (1 - s.eta)**3;
-
             P = s.pid * s.Z;
-
         } else {
-
             const E_dim = s.energy;
             E = R * E_dim;
 
-            P = s.xi * s.pcoef + s.pid;
+            if (s.species.type === "LJ") {
+                P = s.xi * s.pcoef + s.pid;
+            } else if (s.species.type === "VDW" || s.species.type === "SW") {
+                // Perturbation theory: P = P_HS(Carnahan-Starling) + P_tail(Virial)
+                const rho = s.N / s.V;
+                const eta = (Math.PI / 6) * rho * s.species.sig**3;
+                const Z_HS = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+                P = (s.pid * Z_HS) + (s.xi * s.pcoef); 
+            }
 
             const delta = E_dim - s.meanE;
-            s.meanE += delta / s.count; // Now perfectly safe!
+            s.meanE += delta / s.count; 
             s.M2E += delta * (E_dim - s.meanE);
         }
 
@@ -201,10 +238,11 @@ function createMCSimulation(box) {
 
     function finalize(s) {
 
-        const avgE = (s.species.type === "LJ") ? R * s.meanE : 0;
+        const hasEnergy = ["LJ", "VDW", "SW"].includes(s.species.type);
+        const avgE = hasEnergy ? R * s.meanE : 0;
         const avgP = s.meanP;
 
-        const varianceE = (s.species.type === "LJ" && s.count > 1)
+        const varianceE = (hasEnergy && s.count > 1)
             ? s.M2E / (s.count - 1)
             : 0;
 
@@ -212,15 +250,8 @@ function createMCSimulation(box) {
         const cv_ideal = 1.5 * Rj;
         const cv_total = cv_ideal + cv_real;
 
-        // ==========================================
-        // COMPRESSIBILITY FACTOR (Z) CALCULATION
-        // ==========================================
-        // Z = P_real / P_ideal
-        // Since s.pid is exactly the ideal gas pressure, this safely 
-        // works for IG (returns 1), HS, and LJ!
         const zFactor = avgP / s.pid;        
 
-        // Updated innerHTML to include Z = zFactor.toFixed(3)
         box.querySelector(".results").innerHTML =
             `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
              ⟨P⟩ = ${avgP.toFixed(2)} bar |
@@ -230,10 +261,8 @@ function createMCSimulation(box) {
              C<sub>V</sub><sup>ideal</sup> = ${cv_ideal.toFixed(2)} |
              C<sub>V</sub><sup>total</sup> = ${cv_total.toFixed(2)} J/mol·K`;
 
-        // Process the raw history into histogram bins safely
         if (s.hist.length > 0) {
             
-            // FIX: Use a loop instead of the spread operator (...s.hist)
             let minE = Infinity;
             let maxE = -Infinity;
             for (let i = 0; i < s.hist.length; i++) {
@@ -274,7 +303,7 @@ function createMCSimulation(box) {
         histChart.update();
 
         // ==========================================
-        // 🚀 BYPASS FOR IDEAL GAS & HARD SPHERES
+        // BYPASS FOR IDEAL GAS & HARD SPHERES
         // ==========================================
         if (state.species.type === "IG" || state.species.type === "HS") {
             let P = 0;
@@ -289,7 +318,6 @@ function createMCSimulation(box) {
                 P = state.pid * state.Z;
             }
 
-            // 1. Draw perfectly flat lines for E and P from step 0 to maxSteps
             energyChart.data.labels = [0, state.maxSteps];
             energyChart.data.datasets[0].data = [0, 0];
             
@@ -299,20 +327,15 @@ function createMCSimulation(box) {
             energyChart.update();
             pressureChart.update();
 
-            // 2. Fake the state statistics so finalize() formats the text correctly
             state.meanE = 0; 
             state.meanP = P;
-            state.count = state.maxSteps; // Pretend we ran all steps
+            state.count = state.maxSteps; 
             state.M2E = 0;
-            
-            // 3. Put a single zero in the history so the histogram renders a spike at 0
             state.hist = [0]; 
 
-            // 4. Instantly print results and EXIT (skip the MC loop)
             finalize(state);
             return; 
         }
-        // ==========================================
 
         function loop() {
             for (let i=0;i<200;i++) {
@@ -357,16 +380,18 @@ document.addEventListener("DOMContentLoaded", () => {
             Ne: { eps: 36.831, sig: 2.775, type: "LJ" },
             He: { eps: 5.465, sig: 2.628, type: "LJ" },
             HS: { sig: 8.0, type: "HS" },
+            SW: { eps: 120.0, sig: 4.0, lambda: 1.5, type: "SW" }, 
+            VDW: { eps: 120.0, sig: 4.0, type: "VDW" },            
             IG: { type: "IG" }
         };
 
         const btn = box.querySelector(".jsbox-btn-primary");
-        
-        // --- NEW CODE START ---
         const speciesSelect = box.querySelector(".species");
+        
         const sigmaRow = box.querySelector("#sigma-row");
+        const epsRow = box.querySelector("#eps-row");
+        const lambdaRow = box.querySelector("#lambda-row");
 
-        // 1. Create the info display element
         let infoArea = box.querySelector(".species-info");
         if (!infoArea) {
             infoArea = document.createElement("div");
@@ -374,42 +399,46 @@ document.addEventListener("DOMContentLoaded", () => {
             infoArea.style.fontSize = "0.85em";
             infoArea.style.margin = "5px 0 10px 0";
             infoArea.style.color = "#555";
-            // Injects it right after the species dropdown
             speciesSelect.parentNode.appendChild(infoArea);
         }
 
-        // 2. The Logic to show Sigma/Epsilon
         speciesSelect.addEventListener("change", (e) => {
             const val = e.target.value;
             const spec = speciesDB[val];
 
-            // Handle Hard Sphere row visibility
-            sigmaRow.style.display = (val === "HS") ? "flex" : "none";
+            sigmaRow.style.display = ["HS", "SW", "VDW"].includes(val) ? "flex" : "none";
+            epsRow.style.display = ["SW", "VDW"].includes(val) ? "flex" : "none";
+            lambdaRow.style.display = (val === "SW") ? "flex" : "none";
 
-            // Handle LJ Parameter Display
             if (spec && spec.type === "LJ") {
-                infoArea.innerHTML = `Parâmetros: σ = <b>${spec.sig}</b> Å, ε/k<sub>B</sub> = <b>${spec.eps}</b> K`;
+                infoArea.innerHTML = `Parâmetros fixos: σ = <b>${spec.sig}</b> Å, ε/k<sub>B</sub> = <b>${spec.eps}</b> K`;
+            } else if (["HS", "SW", "VDW"].includes(val)) {
+                infoArea.innerHTML = `Defina os parâmetros do modelo abaixo:`;
             } else {
                 infoArea.innerHTML = ""; 
             }
         });
 
-        // ==========================================        
+        // Trigger the change event on load to set the initial state correctly
+        speciesSelect.dispatchEvent(new Event("change"));
 
         btn.addEventListener("click", () => {
 
             const speciesType = box.querySelector(".species").value;
-
             const base = speciesDB[speciesType];
             let species = { ...base };
 
-            // ✅ read sigma ONLY for HS (This stays exactly as you had it!)
-            if (speciesType === "HS") {
-                const sigmaInput = box.querySelector(".sigma");
-                if (sigmaInput) {
-                    const val = parseFloat(sigmaInput.value);
-                    if (!isNaN(val)) species.sig = val;
-                }
+            if (["HS", "SW", "VDW"].includes(speciesType)) {
+                const sigVal = parseFloat(box.querySelector(".sigma").value);
+                if (!isNaN(sigVal)) species.sig = sigVal;
+            }
+            if (["SW", "VDW"].includes(speciesType)) {
+                const epsVal = parseFloat(box.querySelector(".eps").value);
+                if (!isNaN(epsVal)) species.eps = epsVal;
+            }
+            if (speciesType === "SW") {
+                const lamVal = parseFloat(box.querySelector(".lambda").value);
+                if (!isNaN(lamVal)) species.lambda = lamVal;
             }
 
             box.querySelector(".results").innerHTML = "Calculando simulação... aguarde.";
