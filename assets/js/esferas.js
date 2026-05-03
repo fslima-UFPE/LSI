@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const isHardSphereMode = !!inputSigma; 
 
     let historyX, historyY, historyR; 
-    let totalSteps, numParticles, edgeLength, particleRadius;
+    let totalSteps, numParticles, edgeLength, particleRadius, equilibriumStep;
     let simulationResults = [];
     let currentWallFreqData = []; 
     let isPlaying = false, currentFrame = 0, animationId = null;
@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const intervalSteps = 50; 
         currentWallFreqData = [];
 
-        const equilibriumStep = Math.floor(totalSteps * 0.20); // 20% Threshold
+        equilibriumStep = Math.floor(totalSteps * 0.20); // 20% Threshold
 
         function computeChunk() {
             const chunkSize = 800;
