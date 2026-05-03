@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const sigmaEffective = isHardSphereMode ? parseFloat(inputSigma.value) : 1.0;
         const dt = parseFloat(getEl("inp-dt")?.value || 0.005);
-        totalSteps = parseInt(getEl("inp-steps")?.value || 15000);
+        totalSteps = parseInt(getEl("inp-steps")?.value || 2000000);
         
         particleRadius = sigmaEffective / 2;
         historyX = new Float32Array(numParticles * totalSteps);
@@ -150,16 +150,37 @@ document.addEventListener("DOMContentLoaded", () => {
                     let p = particles[i];
                     p.x += p.vx * dt; p.y += p.vy * dt;
 
-                    if (p.x <= particleRadius || p.x >= edgeLength - particleRadius) {
-                        p.vx *= -1; 
+                    // X-axis wall collisions
+                    if (p.x <= particleRadius) {
+                        p.x = particleRadius; // Snap flush to the left wall
+                        p.vx = Math.abs(p.vx); // Force velocity pointing RIGHT (+)
+                        if (isEquilibrated) { 
+                            collisionsThisStep++; 
+                            wallMomentumTransfer += 2 * m * Math.abs(p.vx);
+                            wallCollisionCount++;
+                        }
+                    } else if (p.x >= edgeLength - particleRadius) {
+                        p.x = edgeLength - particleRadius; // Snap flush to the right wall
+                        p.vx = -Math.abs(p.vx); // Force velocity pointing LEFT (-)
                         if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vx);
                             wallCollisionCount++;
                         }
                     }
-                    if (p.y <= particleRadius || p.y >= edgeLength - particleRadius) {
-                        p.vy *= -1; 
+
+                    // Y-axis wall collisions
+                    if (p.y <= particleRadius) {
+                        p.y = particleRadius; // Snap flush to the top wall
+                        p.vy = Math.abs(p.vy); // Force velocity pointing DOWN (+)
+                        if (isEquilibrated) { 
+                            collisionsThisStep++; 
+                            wallMomentumTransfer += 2 * m * Math.abs(p.vy);
+                            wallCollisionCount++;
+                        }
+                    } else if (p.y >= edgeLength - particleRadius) {
+                        p.y = edgeLength - particleRadius; // Snap flush to the bottom wall
+                        p.vy = -Math.abs(p.vy); // Force velocity pointing UP (-)
                         if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vy);
