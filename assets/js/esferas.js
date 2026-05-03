@@ -59,10 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const boost = getVisualSpeedMultiplier(T);
         const vVisualBase = vBaseFisico * boost; 
 
-        const vBaseFisico = Math.sqrt(T / m) * 5; 
-        const boost = getVisualSpeedMultiplier(T);
-        const vVisualBase = vBaseFisico * boost; 
-
         // FIX 1: Rejection Sampling to prevent overlapping particles
         let particles = [];
         for (let i = 0; i < numParticles; i++) {
