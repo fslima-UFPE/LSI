@@ -59,12 +59,40 @@ document.addEventListener("DOMContentLoaded", () => {
         const boost = getVisualSpeedMultiplier(T);
         const vVisualBase = vBaseFisico * boost; 
 
-        let particles = Array.from({ length: numParticles }, () => ({
-            x: particleRadius + Math.random() * (edgeLength - sigmaEffective),
-            y: particleRadius + Math.random() * (edgeLength - sigmaEffective),
-            vx: (Math.random() - 0.5) * vVisualBase,
-            vy: (Math.random() - 0.5) * vVisualBase
-        }));
+        const vBaseFisico = Math.sqrt(T / m) * 5; 
+        const boost = getVisualSpeedMultiplier(T);
+        const vVisualBase = vBaseFisico * boost; 
+
+        // FIX 1: Rejection Sampling to prevent overlapping particles
+        let particles = [];
+        for (let i = 0; i < numParticles; i++) {
+            let p;
+            let overlap = true;
+            let attempts = 0;
+            
+            while (overlap && attempts < 2000) {
+                p = {
+                    x: particleRadius + Math.random() * (edgeLength - sigmaEffective),
+                    y: particleRadius + Math.random() * (edgeLength - sigmaEffective),
+                    vx: (Math.random() - 0.5) * vVisualBase,
+                    vy: (Math.random() - 0.5) * vVisualBase
+                };
+                
+                overlap = false;
+                if (isHardSphereMode) {
+                    for (let j = 0; j < particles.length; j++) {
+                        let dx = p.x - particles[j].x;
+                        let dy = p.y - particles[j].y;
+                        if (dx*dx + dy*dy < sigmaEffective * sigmaEffective) {
+                            overlap = true;
+                            break;
+                        }
+                    }
+                }
+                attempts++;
+            }
+            particles.push(p);
+        }
 
         getEl("ui-progress").style.display = "block";
         btnRun.disabled = true;
@@ -82,12 +110,17 @@ document.addEventListener("DOMContentLoaded", () => {
         function computeChunk() {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
-
             const maxExpectedV = vBaseFisico * 0.8; 
 
             for (; step < end; step++) {
                 let collisionsThisStep = 0;
-                let isEquilibrated = step >= equilibriumStep; // Check if past 20%
+                let isEquilibrated = step >= equilibriumStep; 
+
+                // Clear any junk data collected right at the threshold
+                if (step === equilibriumStep) {
+                    intervalCollisions = 0;
+                    currentWallFreqData = [];
+                }
 
                 for (let i = 0; i < numParticles; i++) {
                     let p = particles[i];
@@ -95,16 +128,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     if (p.x <= particleRadius || p.x >= edgeLength - particleRadius) {
                         p.vx *= -1; 
-                        collisionsThisStep++; 
-                        if (isEquilibrated) { // Only count if equilibrated
+                        if (isEquilibrated) { // FIX 2: Only count post-equilibrium
+                            collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vx);
                             wallCollisionCount++;
                         }
                     }
                     if (p.y <= particleRadius || p.y >= edgeLength - particleRadius) {
                         p.vy *= -1; 
-                        collisionsThisStep++; 
-                        if (isEquilibrated) { // Only count if equilibrated
+                        if (isEquilibrated) { // FIX 2: Only count post-equilibrium
+                            collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vy);
                             wallCollisionCount++;
                         }
@@ -122,11 +155,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 
-                intervalCollisions += collisionsThisStep;
-                if ((step + 1) % intervalSteps === 0) {
-                    let freqHz = intervalCollisions / (intervalSteps * dt);
-                    currentWallFreqData.push(freqHz);
-                    intervalCollisions = 0;
+                if (isEquilibrated) {
+                    intervalCollisions += collisionsThisStep;
+                    let equilibratedStep = step - equilibriumStep;
+                    if ((equilibratedStep + 1) % intervalSteps === 0) {
+                        let freqHz = intervalCollisions / (intervalSteps * dt);
+                        currentWallFreqData.push(freqHz);
+                        intervalCollisions = 0;
+                    }
                 }
                 
                 let offset = step * numParticles;
@@ -276,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         for (let i = 0; i <= xMajorTicks; i++) {
             let frac = i / xMajorTicks;
             let xPos = marginX + frac * drawW;
-            let xVal = Math.floor(frac * totalSteps); 
+            let xVal = Math.floor(equilibriumStep + frac * (totalSteps - equilibriumStep)); 
 
             g.lineWidth = 1.5;
             g.beginPath(); g.moveTo(xPos, c.height - marginY); g.lineTo(xPos, c.height - marginY + 6); g.stroke();
