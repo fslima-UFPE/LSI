@@ -5,9 +5,7 @@ subtitle: Testes do simulador de gases bidimensionais
 ---
 
 ## Verificando se "esferas.js" está seguindo a distribuição de Maxwell-Boltzmann.
-
-Neste laboratório virtual, testaremos se o motor físico reproduz corretamente a teoria cinética dos gases, comparando a distribuição atual das componentes da velocidade com a curva teórica esperada.
-
+<br>
 <div class="toolbox" id="aula-5-virtual-lab">
   <div class="toolbox-header">
     <h2 class="toolbox-title">Laboratório Virtual: Distribuição de Velocidades</h2>
@@ -65,53 +63,51 @@ Neste laboratório virtual, testaremos se o motor físico reproduz corretamente 
       <span id="progress-text">Calculando a termalização e as colisões...</span>
     </div>
 
-    <div id="ui-visualization" class="jsbox-vis-layout" style="display:none;">
+    <div id="ui-visualization" style="display:none; flex-direction: column; gap: 20px; max-width: 800px; margin: 0 auto;">
       
-      <div class="jsbox-vis-left">
-        <div class="jsbox-card">
-          <div class="jsbox-card-header">Câmera</div>
-          <div class="jsbox-card-body">
-            <canvas id="sim-canvas" width="600" height="600" class="jsbox-canvas-container"></canvas>
-            
-            <div class="jsbox-player-bar" style="margin-top: 15px;">
-              <button id="btn-play" class="jsbox-btn jsbox-btn-success">Reproduzir</button>
-              <input type="range" id="inp-scrubber" value="0" min="0" step="1" class="jsbox-scrubber">
+      <div class="jsbox-card">
+        <div class="jsbox-card-header">Câmera da Simulação</div>
+        <div class="jsbox-card-body" style="text-align: center;">
+          <canvas id="sim-canvas" width="600" height="600" class="jsbox-canvas-container" style="max-width: 100%; height: auto;"></canvas>
+          
+          <div class="jsbox-player-bar" style="margin-top: 15px;">
+            <button id="btn-play" class="jsbox-btn jsbox-btn-success">Reproduzir</button>
+            <input type="range" id="inp-scrubber" value="0" min="0" step="1" class="jsbox-scrubber">
+          </div>
+        </div>
+      </div>
+
+      <div class="jsbox-card">
+        <div class="jsbox-card-header">Frequência de Colisões (Parede)</div>
+        <div class="jsbox-card-body">
+          <canvas id="freq-canvas" class="jsbox-chart" style="height: 200px; width: 100%;"></canvas>
+        </div>
+      </div>
+
+      <div class="jsbox-card">
+        <div class="jsbox-card-header">Componentes da Velocidade (Maxwell-Boltzmann)</div>
+        <div class="jsbox-card-body">
+          <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="plot-canvas" class="jsbox-chart"></canvas>
+          </div>
+          <div class="jsbox-legend" style="margin-top: 15px;">
+            <div class="jsbox-legend-item">
+              <span class="jsbox-color-box" style="background:#007bff;"></span> Atual (Frame)
+            </div>
+            <div class="jsbox-legend-item">
+              <span class="jsbox-color-box" style="background:#dc3545; border: 2px dashed #dc3545;"></span> Média Histórica
+            </div>
+            <div class="jsbox-legend-item">
+              <span class="jsbox-color-box" style="background:#333;"></span> Teórico de Gauss
             </div>
           </div>
         </div>
       </div>
 
-      <div class="jsbox-vis-right">
-        
-        <div class="jsbox-card">
-          <div class="jsbox-card-header">Frequência de Colisões (Parede)</div>
-          <div class="jsbox-card-body">
-            <canvas id="freq-canvas" class="jsbox-chart" style="height: 180px;"></canvas>
-          </div>
-        </div>
-
-        <div class="jsbox-card">
-          <div class="jsbox-card-header">Componentes da Velocidade (Maxwell-Boltzmann)</div>
-          <div class="jsbox-card-body">
-            <canvas id="plot-canvas" class="jsbox-chart" style="height: 220px;"></canvas>
-            <div class="jsbox-legend">
-              <div class="jsbox-legend-item">
-                <span class="jsbox-color-box" style="background:#007bff;"></span> Atual
-              </div>
-              <div class="jsbox-legend-item">
-                <span class="jsbox-color-box" style="background:#dc3545; border: 2px dashed #dc3545;"></span> Média
-              </div>
-              <div class="jsbox-legend-item">
-                <span class="jsbox-color-box" style="background:#333;"></span> Teórico
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
     </div>
 
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ '/assets/js/esferas.js' | relative_url }}"></script>
