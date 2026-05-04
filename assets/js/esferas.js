@@ -22,7 +22,16 @@ document.addEventListener("DOMContentLoaded", () => {
     let simulationResults = [];
     let currentWallFreqData = []; 
     let isPlaying = false, currentFrame = 0, animationId = null;
-    let stateChart = null; // Added for Chart.js state curve
+    let stateChart = null; 
+
+    // --- Variáveis Globais para o Histograma - by zé
+    let histMedia = [];
+    let histAtual = [];
+    let histTeorico = [];
+    const numBins = 50;
+    let vMaxHist = 0;
+    let binWidth = 0;
+    let samplesCount = 0;
 
     if (selX) selX.addEventListener("change", drawScatterPlot);
     if (selY) selY.addEventListener("change", drawScatterPlot);
@@ -31,7 +40,12 @@ document.addEventListener("DOMContentLoaded", () => {
         btnClear.addEventListener("click", () => {
             simulationResults = [];
             if (historyBox) historyBox.innerHTML = '<p style="color: #999; font-style: italic; font-size: 0.85em;">Nenhuma simulação realizada.</p>';
-            drawScatterPlot();
+            if (selX && selY) {
+                drawScatterPlot();
+            } else if (stateChart) {
+                stateChart.destroy();
+                stateChart = null;
+            }
         });
     }
 
@@ -57,7 +71,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const boost = getVisualSpeedMultiplier(T);
         const R = 8.314; 
 
-        // Generates normally distributed numbers (Gaussian)
+        // Configuração dos Bins do Histograma de Velocidades - by ze
+        const sigmaV = Math.sqrt(R * T / m);
+        vMaxHist = 3.5 * sigmaV; 
+        binWidth = (2 * vMaxHist) / numBins;
+        histMedia = new Array(numBins).fill(0);
+        samplesCount = 0;
+
         function randomGaussian() {
             let u = 0, v = 0;
             while(u === 0) u = Math.random();
@@ -80,7 +100,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     vy: randomGaussian()
                 };
                 
-                // Initialization Check: Make sure new particle doesn't spawn inside existing ones
                 overlap = false;
                 if (isHardSphereMode && sigmaEffective > 0) {
                     for (let j = 0; j < particles.length; j++) {
@@ -133,8 +152,6 @@ document.addEventListener("DOMContentLoaded", () => {
         function computeChunk() {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
-            
-            // Fixed the missing 'vBaseFisico' issue by using physics
             const maxExpectedV = Math.sqrt(R * T) * 1.5; 
 
             for (; step < end; step++) {
@@ -150,18 +167,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     let p = particles[i];
                     p.x += p.vx * dt; p.y += p.vy * dt;
 
-                    // X-axis wall collisions
+                    // Colisões de Parede (X)
                     if (p.x <= particleRadius) {
-                        p.x = particleRadius; // Snap flush to the left wall
-                        p.vx = Math.abs(p.vx); // Force velocity pointing RIGHT (+)
+                        p.x = particleRadius;
+                        p.vx = Math.abs(p.vx);
                         if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vx);
                             wallCollisionCount++;
                         }
                     } else if (p.x >= edgeLength - particleRadius) {
-                        p.x = edgeLength - particleRadius; // Snap flush to the right wall
-                        p.vx = -Math.abs(p.vx); // Force velocity pointing LEFT (-)
+                        p.x = edgeLength - particleRadius;
+                        p.vx = -Math.abs(p.vx);
                         if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vx);
@@ -169,18 +186,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
 
-                    // Y-axis wall collisions
+                    // Colisões de Parede (Y)
                     if (p.y <= particleRadius) {
-                        p.y = particleRadius; // Snap flush to the top wall
-                        p.vy = Math.abs(p.vy); // Force velocity pointing DOWN (+)
+                        p.y = particleRadius;
+                        p.vy = Math.abs(p.vy);
                         if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vy);
                             wallCollisionCount++;
                         }
                     } else if (p.y >= edgeLength - particleRadius) {
-                        p.y = edgeLength - particleRadius; // Snap flush to the bottom wall
-                        p.vy = -Math.abs(p.vy); // Force velocity pointing UP (-)
+                        p.y = edgeLength - particleRadius;
+                        p.vy = -Math.abs(p.vy);
                         if (isEquilibrated) { 
                             collisionsThisStep++; 
                             wallMomentumTransfer += 2 * m * Math.abs(p.vy);
@@ -188,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
 
-                    // --- THE TRUE 2D COLLISION FIX ---
+                    // Colisões entre Partículas
                     if (isHardSphereMode && sigmaEffective > 0) {
                         for (let j = i + 1; j < numParticles; j++) {
                             let p2 = particles[j];
@@ -200,10 +217,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                 let dvx = p.vx - p2.vx;
                                 let dvy = p.vy - p2.vy;
                                 
-                                // Dot Product Check
                                 if (dx * dvx + dy * dvy < 0) {
                                     let dotProduct = (dx * dvx + dy * dvy) / distSq;
-                                    
                                     p.vx -= dotProduct * dx;
                                     p.vy -= dotProduct * dy;
                                     p2.vx += dotProduct * dx;
@@ -217,10 +232,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (isEquilibrated) {
                     intervalCollisions += collisionsThisStep;
                     let equilibratedStep = step - equilibriumStep;
+                    
                     if ((equilibratedStep + 1) % intervalSteps === 0) {
                         let freqHz = intervalCollisions / (intervalSteps * dt);
                         currentWallFreqData.push(freqHz);
                         intervalCollisions = 0;
+                    }
+
+                    // COLETA DE DADOS: Histograma da Média (a cada 10 passos)
+                    if (equilibratedStep % 10 === 0 && !selX) {
+                        samplesCount++;
+                        for (let i = 0; i < numParticles; i++) {
+                            let p = particles[i];
+                            let trueVx = p.vx / boost;
+                            let trueVy = p.vy / boost;
+                            
+                            let binX = Math.floor((trueVx + vMaxHist) / binWidth);
+                            let binY = Math.floor((trueVy + vMaxHist) / binWidth);
+                            if (binX >= 0 && binX < numBins) histMedia[binX]++;
+                            if (binY >= 0 && binY < numBins) histMedia[binY]++;
+                        }
                     }
                 }
                 
@@ -243,8 +274,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 getEl("progress-text").innerText = `Calculando médias: ${pct}%`;
             }
 
-            if (step < totalSteps) setTimeout(computeChunk, 0);
-            else finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective, equilibriumStep);
+            if (step < totalSteps) {
+                setTimeout(computeChunk, 0);
+            } else {
+                if (!selX) {
+                    // Histograma do passo Atual 
+                    histAtual = new Array(numBins).fill(0);
+                    for (let i = 0; i < numParticles; i++) {
+                        let p = particles[i];
+                        let trueVx = p.vx / boost;
+                        let trueVy = p.vy / boost;
+                        let binX = Math.floor((trueVx + vMaxHist) / binWidth);
+                        let binY = Math.floor((trueVy + vMaxHist) / binWidth);
+                        if (binX >= 0 && binX < numBins) histAtual[binX]++;
+                        if (binY >= 0 && binY < numBins) histAtual[binY]++;
+                    }
+
+                    // Normalizando o histograma da média
+                    if (samplesCount > 0) {
+                        for (let i = 0; i < numBins; i++) {
+                            histMedia[i] /= samplesCount;
+                        }
+                    }
+
+                    // Calculando a curva de distribuição Teórica
+                    histTeorico = new Array(numBins).fill(0);
+                    for (let i = 0; i < numBins; i++) {
+                        let vCenter = -vMaxHist + (i + 0.5) * binWidth;
+                        let probDensity = (1 / (sigmaV * Math.sqrt(2 * Math.PI))) * Math.exp(-(vCenter * vCenter) / (2 * sigmaV * sigmaV));
+                        // x2 porque amostramos 2 componentes (vx e vy) por partícula
+                        histTeorico[i] = 2 * numParticles * probDensity * binWidth;
+                    }
+                }
+                finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective, equilibriumStep);
+            }
         }
         computeChunk();
     });
@@ -255,7 +318,6 @@ document.addEventListener("DOMContentLoaded", () => {
         uiVisualization.style.display = "flex";
         if (scrubber) { scrubber.max = totalSteps - 1; scrubber.value = 0; }
         
-        // Calculate averages using ONLY the active (post-equilibrium) time
         const activeTime = (totalSteps - equilibriumStep) * dt; 
         const perimeter = 4 * edgeLength;
         const area = edgeLength * edgeLength;
@@ -281,7 +343,13 @@ document.addEventListener("DOMContentLoaded", () => {
             historyBox.innerHTML += entry;
             
             if (isHardSphereMode && hsSection) hsSection.style.display = "block";
-            drawScatterPlot();
+            
+            // Desenhar Gráfico de Pontos ou Distribuição de Velocidade?
+            if (selX && selY) {
+                drawScatterPlot();
+            } else {
+                drawVelocityDistribution();
+            }
         }
 
         drawFrame(0);
@@ -411,7 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
         g.setLineDash([]);
     }
 
-    // UPDATED: Replaced manual canvas drawing with Chart.js
+    // Gráfico Aula 04
     function drawScatterPlot() {
         const canvasEl = getEl("plot-canvas"); 
         if (!canvasEl) return;
@@ -473,19 +541,75 @@ document.addEventListener("DOMContentLoaded", () => {
                             grid: { color: '#e9ecef' }
                         }
                     },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return ` ${labels[vX]}: ${context.parsed.x.toFixed(3)} | ${labels[vY]}: ${context.parsed.y.toFixed(3)}`;
-                                }
-                            }
-                        }
-                    }
+                    plugins: { legend: { display: false } }
                 }
             });
         }
+    }
+
+    // Distribuição de Maxwell-Boltzmann
+    function drawVelocityDistribution() {
+        const canvasEl = getEl("plot-canvas");
+        if (!canvasEl) return;
+
+        let labels = [];
+        for (let i = 0; i < numBins; i++) {
+            labels.push((-vMaxHist + (i + 0.5) * binWidth).toFixed(1));
+        }
+
+        if (stateChart) {
+            stateChart.destroy();
+        }
+
+        const ctxChart = canvasEl.getContext('2d');
+        stateChart = new Chart(ctxChart, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Atual',
+                        data: histAtual,
+                        backgroundColor: 'rgba(0, 123, 255, 0.6)',
+                        borderColor: '#007bff',
+                        borderWidth: 1,
+                        barPercentage: 1.0,
+                        categoryPercentage: 1.0,
+                        order: 3
+                    },
+                    {
+                        label: 'Média Acumulada',
+                        data: histMedia,
+                        type: 'line',
+                        borderColor: '#dc3545',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        pointRadius: 0,
+                        order: 2
+                    },
+                    {
+                        label: 'Teórico (Gauss)',
+                        data: histTeorico,
+                        type: 'line',
+                        borderColor: '#333333',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: 'Componentes de Velocidade (v_x, v_y) [m/s]' } },
+                    y: { title: { display: true, text: 'Contagem de Partículas' }, beginAtZero: true }
+                },
+                plugins: { legend: { display: false } } // Legenda customizada via HTML
+            }
+        });
     }
 
     if (btnPlay) {
