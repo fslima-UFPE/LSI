@@ -312,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         computeChunk();
     });
     
-    function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep) {
+function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep) {
         getEl("ui-progress").style.display = "none";
         btnRun.disabled = false;
         uiVisualization.style.display = "flex";
@@ -324,6 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const P_2D = totalMomentum / (activeTime * perimeter);
         const avgWallFreq = totalWallCollisions / activeTime;
 
+        // Bloco do Histórico (só roda se a caixa existir no HTML)
         if (historyBox) {
             if (historyBox.innerHTML.includes("Nenhuma simulação realizada")) {
                 historyBox.innerHTML = "";
@@ -343,13 +344,14 @@ document.addEventListener("DOMContentLoaded", () => {
             historyBox.innerHTML += entry;
             
             if (isHardSphereMode && hsSection) hsSection.style.display = "block";
-            
-            // Desenhar Gráfico de Pontos ou Distribuição de Velocidade?
-            if (selX && selY) {
-                drawScatterPlot();
-            } else {
-                drawVelocityDistribution();
-            }
+        } 
+
+
+
+        if (selX && selY) {
+            drawScatterPlot();
+        } else {
+            drawVelocityDistribution();
         }
 
         drawFrame(0);
