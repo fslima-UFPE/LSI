@@ -113,3 +113,5 @@ Neste laboratório virtual, testaremos se o motor físico reproduz corretamente 
 
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
