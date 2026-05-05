@@ -98,7 +98,7 @@ subtitle: Testes do simulador de gases bidimensionais
               <span class="jsbox-color-box" style="background:#dc3545; border: 2px dashed #dc3545;"></span> Média Histórica
             </div>
             <div class="jsbox-legend-item">
-              <span class="jsbox-color-box" style="background:#333;"></span> Teórico de Gauss
+              <span class="jsbox-color-box" style="background:#333;"></span> Teórico
             </div>
           </div>
         </div>
