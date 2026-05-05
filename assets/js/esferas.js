@@ -583,7 +583,6 @@ document.addEventListener("DOMContentLoaded", () => {
             labels.push((-vMaxHist + (i + 0.5) * binWidth).toFixed(1));
         }
 
-        a
         let chartInstance = Chart.getChart(canvasEl);
         if (chartInstance) {
             chartInstance.destroy();
