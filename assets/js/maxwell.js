@@ -219,17 +219,30 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const tcAlert = document.getElementById('tcAlert');
 
+        // --- NEW: Temperature Visualization Safeguards ---
+        const upperThreshold = 0.95 * Tc; // T is too close to Tc
+        const lowerThreshold = 0.75 * Tc; // T is too low compared to Tc
+
         if (T >= Tc) {
-            if (tcAlert) tcAlert.innerText = `⚠️ Choose T < ${Tc.toFixed(1)} K`;
+            if (tcAlert) tcAlert.innerHTML = `⚠️ Choose T < ${Tc.toFixed(1)} K`;
             Plotly.purge(chartDiv); 
             if (btnUp) btnUp.disabled = true; if (btnDown) btnDown.disabled = true;
             if (pDisplayBox) pDisplayBox.style.display = "none";
             return;
         } else {
-            if (tcAlert) tcAlert.innerText = "";
+            // Display warnings for extreme T choices that cause bad scaling
+            if (T > upperThreshold) {
+                if (tcAlert) tcAlert.innerHTML = `⚠️ <b>Warning:</b> T is very close to T<sub>c</sub>. Pressure variations are too small for clear visualization.`;
+            } else if (T < lowerThreshold) {
+                if (tcAlert) tcAlert.innerHTML = `⚠️ <b>Warning:</b> T is much lower than T<sub>c</sub>. The transition volumes are too far apart to chart properly.`;
+            } else {
+                if (tcAlert) tcAlert.innerHTML = ""; // Clear warnings if T is in the "sweet spot"
+            }
+
             if (btnUp) btnUp.disabled = false; if (btnDown) btnDown.disabled = false;
             if (pDisplayBox) pDisplayBox.style.display = "block";
         }
+        // -------------------------------------------------
 
         currentVArray = [];
         currentPArray = [];
