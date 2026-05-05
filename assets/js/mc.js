@@ -19,7 +19,6 @@ function createMCSimulation(box) {
             datasets: [{ 
                 label: "Histograma de Energia (kJ/mol)", 
                 data: [],
-                // Make bars touch like a real histogram
                 barPercentage: 1.0, 
                 categoryPercentage: 1.0 
             }] 
@@ -29,8 +28,6 @@ function createMCSimulation(box) {
             scales: {
                 x: {
                     ticks: {
-                        // This is the magic line for the axis scale! 
-                        // It forces Chart.js to skip labels if it gets too crowded.
                         maxTicksLimit: 15, 
                         maxRotation: 45
                     }
@@ -61,21 +58,21 @@ function createMCSimulation(box) {
     }
 
     function VDW(dr, eps, sig) {
-        if (dr <= sig) return { en: Infinity, xi: 0 }; // Hard core handles rejection
+        if (dr <= sig) return { en: Infinity, xi: 0 }; 
         
         const s = sig / dr;
         const s2 = s*s;
         const s6 = s2*s2*s2;
         
         return {
-            en: -4 * eps * s6, // Purely attractive dispersion tail
-            xi: -eps * s6      // Virial strictly for the r^-6 term
+            en: -4 * eps * s6, 
+            xi: -eps * s6      
         };
     }
 
     function SW(dr, eps, sig, lambda) {
-        if (dr <= sig) return { en: Infinity, xi: 0 }; // Hard core
-        if (dr <= lambda * sig) return { en: -eps, xi: 0 }; // Flat well (Virial is 0)
+        if (dr <= sig) return { en: Infinity, xi: 0 }; 
+        if (dr <= lambda * sig) return { en: -eps, xi: 0 }; 
         return { en: 0, xi: 0 };
     }
 
@@ -177,7 +174,6 @@ function createMCSimulation(box) {
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
 
-            // Universal Hard Core Rejection for HS, VDW, and SW
             if (s.species.type === "HS" || s.species.type === "VDW" || s.species.type === "SW") {
                 if (drNew <= s.species.sig) return; 
             }
@@ -232,7 +228,6 @@ function createMCSimulation(box) {
             if (s.species.type === "LJ") {
                 P = s.xi * s.pcoef + s.pid;
             } else if (s.species.type === "VDW" || s.species.type === "SW") {
-                // Perturbation theory: P = P_HS(Carnahan-Starling) + P_tail(Virial)
                 const rho = s.N / s.V;
                 const eta = (Math.PI / 6) * rho * s.species.sig**3;
                 const Z_HS = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
@@ -273,14 +268,26 @@ function createMCSimulation(box) {
 
         const zFactor = avgP / s.pid;        
 
-        box.querySelector(".results").innerHTML =
-            `⟨E⟩ = ${avgE.toFixed(2)} kJ/mol |
-             ⟨P⟩ = ${avgP.toFixed(2)} bar |
-             P<sup>id</sup> = ${s.pid.toFixed(2)} bar |
-             Z = ${zFactor.toFixed(3)} <br>
-             C<sub>V</sub><sup>real</sup> = ${cv_real.toFixed(2)} |
-             C<sub>V</sub><sup>ideal</sup> = ${cv_ideal.toFixed(2)} |
-             C<sub>V</sub><sup>total</sup> = ${cv_total.toFixed(2)} J/mol·K`;
+        // INJECTION LOGIC
+        // Instead of replacing the HTML, we populate specific spans if they exist in the DOM
+        const inject = (className, value) => {
+            const el = box.querySelector(className);
+            if (el) el.innerText = value;
+        };
+
+        inject(".out-avgE", avgE.toFixed(2));
+        inject(".out-avgP", avgP.toFixed(2));
+        inject(".out-pid", s.pid.toFixed(2));
+        inject(".out-z", zFactor.toFixed(3));
+        inject(".out-cv-real", cv_real.toFixed(2));
+        inject(".out-cv-ideal", cv_ideal.toFixed(2));
+        inject(".out-cv-total", cv_total.toFixed(2));
+
+        // Toggle visibility to show the data block instead of the loading message
+        const statusMsg = box.querySelector(".sim-status-msg");
+        const outputsData = box.querySelector(".sim-outputs-data");
+        if (statusMsg) statusMsg.style.display = "none";
+        if (outputsData) outputsData.style.display = "block";
 
         if (s.hist.length > 0) {
             let minE = Infinity;
@@ -290,18 +297,15 @@ function createMCSimulation(box) {
                 if (s.hist[i] > maxE) maxE = s.hist[i];
             }
 
-            let numBins = 50; // Default fallback
+            let numBins = 50; 
 
-            // 1. Detect if the data is discrete (like Square Well)
             const uniqueSet = new Set();
-            // Sample up to 1000 points to keep it fast
             const sampleStep = Math.max(1, Math.floor(s.hist.length / 1000));
             for (let i = 0; i < s.hist.length; i += sampleStep) {
                 uniqueSet.add(s.hist[i].toFixed(4));
             }
 
             if (uniqueSet.size < 100 && uniqueSet.size > 1) {
-                // DISCRETE LOGIC: Find the minimum energy gap to perfectly map 1 state per bin
                 const sortedVals = Array.from(uniqueSet).map(Number).sort((a, b) => a - b);
                 let minGap = Infinity;
                 for (let i = 1; i < sortedVals.length; i++) {
@@ -312,15 +316,13 @@ function createMCSimulation(box) {
                     numBins = Math.round((maxE - minE) / minGap) + 1;
                 }
             } else {
-                // CONTINUOUS LOGIC: Use Scott's Rule based on data spread
-                const stdDev = Math.sqrt(varianceE) * R; // Scale dimensionless variance to kJ/mol
+                const stdDev = Math.sqrt(varianceE) * R; 
                 if (stdDev > 0) {
                     const idealBinWidth = (3.49 * stdDev) / Math.cbrt(s.hist.length);
                     numBins = Math.ceil((maxE - minE) / idealBinWidth);
                 }
             }
 
-            // Clamp bins to ensure Chart.js doesn't freeze or look overly sparse
             numBins = Math.max(10, Math.min(numBins, 100));
 
             const binSize = (maxE - minE) / numBins || 1; 
@@ -338,7 +340,7 @@ function createMCSimulation(box) {
             histChart.data.datasets[0].data = counts;
             histChart.update();
         }
-    }    
+    }   
 
     function run(params) {
 
@@ -362,7 +364,7 @@ function createMCSimulation(box) {
 
             if (state.species.type === "IG") {
                 P = state.pid;
-            } else { // Hard Spheres
+            } else { 
                 const rho = state.N / state.V;
                 const sigma = state.species.sig;
                 state.eta = (Math.PI / 6) * rho * sigma**3;
@@ -412,7 +414,6 @@ function createMCSimulation(box) {
 
     return { run };
 }
-
 
 // ==========================
 // UI / BUTTON HANDLER
@@ -471,7 +472,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Trigger the change event on load to set the initial state correctly
         speciesSelect.dispatchEvent(new Event("change"));
 
         btn.addEventListener("click", () => {
@@ -493,7 +493,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!isNaN(lamVal)) species.lambda = lamVal;
             }
 
-            box.querySelector(".results").innerHTML = "Calculando simulação... aguarde.";
+            // Instead of overwriting innerHTML, toggle our displays
+            const statusMsg = box.querySelector(".sim-status-msg");
+            const outputsData = box.querySelector(".sim-outputs-data");
+            
+            if (statusMsg) {
+                statusMsg.innerText = "Calculando simulação... aguarde.";
+                statusMsg.style.display = "block";
+            }
+            if (outputsData) outputsData.style.display = "none";
 
             sim.run({
                 N: parseInt(box.querySelector(".npart").value),
