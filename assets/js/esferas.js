@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     let equilibratedStep = step - equilibriumStep;
                     
                     if ((equilibratedStep + 1) % intervalSteps === 0) {
-                        let freqHz = intervalCollisions / (intervalSteps * dt);
+                        let freqHz = (intervalCollisions / boost) / (intervalSteps * dt);
                         currentWallFreqData.push(freqHz);
                         intervalCollisions = 0;
                     }
@@ -324,6 +324,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     
     function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep) {
+
+        const boost = getVisualSpeedMultiplier(T);
+        
         getEl("ui-progress").style.display = "none";
         btnRun.disabled = false;
         uiVisualization.style.display = "flex";
@@ -332,6 +335,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const activeTime = (totalSteps - equilibriumStep) * dt; 
         const perimeter = 4 * edgeLength;
         const area = edgeLength * edgeLength;
+        
+        const trueWallCollisions = totalWallCollisions / boost;
+        const trueMomentum = totalMomentum / (boost * boost);
+        
         const P_2D = totalMomentum / (activeTime * perimeter);
         const avgWallFreq = totalWallCollisions / activeTime;
 
