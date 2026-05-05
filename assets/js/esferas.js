@@ -46,8 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (historyBox) historyBox.innerHTML = '<p style="color: #999; font-style: italic; font-size: 0.85em;">Nenhuma simulação realizada.</p>';
             if (selX && selY) {
                 drawScatterPlot();
-            } else if (stateChart) {
-                stateChart.destroy();
+            } else {
+                // Força a destruição ao limpar
+                let chartInstance = Chart.getChart("plot-canvas");
+                if (chartInstance) chartInstance.destroy();
                 stateChart = null;
             }
         });
@@ -581,8 +583,10 @@ document.addEventListener("DOMContentLoaded", () => {
             labels.push((-vMaxHist + (i + 0.5) * binWidth).toFixed(1));
         }
 
-        if (stateChart) {
-            stateChart.destroy();
+        a
+        let chartInstance = Chart.getChart(canvasEl);
+        if (chartInstance) {
+            chartInstance.destroy();
         }
 
         const ctxChart = canvasEl.getContext('2d');
