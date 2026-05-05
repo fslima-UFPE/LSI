@@ -4,9 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Thermodynamic Database & Engine
     // ==========================================
     const substanceDB = {
-        "H2O": { a: 5.536, b: 0.03049, Tc: 647.1 }, 
-        "CO2": { a: 3.640, b: 0.04267, Tc: 304.1 },
-        "N2":  { a: 1.370, b: 0.03871, Tc: 126.2 }
+        "H<sub>2</sub>O": { a: 5.536, b: 0.03049, Tc: 647.1 }, 
+        "CO<sub>2</sub>": { a: 3.655, b: 0.04282, Tc: 304.1 },
+        "N<sub>2</sub>":  { a: 1.370, b: 0.03871, Tc: 126.2 }
     };
 
     const R = 0.083144; 
