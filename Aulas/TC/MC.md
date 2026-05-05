@@ -115,7 +115,19 @@ Vou ver se funciona.
     </div>
 
     <div class="jsbox-alert results">
-      Resultados da simulação
+      <div class="sim-status-msg">
+        Pronto para iniciar. Pressione "Rodar Simulação".
+      </div>
+      <div class="sim-outputs-data" style="display: none; line-height: 1.6;">
+        <strong>Resultados:</strong><br>
+        ⟨E⟩ = <span class="out-avgE"></span> kJ/mol | 
+        ⟨p⟩ = <span class="out-avgP"></span> bar | 
+        p<sup>id</sup> = <span class="out-pid"></span> bar | 
+        Z = <span class="out-z"></span> <br>
+        C<sub>V</sub><sup>real</sup> = <span class="out-cv-real"></span> | 
+        C<sub>V</sub><sup>ideal</sup> = <span class="out-cv-ideal"></span> | 
+        C<sub>V</sub><sup>total</sup> = <span class="out-cv-total"></span> J/mol·K
+      </div>
     </div>
 
   </div>
