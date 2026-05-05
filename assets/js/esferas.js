@@ -25,10 +25,13 @@ document.addEventListener("DOMContentLoaded", () => {
     let totalSteps, numParticles, edgeLength, particleRadius, equilibriumStep;
     let simulationResults = [];
     let currentWallFreqData = []; 
+    
+    // Controles de Animação
     let isPlaying = false, currentFrame = 0, animationId = null;
+    let playbackSpeed = 5; 
     let stateChart = null; 
 
-    // --- Variáveis Globais para o Histograma (Maxwell-Boltzmann) ---
+    // Variáveis Globais para o Histograma (Maxwell-Boltzmann)
     let histMedia = [];
     let histAtual = [];
     let histTeorico = [];
@@ -47,16 +50,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (selX && selY) {
                 drawScatterPlot();
             } else {
-                // Força a destruição ao limpar
                 let chartInstance = Chart.getChart("plot-canvas");
                 if (chartInstance) chartInstance.destroy();
                 stateChart = null;
             }
         });
-    }
-
-    function getVisualSpeedMultiplier(T) {
-        return Math.pow(T, 0.5) / 10;
     }
 
     btnRun.addEventListener("click", () => {
@@ -65,6 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const m = parseFloat(getEl("inp-m1").value);
         edgeLength = parseFloat(getEl("inp-edge").value);
         
+        // Calculando o multiplicador visual para a animação (exagero visual da velocidade)
+        const boost = Math.pow(T, 0.5) / 10;
+        playbackSpeed = Math.max(1, Math.round(5 * boost));
+
         const sigmaEffective = isHardSphereMode ? parseFloat(inputSigma.value) : 1.0;
         const dt = parseFloat(getEl("inp-dt")?.value || 0.005);
         totalSteps = parseInt(getEl("inp-steps")?.value || 15000);
@@ -78,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
         historyVX = new Float32Array(numParticles * totalSteps); 
         historyVY = new Float32Array(numParticles * totalSteps); 
 
-        const boost = getVisualSpeedMultiplier(T);
         const R = 8.314; 
 
         // Configuração dos Bins do Histograma de Velocidades
@@ -141,8 +142,8 @@ document.addEventListener("DOMContentLoaded", () => {
         let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
 
         for (let p of particles) {
-            p.vx *= scaleFactor * boost;
-            p.vy *= scaleFactor * boost;
+            p.vx *= scaleFactor;
+            p.vy *= scaleFactor;
         }
 
         getEl("ui-progress").style.display = "block";
@@ -158,11 +159,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         equilibriumStep = Math.floor(totalSteps * 0.20); 
 
-        // --- 3. SIMULATION LOOP ---
+        // --- 3. SIMULATION LOOP (PURE PHYSICS) ---
         function computeChunk() {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
-            const maxExpectedV = Math.sqrt(R * T) * 1.5; 
+            const maxExpectedV = 3.0 * sigmaV; 
 
             for (; step < end; step++) {
                 let collisionsThisStep = 0;
@@ -244,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     let equilibratedStep = step - equilibriumStep;
                     
                     if ((equilibratedStep + 1) % intervalSteps === 0) {
-                        let freqHz = (intervalCollisions / boost) / (intervalSteps * dt);
+                        let freqHz = intervalCollisions / (intervalSteps * dt);
                         currentWallFreqData.push(freqHz);
                         intervalCollisions = 0;
                     }
@@ -254,16 +255,15 @@ document.addEventListener("DOMContentLoaded", () => {
                         samplesCount++;
                         for (let i = 0; i < numParticles; i++) {
                             let p = particles[i];
-                            let trueVx = p.vx / boost;
-                            let trueVy = p.vy / boost;
-                            let binX = Math.floor((trueVx + vMaxHist) / binWidth);
-                            let binY = Math.floor((trueVy + vMaxHist) / binWidth);
+                            let binX = Math.floor((p.vx + vMaxHist) / binWidth);
+                            let binY = Math.floor((p.vy + vMaxHist) / binWidth);
                             if (binX >= 0 && binX < numBins) histMedia[binX]++;
                             if (binY >= 0 && binY < numBins) histMedia[binY]++;
                         }
                     }
                 }
                 
+                // Gravação do Frame e Cores
                 let offset = step * numParticles;
                 for (let i = 0; i < numParticles; i++) {
                     let p = particles[i];
@@ -272,8 +272,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     historyVX[offset+i] = p.vx; 
                     historyVY[offset+i] = p.vy; 
 
-                    let vFisicaInstantanea = Math.sqrt(p.vx**2 + p.vy**2) / boost;
-                    let ratio = Math.min(1, vFisicaInstantanea / maxExpectedV);
+                    let vInstantanea = Math.sqrt(p.vx**2 + p.vy**2);
+                    let ratio = Math.min(1, vInstantanea / maxExpectedV);
+                    // Rápido = mais próximo de 1 = Vermelho alto (255)
                     historyR[offset + i] = Math.round(ratio * 255);
                 }
             }
@@ -290,26 +291,21 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 // --- FECHAMENTO E CÁLCULO FINAL DAS CURVAS ---
                 if (!selX) {
-                    // Histograma do último frame
                     histAtual = new Array(numBins).fill(0);
                     for (let i = 0; i < numParticles; i++) {
                         let p = particles[i];
-                        let trueVx = p.vx / boost;
-                        let trueVy = p.vy / boost;
-                        let binX = Math.floor((trueVx + vMaxHist) / binWidth);
-                        let binY = Math.floor((trueVy + vMaxHist) / binWidth);
+                        let binX = Math.floor((p.vx + vMaxHist) / binWidth);
+                        let binY = Math.floor((p.vy + vMaxHist) / binWidth);
                         if (binX >= 0 && binX < numBins) histAtual[binX]++;
                         if (binY >= 0 && binY < numBins) histAtual[binY]++;
                     }
 
-                    // Normalizando o histograma da média
                     if (samplesCount > 0) {
                         for (let i = 0; i < numBins; i++) {
                             histMedia[i] /= samplesCount;
                         }
                     }
 
-                    // Calculando a curva de distribuição Teórica
                     histTeorico = new Array(numBins).fill(0);
                     for (let i = 0; i < numBins; i++) {
                         let vCenter = -vMaxHist + (i + 0.5) * binWidth;
@@ -325,8 +321,6 @@ document.addEventListener("DOMContentLoaded", () => {
     
     function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep) {
 
-        const boost = getVisualSpeedMultiplier(T);
-        
         getEl("ui-progress").style.display = "none";
         btnRun.disabled = false;
         uiVisualization.style.display = "flex";
@@ -335,9 +329,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const activeTime = (totalSteps - equilibriumStep) * dt; 
         const perimeter = 4 * edgeLength;
         const area = edgeLength * edgeLength;
-        
-        const trueWallCollisions = totalWallCollisions / boost;
-        const trueMomentum = totalMomentum / (boost * boost);
         
         const P_2D = totalMomentum / (activeTime * perimeter);
         const avgWallFreq = totalWallCollisions / activeTime;
@@ -377,25 +368,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const offset = frame * numParticles;
         
         for (let i = 0; i < numParticles; i++) {
-            ctx.fillStyle = `rgb(${historyR[offset+i]}, 60, 100)`;
+            let redVal = historyR[offset+i];
+            let blueVal = 255 - redVal; 
+            
+            // Vermelho = Rápido, Azul = Lento
+            ctx.fillStyle = `rgb(${redVal}, 0, ${blueVal})`; 
             ctx.beginPath();
             ctx.arc(historyX[offset+i]*scale, historyY[offset+i]*scale, particleRadius*scale, 0, Math.PI*2);
             ctx.fill();
         }
         drawFreqLineGraph(frame / totalSteps);
 
-        // --- ATUALIZAR HISTOGRAMA DINAMICAMENTE ---
+        // ATUALIZAR HISTOGRAMA DINAMICAMENTE
         if (stateChart && stateChart.config.type === 'bar') {
             let tempHist = new Array(numBins).fill(0);
-            const T = parseFloat(getEl("inp-T").value);
-            const boost = getVisualSpeedMultiplier(T);
             
             for (let i = 0; i < numParticles; i++) {
-                let trueVx = historyVX[offset + i] / boost;
-                let trueVy = historyVY[offset + i] / boost;
-                
-                let binX = Math.floor((trueVx + vMaxHist) / binWidth);
-                let binY = Math.floor((trueVy + vMaxHist) / binWidth);
+                let binX = Math.floor((historyVX[offset + i] + vMaxHist) / binWidth);
+                let binY = Math.floor((historyVY[offset + i] + vMaxHist) / binWidth);
                 
                 if (binX >= 0 && binX < numBins) tempHist[binX]++;
                 if (binY >= 0 && binY < numBins) tempHist[binY]++;
@@ -656,8 +646,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function animate() {
         if(!isPlaying) return;
-        currentFrame += 5;
-        if(currentFrame >= totalSteps) { currentFrame=0; isPlaying=false; btnPlay.innerText="Reproduzir"; return; }
+        
+        // Pula frames com base na variável playbackSpeed gerada pelo 'boost'
+        currentFrame += playbackSpeed; 
+        
+        if(currentFrame >= totalSteps) { 
+            currentFrame = 0; 
+            isPlaying = false; 
+            btnPlay.innerText = "Reproduzir"; 
+            if(scrubber) scrubber.value = 0;
+            drawFrame(0);
+            return; 
+        }
+        
         if(scrubber) scrubber.value = currentFrame;
         drawFrame(currentFrame);
         requestAnimationFrame(animate);
