@@ -247,9 +247,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Display warnings for extreme T choices that cause bad scaling
             if (T > upperThreshold) {
-                if (tcAlert) tcAlert.innerHTML = `⚠️ <b>Warning:</b> T is very close to T<sub>c</sub>. Pressure variations are too small for clear visualization.`;
+                if (tcAlert) tcAlert.innerHTML = `⚠️ <b>Aviso:</b> T está muito próxima à T<sub>c</sub>. A variação de pressão é muito pequena para uma boa visualização.`;
             } else if (T < lowerThreshold) {
-                if (tcAlert) tcAlert.innerHTML = `⚠️ <b>Warning:</b> T is much lower than T<sub>c</sub>. The transition volumes are too far apart to chart properly.`;
+                if (tcAlert) tcAlert.innerHTML = `⚠️ <b>Aviso:</b> T é muito menor que T<sub>c</sub>. Os volumes de transição estão muito distantes para uma determinação precisa de p<sub>tr</sub>.`;
             } else {
                 if (tcAlert) tcAlert.innerHTML = ""; // Clear warnings if T is in the "sweet spot"
             }
