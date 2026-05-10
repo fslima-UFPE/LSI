@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const selX = elSelX ? elSelX : false;
     const selY = elSelY ? elSelY : false;
     const hsSection = getEl("hs-analysis-section");
+    const igWarning = getEl("ig-warning"); // Warning element
 
     if (!canvas || !btnRun) return;
 
@@ -70,6 +71,17 @@ document.addEventListener("DOMContentLoaded", () => {
         // 1 & 2. LOGIC FOR IDEAL GAS VS HARD SPHERE
         let rawSigma = isHardSphereMode ? parseFloat(inputSigma.value) : 0;
         const isIG = rawSigma < 0.1; 
+
+        // --- WARNING LOGIC ---
+        // Only trigger the warning if the input box exists AND its value is < 0.1
+        if (igWarning) {
+            if (inputSigma && parseFloat(inputSigma.value) < 0.1) {
+                igWarning.innerHTML = "⚠️ Você selecionou um diâmetro muito pequeno, as moléculas serão tratadas como ideais! Para esferas rígidas, selecione &sigma; > 0.1";
+                igWarning.style.display = "block";
+            } else {
+                igWarning.style.display = "none";
+            }
+        }
 
         // Se for IG, o sigma físico é 0 (sem colisão). Caso contrário, usa o input.
         const sigmaEffective = isIG ? 0 : rawSigma;
@@ -324,7 +336,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 
-                // Passamos isIG para não plotar Z/eta se for um Gás Ideal
                 finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective, equilibriumStep, isIG);
             }
         }
