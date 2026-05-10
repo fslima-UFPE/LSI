@@ -295,7 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
             yDomain = [globalMinP - yPadding, globalMaxP + yPadding];
             xDomain = [b * 1.1, localMaxV * 5]; 
             
-            initialPGuess = globalMinP + (globalMaxP - globalMinP) * 0.15; 
+            initialPGuess = globalMaxP * 0.10;
+            //initialPGuess = globalMinP + (globalMaxP - globalMinP) * 0.15; 
             exactPsat = findExactPsat(globalMinP, globalMaxP);
             stepP = (globalMaxP - globalMinP) / 100; 
             snapThresholdP = (globalMaxP - globalMinP) * 0.025; 
