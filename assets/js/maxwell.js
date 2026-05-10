@@ -302,9 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const layout = {
-            title: { text: `Isoterma de (${molKey}) a ${T} K`, font: { family: 'Segoe UI', size: 16 } },
+            title: { text: `Isoterma de ${molKey} a ${T} K`, font: { family: 'Segoe UI', size: 16 } },
             xaxis: { title: 'Volume molar / L/mol', range: xDomain, zeroline: false, fixedrange: true },
-            yaxis: { title: 'Pressure / bar', range: yDomain, zeroline: false, fixedrange: true },
+            yaxis: { title: 'Pressão / bar', range: yDomain, zeroline: false, fixedrange: true },
             shapes: [{
                 type: 'line', xref: 'paper', x0: 0, x1: 1, y0: initialPGuess, y1: initialPGuess,
                 line: { color: '#dc3545', width: 3, dash: 'dash' }, editable: true
