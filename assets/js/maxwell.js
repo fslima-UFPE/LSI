@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "CH4": "CH₄",
             "CO2": "CO₂",
             "NH3": "NH₃",
-            "C6H6": "C₆H₆"
+            "C6H6": "C₆H₆",
             "H2O": "H₂O"
         };
         const displayMol = prettyNames[molKey] || molKey;
