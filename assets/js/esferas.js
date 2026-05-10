@@ -63,15 +63,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const m = parseFloat(getEl("inp-m1").value);
         edgeLength = parseFloat(getEl("inp-edge").value);
         
-        // Calculando o multiplicador visual para a animação (exagero visual da velocidade)
+        // Calculando o multiplicador visual para a animação
         const boost = Math.pow(T, 0.5) / 10;
         playbackSpeed = Math.max(1, Math.round(5 * boost));
 
-        const sigmaEffective = isHardSphereMode ? parseFloat(inputSigma.value) : 1.0;
+        // 1 & 2. LOGIC FOR IDEAL GAS VS HARD SPHERE
+        let rawSigma = isHardSphereMode ? parseFloat(inputSigma.value) : 0;
+        const isIG = rawSigma < 0.1; 
+
+        // Se for IG, o sigma físico é 0 (sem colisão). Caso contrário, usa o input.
+        const sigmaEffective = isIG ? 0 : rawSigma;
+        
+        // Se for IG, desenha com tamanho 1.0 para podermos ver as partículas.
+        const visualSigma = isIG ? 1.0 : rawSigma;
+
         const dt = parseFloat(getEl("inp-dt")?.value || 0.005);
         totalSteps = parseInt(getEl("inp-steps")?.value || 15000);
         
-        particleRadius = sigmaEffective / 2;
+        particleRadius = visualSigma / 2;
         
         // Alocando memória para o filme da simulação
         historyX = new Float32Array(numParticles * totalSteps);
@@ -105,14 +114,15 @@ document.addEventListener("DOMContentLoaded", () => {
             
             while (overlap && attempts < 2000) {
                 p = {
-                    x: particleRadius + Math.random() * (edgeLength - sigmaEffective),
-                    y: particleRadius + Math.random() * (edgeLength - sigmaEffective),
+                    x: particleRadius + Math.random() * (edgeLength - visualSigma),
+                    y: particleRadius + Math.random() * (edgeLength - visualSigma),
                     vx: randomGaussian(),
                     vy: randomGaussian()
                 };
                 
                 overlap = false;
-                if (isHardSphereMode && sigmaEffective > 0) {
+                // 3. BYPASS INITIAL OVERLAP CHECK IF IDEAL GAS
+                if (!isIG) {
                     for (let j = 0; j < particles.length; j++) {
                         let dx = p.x - particles[j].x;
                         let dy = p.y - particles[j].y;
@@ -217,7 +227,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
 
                     // Colisões entre Partículas
-                    if (isHardSphereMode && sigmaEffective > 0) {
+                    // 3. BYPASS ACTUAL COLLISIONS IF IDEAL GAS
+                    if (!isIG) {
                         for (let j = i + 1; j < numParticles; j++) {
                             let p2 = particles[j];
                             let dx = p.x - p2.x; 
@@ -274,7 +285,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     let vInstantanea = Math.sqrt(p.vx**2 + p.vy**2);
                     let ratio = Math.min(1, vInstantanea / maxExpectedV);
-                    // Rápido = mais próximo de 1 = Vermelho alto (255)
                     historyR[offset + i] = Math.round(ratio * 255);
                 }
             }
@@ -313,13 +323,15 @@ document.addEventListener("DOMContentLoaded", () => {
                         histTeorico[i] = 2 * numParticles * probDensity * binWidth;
                     }
                 }
-                finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective, equilibriumStep);
+                
+                // Passamos isIG para não plotar Z/eta se for um Gás Ideal
+                finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective, equilibriumStep, isIG);
             }
         }
         computeChunk();
     });
     
-    function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep) {
+    function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep, isIG) {
 
         getEl("ui-progress").style.display = "none";
         btnRun.disabled = false;
@@ -339,18 +351,21 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             let entry = `<div style="border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 0.9em;">`;
             entry += `<b>T:</b> ${T}K | <b>N:</b> ${numParticles} | <b>L:</b> ${edgeLength} <br/>`;
-            if (isHardSphereMode) {
+            
+            if (!isIG) {
                 const Z = (P_2D * area) / (numParticles * 8.314 * T);
-                const eta = (numParticles * Math.PI * (particleRadius**2)) / area;
+                // Calcula eta usando o raio real, não o visual
+                const realRadius = sigmaEffective / 2;
+                const eta = (numParticles * Math.PI * (realRadius**2)) / area;
                 simulationResults.push({ T, N: numParticles, sigma: sigmaEffective, eta, P: P_2D, Z, f: avgWallFreq });
                 entry += `<b>Z:</b> ${Z.toFixed(3)} | <b>&eta;:</b> ${eta.toFixed(3)} | <b>P:</b> ${P_2D.toFixed(2)} | <b>Freq:</b> ${avgWallFreq.toFixed(1)} Hz`;
             } else {
-                entry += `<b>Freq. Colisão:</b> ${avgWallFreq.toFixed(1)} Hz`;
+                entry += `<b>Modo Gás Ideal</b> | <b>Freq. Parede:</b> ${avgWallFreq.toFixed(1)} Hz`;
             }
             entry += `</div>`;
             historyBox.innerHTML += entry;
             
-            if (isHardSphereMode && hsSection) hsSection.style.display = "block";
+            if (!isIG && hsSection) hsSection.style.display = "block";
         }
 
         if (selX && selY) {
