@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pDisplayBox.classList.add("snapped");
                     pDisplayBox.innerHTML = `🎉 Sucesso! Pressão de transição: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
                 } else {
-                    pDisplayBox.innerHTML = `Current Test Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+                    pDisplayBox.innerHTML = `Pressão selecionada atual: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
                 }
             }
         }
