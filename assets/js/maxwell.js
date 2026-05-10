@@ -209,6 +209,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const molKey = molSelect.value;
         const T = parseFloat(tempInput.value);
         const { a, b, Tc } = substanceDB[molKey];
+
+        const prettyNames = {
+            "H2O": "H₂O",
+            "CO2": "CO₂",
+            "N2": "N₂"
+        };
+        const displayMol = prettyNames[molKey] || molKey;
         
         // --- NEW: Single Box Update ---
         const thermoPropsBox = document.getElementById('thermoPropsBox');
@@ -302,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const layout = {
-            title: { text: `Isoterma de ${molKey} a ${T} K`, font: { family: 'Segoe UI', size: 16 } },
+            title: { text: `Isoterma de ${displayMol} a ${T} K`, font: { family: 'Segoe UI', size: 16 } },
             xaxis: { title: 'Volume molar / L/mol', range: xDomain, zeroline: false, fixedrange: true },
             yaxis: { title: 'Pressão / bar', range: yDomain, zeroline: false, fixedrange: true },
             shapes: [{
