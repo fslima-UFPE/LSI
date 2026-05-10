@@ -4,9 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Thermodynamic Database & Engine
     // ==========================================
     const substanceDB = {
-        "H2O": { a: 5.536, b: 0.03049, Tc: 647.1 }, 
+        "N2":  { a: 1.370, b: 0.03871, Tc: 126.2 },
+        "CO": { a: 1.473, b: 0.03952, Tc: 132.8 },
+        "CH4": { a: 2.303, b: 0.04307, Tc: 190.5 },
         "CO2": { a: 3.640, b: 0.04267, Tc: 304.1 },
-        "N2":  { a: 1.370, b: 0.03871, Tc: 126.2 }
+        "NH3": { a: 4.304, b: 0.03785, Tc: 405.3 },
+        "C6H6": { a: 18.876, b: 0.11974, Tc: 561.8 },
+        "H2O": { a: 5.536, b: 0.03049, Tc: 647.1 }         
     };
 
     const R = 0.083144; 
@@ -211,9 +215,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const { a, b, Tc } = substanceDB[molKey];
 
         const prettyNames = {
-            "H2O": "H₂O",
+            "N2": "N₂",
+            "CO": "CO",
+            "CH4": "CH₄",
             "CO2": "CO₂",
-            "N2": "N₂"
+            "NH3": "NH₃",
+            "C6H6": "C₆H₆"
+            "H2O": "H₂O"
         };
         const displayMol = prettyNames[molKey] || molKey;
         
