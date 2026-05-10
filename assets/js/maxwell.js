@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if ((isSnapped || err < 1.0) && results.crossings === 3) {
                     pDisplayBox.classList.add("snapped");
-                    pDisplayBox.innerHTML = `🎉 Success! Saturation Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
+                    pDisplayBox.innerHTML = `🎉 Sucesso! Pressão de transição: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
                 } else {
                     pDisplayBox.innerHTML = `Current Test Pressure: <b id="currentP-val">${finalP.toFixed(2)}</b> bar`;
                 }
@@ -302,9 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const layout = {
-            title: { text: `vdW Isotherm (${molKey}) at ${T} K`, font: { family: 'Segoe UI', size: 16 } },
-            xaxis: { title: 'Molar Volume (L/mol)', range: xDomain, zeroline: false, fixedrange: true },
-            yaxis: { title: 'Pressure (bar)', range: yDomain, zeroline: false, fixedrange: true },
+            title: { text: `Isoterma de (${molKey}) a ${T} K`, font: { family: 'Segoe UI', size: 16 } },
+            xaxis: { title: 'Volume molar / L/mol', range: xDomain, zeroline: false, fixedrange: true },
+            yaxis: { title: 'Pressure / bar', range: yDomain, zeroline: false, fixedrange: true },
             shapes: [{
                 type: 'line', xref: 'paper', x0: 0, x1: 1, y0: initialPGuess, y1: initialPGuess,
                 line: { color: '#dc3545', width: 3, dash: 'dash' }, editable: true
