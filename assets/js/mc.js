@@ -268,8 +268,35 @@ function createMCSimulation(box) {
 
         const zFactor = avgP / s.pid;        
 
+        // ==========================================
+        // NEW VIRIAL B2V CALCULATION
+        // ==========================================
+        let B2_part = null;
+        let P_virial = null;
+
+        if (["HS", "SW", "VDW"].includes(s.species.type)) {
+            const sig = s.species.sig;
+            const b_part = (2 * Math.PI * Math.pow(sig, 3)) / 3; // volume term per particle
+            
+            if (s.species.type === "HS") {
+                B2_part = b_part;
+            } else if (s.species.type === "SW") {
+                const eps_T = s.species.eps / s.T;
+                const lambda = s.species.lambda;
+                B2_part = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - Math.pow(lambda, 3)));
+            } else if (s.species.type === "VDW") {
+                const eps_T = s.species.eps / s.T;
+                // For a 1/r^6 attractive tail, standard a = 4 * epsilon * b
+                B2_part = b_part * (1 - 4 * eps_T); 
+            }
+
+            // Density rho = N / V (particles / Å³)
+            const rho = s.N / s.V; 
+            const Z_virial = 1 + B2_part * rho;
+            P_virial = s.pid * Z_virial;
+        }
+
         // INJECTION LOGIC
-        // Instead of replacing the HTML, we populate specific spans if they exist in the DOM
         const inject = (className, value) => {
             const el = box.querySelector(className);
             if (el) el.innerText = value;
@@ -282,6 +309,18 @@ function createMCSimulation(box) {
         inject(".out-cv-real", cv_real.toFixed(2));
         inject(".out-cv-ideal", cv_ideal.toFixed(2));
         inject(".out-cv-total", cv_total.toFixed(2));
+
+        // Inject B2V and P_virial if applicable
+        const virialRow = box.querySelector(".virial-row");
+        if (B2_part !== null) {
+            // Convert Å³/particle to cm³/mol (multiply by 10^-24 and Avogadro's number)
+            const B2V_molar = B2_part * 0.000602214; 
+            inject(".out-b2v", B2V_molar.toFixed(1));
+            inject(".out-pvirial", P_virial.toFixed(2));
+            if (virialRow) virialRow.style.display = "inline";
+        } else {
+            if (virialRow) virialRow.style.display = "none";
+        }
 
         // Toggle visibility to show the data block instead of the loading message
         const statusMsg = box.querySelector(".sim-status-msg");
