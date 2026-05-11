@@ -241,11 +241,12 @@ function createMCSimulation(box) {
                 // ==========================================
                 // SYMMETRIC VIRTUAL VOLUME PERTURBATION
                 // ==========================================
-                const dV_frac = 0.0001;
+                const dV_frac = 0.002; // Increased to 0.2% to capture hard-core collisions
                 const dV = s.V * dV_frac;
                 const scalePlus = Math.pow(1.0 + dV_frac, 1.0 / 3.0);
                 const scaleMinus = Math.pow(1.0 - dV_frac, 1.0 / 3.0);
                 
+                let U_curr = 0; // Local tracker to prevent floating-point drift
                 let U_plus = 0;
                 let U_minus = 0;
                 
@@ -253,20 +254,19 @@ function createMCSimulation(box) {
                     for (let j = i + 1; j < s.N; j++) {
                         const drOld = dist(s.positions[i], s.positions[j], s.boxSize);
                         
+                        U_curr += SW(drOld, s.species.eps, s.species.sig, s.species.lambda).en;
                         U_plus += SW(drOld * scalePlus, s.species.eps, s.species.sig, s.species.lambda).en;
                         U_minus += SW(drOld * scaleMinus, s.species.eps, s.species.sig, s.species.lambda).en;
                     }
                 }
                 
-                // JavaScript handles Math.exp(-Infinity) natively by returning 0
-                s.sumW_plus += Math.exp(-(U_plus - s.energy) / s.T);
-                s.sumW_minus += Math.exp(-(U_minus - s.energy) / s.T);
+                s.sumW_plus += Math.exp(-(U_plus - U_curr) / s.T);
+                s.sumW_minus += Math.exp(-(U_minus - U_curr) / s.T);
                 s.countW++;
                 
                 const avgW_plus = s.sumW_plus / s.countW;
                 const avgW_minus = s.sumW_minus / s.countW;
                 
-                // Protect against -Infinity log in early steps
                 if (avgW_minus > 0 && avgW_plus > 0) {
                     P = s.pid + (kB * s.T / (2 * dV)) * Math.log(avgW_plus / avgW_minus);
                 } else {
