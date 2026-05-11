@@ -1,5 +1,5 @@
 function createMCSimulation(box) {
-    // Check if g(r) is requested via the data-gr attribute on the toolbox div
+    // Check if g(r) is requested via the data-gr attribute. Default to false.
     const computeGRRequested = box.getAttribute("data-gr") === "true";
     
     // Initialize Charts
@@ -21,11 +21,13 @@ function createMCSimulation(box) {
         options: { animation: false, scales: { x: { ticks: { maxTicksLimit: 10 } } } }
     });
 
-    // Optional g(r) Chart
+    // Optional g(r) Chart logic
     let grChart = null;
     const grCanvas = box.querySelector("#grChart");
-    if (grCanvas) {
-        if (computeGRRequested) box.querySelector(".gr-card").style.display = "block";
+    const grCard = box.querySelector(".gr-card");
+
+    if (grCanvas && computeGRRequested) {
+        if (grCard) grCard.style.display = "block";
         grChart = new Chart(grCanvas, {
             type: "line",
             data: { labels: [], datasets: [{ label: "g(r)", data: [], borderColor: '#6f42c1', borderWidth: 2, pointRadius: 0, fill: false }] },
@@ -34,7 +36,6 @@ function createMCSimulation(box) {
     }
 
     const R = 0.0083145;
-    const Rj = 8.3145;
     const kB = 138.0649;
 
     let state = null;
@@ -88,7 +89,6 @@ function createMCSimulation(box) {
             }
         }
 
-        // g(r) Data Structure
         const maxR = p.boxSize / 2;
         const drBin = 0.05;
         const nBins = Math.floor(maxR / drBin);
@@ -103,7 +103,6 @@ function createMCSimulation(box) {
             pid: p.N * kB * p.T / (p.boxSize**3),
             pcoef: 8*kB/((p.boxSize**3)),
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300)),
-            // g(r) specifics
             computeGR: computeGRRequested,
             grHist: new Array(nBins).fill(0),
             grCount: 0,
@@ -151,7 +150,6 @@ function createMCSimulation(box) {
         if (s.step < s.eqStart) return;
         s.count++;
 
-        // 1. g(r) sampling (Requirement 1 & 2)
         if (s.computeGR && s.step % 10 === 0) {
             for (let i=0; i<s.N; i++) {
                 for (let j=i+1; j<s.N; j++) {
@@ -168,22 +166,15 @@ function createMCSimulation(box) {
         let P = 0;
         const rho = s.N / s.V;
 
-        // 2. Pressure Calculation (Requirement 3)
         if (s.species.type === "SW" && s.computeGR && s.grCount > 0) {
-            // Pressure for SW via g(r) contact values
             const sig = s.species.sig;
             const lamSig = s.species.lambda * sig;
-            
-            // Find g(r) at sigma+ and lambda*sigma-
             const idxSig = Math.floor(sig / s.drBin) + 1;
             const idxLam = Math.floor(lamSig / s.drBin) - 1;
-            
             const shellVolSig = (4/3)*Math.PI*(Math.pow((idxSig+1)*s.drBin,3) - Math.pow(idxSig*s.drBin,3));
             const g_sig_plus = s.grHist[idxSig] / (shellVolSig * rho * s.grCount);
-            
             const shellVolLam = (4/3)*Math.PI*(Math.pow((idxLam+1)*s.drBin,3) - Math.pow(idxLam*s.drBin,3));
             const g_lam_minus = s.grHist[idxLam] / (shellVolLam * rho * s.grCount);
-
             const eTerm = Math.exp(s.species.eps / s.T) - 1;
             const Z = 1 + (2/3)*Math.PI*rho*(Math.pow(sig,3)*g_sig_plus - Math.pow(lamSig,3)*eTerm*g_lam_minus);
             P = s.pid * Z;
@@ -198,6 +189,9 @@ function createMCSimulation(box) {
             const eta = (Math.PI/6)*rho*s.species.sig**3;
             const Z_HS = (1+eta+eta**2-eta**3)/Math.pow(1-eta, 3);
             P = (s.pid * Z_HS) + (s.xi * s.pcoef);
+        } else if (s.species.type === "SW" && !s.computeGR) {
+            // Fallback for SW if g(r) is disabled: approximate using mean xi (virial-like)
+            P = s.xi * s.pcoef + s.pid;
         }
 
         s.meanP += (P - s.meanP) / s.count;
@@ -216,25 +210,21 @@ function createMCSimulation(box) {
     }
 
     function finalize(s) {
-        // Standard outputs
         const inject = (cls, val) => { const el = box.querySelector(cls); if(el) el.innerText = val; };
         inject(".out-avgE", s.meanE.toFixed(2));
         inject(".out-avgP", s.meanP.toFixed(2));
         inject(".out-pid", s.pid.toFixed(2));
         inject(".out-z", (s.meanP / s.pid).toFixed(3));
 
-        // g(r) Chart Update
         if (s.computeGR && grChart) {
             const rho = s.N / s.V;
             const grData = [];
             const labels = [];
-            
             for (let i=0; i<s.grHist.length; i++) {
                 const rInner = i * s.drBin;
                 const rOuter = rInner + s.drBin;
                 const shellVol = (4/3) * Math.PI * (Math.pow(rOuter,3) - Math.pow(rInner,3));
                 const idealCount = shellVol * rho * s.grCount;
-                
                 labels.push((rInner + s.drBin/2).toFixed(2));
                 grData.push(s.grCount > 0 ? (s.grHist[i] / idealCount) : 0);
             }
@@ -243,10 +233,13 @@ function createMCSimulation(box) {
             grChart.update();
         }
 
-        // Histograma logic (Simplified for brevity)
         if (s.hist.length > 0) {
-            const minE = Math.min(...s.hist), maxE = Math.max(...s.hist);
-            const bins = 30, bSize = (maxE - minE)/bins;
+            let minE = s.hist[0], maxE = s.hist[0];
+            for (let i = 1; i < s.hist.length; i++) {
+                if (s.hist[i] < minE) minE = s.hist[i];
+                if (s.hist[i] > maxE) maxE = s.hist[i];
+            }
+            const bins = 30, bSize = (maxE - minE)/bins || 1;
             const counts = new Array(bins).fill(0);
             s.hist.forEach(v => counts[Math.min(Math.floor((v-minE)/bSize), bins-1)]++);
             histChart.data.labels = counts.map((_,i) => (minE + (i+0.5)*bSize).toFixed(1));
@@ -262,7 +255,6 @@ function createMCSimulation(box) {
         state = initSimulation(params);
         energyChart.data.labels = []; energyChart.data.datasets[0].data = [];
         pressureChart.data.labels = []; pressureChart.data.datasets[0].data = [];
-        
         function loop() {
             for (let i=0; i<400; i++) {
                 mcStep(state);
@@ -276,11 +268,9 @@ function createMCSimulation(box) {
         }
         loop();
     }
-
     return { run };
 }
 
-// UI Initialization
 document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".toolbox").forEach(box => {
         if (box.id !== "mc-tool") return;
@@ -291,20 +281,16 @@ document.addEventListener("DOMContentLoaded", () => {
             IG: { type: "IG" },
             Ar: { eps: 116.81, sig: 3.401, type: "LJ" }
         };
-
         const btn = box.querySelector(".jsbox-btn-primary");
         btn.addEventListener("click", () => {
             const speciesType = box.querySelector(".species").value;
             const species = { ...speciesDB[speciesType] };
-            
-            // Override with UI values for SW/HS
             const sig = parseFloat(box.querySelector(".sigma").value);
             const eps = parseFloat(box.querySelector(".eps").value);
             const lam = parseFloat(box.querySelector(".lambda").value);
             if(!isNaN(sig)) species.sig = sig;
             if(!isNaN(eps)) species.eps = eps;
             if(!isNaN(lam)) species.lambda = lam;
-
             sim.run({
                 N: parseInt(box.querySelector(".npart").value),
                 boxSize: parseFloat(box.querySelector(".box").value),
