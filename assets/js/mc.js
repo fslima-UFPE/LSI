@@ -241,12 +241,12 @@ function createMCSimulation(box) {
                 // ==========================================
                 // SYMMETRIC VIRTUAL VOLUME PERTURBATION
                 // ==========================================
-                const dV_frac = 0.002; // Increased to 0.2% to capture hard-core collisions
+                const dV_frac = 0.0005; // Tightened for better mathematical accuracy
                 const dV = s.V * dV_frac;
                 const scalePlus = Math.pow(1.0 + dV_frac, 1.0 / 3.0);
                 const scaleMinus = Math.pow(1.0 - dV_frac, 1.0 / 3.0);
                 
-                let U_curr = 0; // Local tracker to prevent floating-point drift
+                let U_curr = 0; 
                 let U_plus = 0;
                 let U_minus = 0;
                 
@@ -263,6 +263,14 @@ function createMCSimulation(box) {
                 s.sumW_plus += Math.exp(-(U_plus - U_curr) / s.T);
                 s.sumW_minus += Math.exp(-(U_minus - U_curr) / s.T);
                 s.countW++;
+                
+                // --- THE MEMORY HALVING TRICK ---
+                // Forgets the initial non-equilibrated steps so pressure adapts instantly
+                if (s.countW > 2000) {
+                    s.sumW_plus /= 2;
+                    s.sumW_minus /= 2;
+                    s.countW /= 2;
+                }
                 
                 const avgW_plus = s.sumW_plus / s.countW;
                 const avgW_minus = s.sumW_minus / s.countW;
