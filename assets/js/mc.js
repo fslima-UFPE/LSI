@@ -6,7 +6,7 @@ function createMCSimulation(box) {
         options: { animation: false }
     });
 
-    const pressureChart = new Chart(box.querySelector("#pressureChart"), {
+    const pressureChart = new Chart(box.querySelector("#pressureChart"),     {
         type: "line",
         data: { labels: [], datasets: [{ label: "Pressão (bar)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
@@ -144,7 +144,8 @@ function createMCSimulation(box) {
             count: 0,
 
             // Tracking for SW Virtual Volume Perturbation
-            sumW: 0,
+            sumW_plus: 0,
+            sumW_minus: 0,
             countW: 0,
 
             hist: [],
@@ -238,32 +239,39 @@ function createMCSimulation(box) {
                 P = (s.pid * Z_HS) + (s.xi * s.pcoef); 
             } else if (s.species.type === "SW") {
                 // ==========================================
-                // VIRTUAL VOLUME PERTURBATION FOR SW
+                // SYMMETRIC VIRTUAL VOLUME PERTURBATION
                 // ==========================================
                 const dV_frac = 0.0001;
                 const dV = s.V * dV_frac;
-                const scale = Math.pow(1.0 + dV_frac, 1.0 / 3.0);
+                const scalePlus = Math.pow(1.0 + dV_frac, 1.0 / 3.0);
+                const scaleMinus = Math.pow(1.0 - dV_frac, 1.0 / 3.0);
                 
-                let U_new = 0;
+                let U_plus = 0;
+                let U_minus = 0;
                 
-                // Note: since we are expanding (scale > 1), distance always increases.
-                // It is impossible to trigger a hard-core overlap on expansion if the 
-                // system is valid, so we can skip checking for Infinity.
                 for (let i = 0; i < s.N; i++) {
                     for (let j = i + 1; j < s.N; j++) {
                         const drOld = dist(s.positions[i], s.positions[j], s.boxSize);
-                        const drNew = drOld * scale; // Fast scalar scaling
-                        const res = SW(drNew, s.species.eps, s.species.sig, s.species.lambda);
-                        U_new += res.en;
+                        
+                        U_plus += SW(drOld * scalePlus, s.species.eps, s.species.sig, s.species.lambda).en;
+                        U_minus += SW(drOld * scaleMinus, s.species.eps, s.species.sig, s.species.lambda).en;
                     }
                 }
                 
-                const dU = U_new - s.energy; 
-                s.sumW += Math.exp(-dU / s.T);
+                // JavaScript handles Math.exp(-Infinity) natively by returning 0
+                s.sumW_plus += Math.exp(-(U_plus - s.energy) / s.T);
+                s.sumW_minus += Math.exp(-(U_minus - s.energy) / s.T);
                 s.countW++;
                 
-                const avgW = s.sumW / s.countW;
-                P = s.pid + (kB * s.T / dV) * Math.log(avgW);
+                const avgW_plus = s.sumW_plus / s.countW;
+                const avgW_minus = s.sumW_minus / s.countW;
+                
+                // Protect against -Infinity log in early steps
+                if (avgW_minus > 0 && avgW_plus > 0) {
+                    P = s.pid + (kB * s.T / (2 * dV)) * Math.log(avgW_plus / avgW_minus);
+                } else {
+                    P = s.meanP || s.pid; 
+                }
             }
 
             const delta = E_dim - s.meanE;
