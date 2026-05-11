@@ -1,8 +1,8 @@
 function createMCSimulation(box) {
-    // Check if g(r) is requested via the data-gr attribute. Default to false.
-    const computeGRRequested = box.getAttribute("data-gr") === "true";
+    // UI Toggle: only shows chart if this is "true"
+    const showGRChart = box.getAttribute("data-gr") === "true";
     
-    // Initialize Charts
+    // Initialize standard Charts
     const energyChart = new Chart(box.querySelector("#energyChart"), {
         type: "line",
         data: { labels: [], datasets: [{ label: "Energia (kJ/mol)", data: [], borderWidth: 2, pointRadius: 0, borderColor: '#007bff' }] },
@@ -21,12 +21,12 @@ function createMCSimulation(box) {
         options: { animation: false, scales: { x: { ticks: { maxTicksLimit: 10 } } } }
     });
 
-    // Optional g(r) Chart logic
+    // Optional g(r) Chart
     let grChart = null;
     const grCanvas = box.querySelector("#grChart");
     const grCard = box.querySelector(".gr-card");
 
-    if (grCanvas && computeGRRequested) {
+    if (grCanvas && showGRChart) {
         if (grCard) grCard.style.display = "block";
         grChart = new Chart(grCanvas, {
             type: "line",
@@ -37,12 +37,8 @@ function createMCSimulation(box) {
 
     const R = 0.0083145;
     const kB = 138.0649;
-
     let state = null;
 
-    // ==========================================
-    // POTENTIAL FUNCTIONS
-    // ==========================================
     function LJ(dr, eps, sig) {
         const s = sig / dr;
         const s2 = s*s;
@@ -64,12 +60,8 @@ function createMCSimulation(box) {
     }
 
     function dist(a, b, L) {
-        let dx = a[0]-b[0];
-        let dy = a[1]-b[1];
-        let dz = a[2]-b[2];
-        dx -= Math.round(dx/L)*L;
-        dy -= Math.round(dy/L)*L;
-        dz -= Math.round(dz/L)*L;
+        let dx = a[0]-b[0], dy = a[1]-b[1], dz = a[2]-b[2];
+        dx -= Math.round(dx/L)*L; dy -= Math.round(dy/L)*L; dz -= Math.round(dz/L)*L;
         return Math.sqrt(dx*dx+dy*dy+dz*dz);
     }
 
@@ -77,7 +69,6 @@ function createMCSimulation(box) {
         const positions = [];
         const ngrid = Math.ceil(Math.cbrt(p.N));
         const spacing = p.boxSize / ngrid;
-
         let count = 0;
         for (let x=0; x<ngrid; x++) {
             for (let y=0; y<ngrid; y++) {
@@ -103,7 +94,8 @@ function createMCSimulation(box) {
             pid: p.N * kB * p.T / (p.boxSize**3),
             pcoef: 8*kB/((p.boxSize**3)),
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300)),
-            computeGR: computeGRRequested,
+            // COMPUTE g(r) if UI requested OR if it's SW (needed for pressure)
+            computeGR: showGRChart || p.species.type === "SW",
             grHist: new Array(nBins).fill(0),
             grCount: 0,
             drBin: drBin,
@@ -121,28 +113,16 @@ function createMCSimulation(box) {
             if (j===i) continue;
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
-
             if (["HS", "VDW", "SW"].includes(s.species.type) && drNew <= s.species.sig) return;
-
             let oR = {en: 0, xi: 0}, nR = {en: 0, xi: 0};
-            if (s.species.type === "LJ") {
-                oR = LJ(drOld, s.species.eps, s.species.sig);
-                nR = LJ(drNew, s.species.eps, s.species.sig);
-            } else if (s.species.type === "VDW") {
-                oR = VDW(drOld, s.species.eps, s.species.sig);
-                nR = VDW(drNew, s.species.eps, s.species.sig);
-            } else if (s.species.type === "SW") {
-                oR = SW(drOld, s.species.eps, s.species.sig, s.species.lambda);
-                nR = SW(drNew, s.species.eps, s.species.sig, s.species.lambda);
-            }
-            dE += nR.en - oR.en;
-            dXi += nR.xi - oR.xi;
+            if (s.species.type === "LJ") { oR = LJ(drOld, s.species.eps, s.species.sig); nR = LJ(drNew, s.species.eps, s.species.sig); }
+            else if (s.species.type === "VDW") { oR = VDW(drOld, s.species.eps, s.species.sig); nR = VDW(drNew, s.species.eps, s.species.sig); }
+            else if (s.species.type === "SW") { oR = SW(drOld, s.species.eps, s.species.sig, s.species.lambda); nR = SW(drNew, s.species.eps, s.species.sig, s.species.lambda); }
+            dE += nR.en - oR.en; dXi += nR.xi - oR.xi;
         }
 
         if (dE < 0 || Math.random() < Math.exp(-dE/s.T)) {
-            s.positions[i] = newPos;
-            s.energy += dE;
-            s.xi += dXi;
+            s.positions[i] = newPos; s.energy += dE; s.xi += dXi;
         }
     }
 
@@ -166,9 +146,8 @@ function createMCSimulation(box) {
         let P = 0;
         const rho = s.N / s.V;
 
-        if (s.species.type === "SW" && s.computeGR && s.grCount > 0) {
-            const sig = s.species.sig;
-            const lamSig = s.species.lambda * sig;
+        if (s.species.type === "SW" && s.grCount > 0) {
+            const sig = s.species.sig, lamSig = s.species.lambda * sig;
             const idxSig = Math.floor(sig / s.drBin) + 1;
             const idxLam = Math.floor(lamSig / s.drBin) - 1;
             const shellVolSig = (4/3)*Math.PI*(Math.pow((idxSig+1)*s.drBin,3) - Math.pow(idxSig*s.drBin,3));
@@ -189,9 +168,6 @@ function createMCSimulation(box) {
             const eta = (Math.PI/6)*rho*s.species.sig**3;
             const Z_HS = (1+eta+eta**2-eta**3)/Math.pow(1-eta, 3);
             P = (s.pid * Z_HS) + (s.xi * s.pcoef);
-        } else if (s.species.type === "SW" && !s.computeGR) {
-            // Fallback for SW if g(r) is disabled: approximate using mean xi (virial-like)
-            P = s.xi * s.pcoef + s.pid;
         }
 
         s.meanP += (P - s.meanP) / s.count;
@@ -202,10 +178,8 @@ function createMCSimulation(box) {
         s.hist.push(E_molar);
 
         if (s.step % s.sampleEvery === 0) {
-            energyChart.data.labels.push(s.step);
-            energyChart.data.datasets[0].data.push(E_molar);
-            pressureChart.data.labels.push(s.step);
-            pressureChart.data.datasets[0].data.push(P);
+            energyChart.data.labels.push(s.step); energyChart.data.datasets[0].data.push(E_molar);
+            pressureChart.data.labels.push(s.step); pressureChart.data.datasets[0].data.push(P);
         }
     }
 
@@ -216,37 +190,26 @@ function createMCSimulation(box) {
         inject(".out-pid", s.pid.toFixed(2));
         inject(".out-z", (s.meanP / s.pid).toFixed(3));
 
-        if (s.computeGR && grChart) {
+        if (showGRChart && grChart) {
             const rho = s.N / s.V;
-            const grData = [];
-            const labels = [];
+            const grData = [], labels = [];
             for (let i=0; i<s.grHist.length; i++) {
-                const rInner = i * s.drBin;
-                const rOuter = rInner + s.drBin;
+                const rInner = i * s.drBin, rOuter = rInner + s.drBin;
                 const shellVol = (4/3) * Math.PI * (Math.pow(rOuter,3) - Math.pow(rInner,3));
-                const idealCount = shellVol * rho * s.grCount;
                 labels.push((rInner + s.drBin/2).toFixed(2));
-                grData.push(s.grCount > 0 ? (s.grHist[i] / idealCount) : 0);
+                grData.push(s.grCount > 0 ? (s.grHist[i] / (shellVol * rho * s.grCount)) : 0);
             }
-            grChart.data.labels = labels;
-            grChart.data.datasets[0].data = grData;
-            grChart.update();
+            grChart.data.labels = labels; grChart.data.datasets[0].data = grData; grChart.update();
         }
 
         if (s.hist.length > 0) {
             let minE = s.hist[0], maxE = s.hist[0];
-            for (let i = 1; i < s.hist.length; i++) {
-                if (s.hist[i] < minE) minE = s.hist[i];
-                if (s.hist[i] > maxE) maxE = s.hist[i];
-            }
-            const bins = 30, bSize = (maxE - minE)/bins || 1;
-            const counts = new Array(bins).fill(0);
+            for (let i = 1; i < s.hist.length; i++) { if (s.hist[i] < minE) minE = s.hist[i]; if (s.hist[i] > maxE) maxE = s.hist[i]; }
+            const bins = 30, bSize = (maxE - minE)/bins || 1, counts = new Array(bins).fill(0);
             s.hist.forEach(v => counts[Math.min(Math.floor((v-minE)/bSize), bins-1)]++);
             histChart.data.labels = counts.map((_,i) => (minE + (i+0.5)*bSize).toFixed(1));
-            histChart.data.datasets[0].data = counts;
-            histChart.update();
+            histChart.data.datasets[0].data = counts; histChart.update();
         }
-
         box.querySelector(".sim-status-msg").style.display = "none";
         box.querySelector(".sim-outputs-data").style.display = "block";
     }
@@ -257,13 +220,10 @@ function createMCSimulation(box) {
         pressureChart.data.labels = []; pressureChart.data.datasets[0].data = [];
         function loop() {
             for (let i=0; i<400; i++) {
-                mcStep(state);
-                state.step++;
-                updateStats(state);
+                mcStep(state); state.step++; updateStats(state);
                 if (state.step >= state.maxSteps) { finalize(state); return; }
             }
-            energyChart.update();
-            pressureChart.update();
+            energyChart.update(); pressureChart.update();
             requestAnimationFrame(loop);
         }
         loop();
@@ -285,19 +245,12 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.addEventListener("click", () => {
             const speciesType = box.querySelector(".species").value;
             const species = { ...speciesDB[speciesType] };
-            const sig = parseFloat(box.querySelector(".sigma").value);
-            const eps = parseFloat(box.querySelector(".eps").value);
-            const lam = parseFloat(box.querySelector(".lambda").value);
-            if(!isNaN(sig)) species.sig = sig;
-            if(!isNaN(eps)) species.eps = eps;
-            if(!isNaN(lam)) species.lambda = lam;
+            const sig = parseFloat(box.querySelector(".sigma").value), eps = parseFloat(box.querySelector(".eps").value), lam = parseFloat(box.querySelector(".lambda").value);
+            if(!isNaN(sig)) species.sig = sig; if(!isNaN(eps)) species.eps = eps; if(!isNaN(lam)) species.lambda = lam;
             sim.run({
-                N: parseInt(box.querySelector(".npart").value),
-                boxSize: parseFloat(box.querySelector(".box").value),
-                T: parseFloat(box.querySelector(".temp").value),
-                maxSteps: parseInt(box.querySelector(".steps").value),
-                dx: 2.0,
-                species: species
+                N: parseInt(box.querySelector(".npart").value), boxSize: parseFloat(box.querySelector(".box").value),
+                T: parseFloat(box.querySelector(".temp").value), maxSteps: parseInt(box.querySelector(".steps").value),
+                dx: 2.0, species: species
             });
         });
     });
