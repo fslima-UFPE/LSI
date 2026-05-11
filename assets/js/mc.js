@@ -143,6 +143,10 @@ function createMCSimulation(box) {
             meanP: 0,
             count: 0,
 
+            // Tracking for SW Virtual Volume Perturbation
+            sumW: 0,
+            countW: 0,
+
             hist: [],
 
             ...p,
@@ -227,11 +231,39 @@ function createMCSimulation(box) {
 
             if (s.species.type === "LJ") {
                 P = s.xi * s.pcoef + s.pid;
-            } else if (s.species.type === "VDW" || s.species.type === "SW") {
+            } else if (s.species.type === "VDW") {
                 const rho = s.N / s.V;
                 const eta = (Math.PI / 6) * rho * s.species.sig**3;
                 const Z_HS = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
                 P = (s.pid * Z_HS) + (s.xi * s.pcoef); 
+            } else if (s.species.type === "SW") {
+                // ==========================================
+                // VIRTUAL VOLUME PERTURBATION FOR SW
+                // ==========================================
+                const dV_frac = 0.0001;
+                const dV = s.V * dV_frac;
+                const scale = Math.pow(1.0 + dV_frac, 1.0 / 3.0);
+                
+                let U_new = 0;
+                
+                // Note: since we are expanding (scale > 1), distance always increases.
+                // It is impossible to trigger a hard-core overlap on expansion if the 
+                // system is valid, so we can skip checking for Infinity.
+                for (let i = 0; i < s.N; i++) {
+                    for (let j = i + 1; j < s.N; j++) {
+                        const drOld = dist(s.positions[i], s.positions[j], s.boxSize);
+                        const drNew = drOld * scale; // Fast scalar scaling
+                        const res = SW(drNew, s.species.eps, s.species.sig, s.species.lambda);
+                        U_new += res.en;
+                    }
+                }
+                
+                const dU = U_new - s.energy; 
+                s.sumW += Math.exp(-dU / s.T);
+                s.countW++;
+                
+                const avgW = s.sumW / s.countW;
+                P = s.pid + (kB * s.T / dV) * Math.log(avgW);
             }
 
             const delta = E_dim - s.meanE;
@@ -239,7 +271,12 @@ function createMCSimulation(box) {
             s.M2E += delta * (E_dim - s.meanE);
         }
 
-        s.meanP += (P - s.meanP) / s.count;
+        // SW yields an ensemble average, while others yield instant values
+        if (s.species.type === "SW") {
+            s.meanP = P; 
+        } else {
+            s.meanP += (P - s.meanP) / s.count;
+        }
 
         s.hist.push(E);
 
@@ -276,7 +313,7 @@ function createMCSimulation(box) {
 
         if (["HS", "SW", "VDW"].includes(s.species.type)) {
             const sig = s.species.sig;
-            const b_part = (2 * Math.PI * Math.pow(sig, 3)) / 3; // volume term per particle
+            const b_part = (2 * Math.PI * Math.pow(sig, 3)) / 3; 
             
             if (s.species.type === "HS") {
                 B2_part = b_part;
@@ -286,17 +323,14 @@ function createMCSimulation(box) {
                 B2_part = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - Math.pow(lambda, 3)));
             } else if (s.species.type === "VDW") {
                 const eps_T = s.species.eps / s.T;
-                // For a 1/r^6 attractive tail, standard a = 4 * epsilon * b
                 B2_part = b_part * (1 - 4 * eps_T); 
             }
 
-            // Density rho = N / V (particles / Å³)
             const rho = s.N / s.V; 
             const Z_virial = 1 + B2_part * rho;
             P_virial = s.pid * Z_virial;
         }
 
-        // INJECTION LOGIC
         const inject = (className, value) => {
             const el = box.querySelector(className);
             if (el) el.innerText = value;
@@ -310,10 +344,8 @@ function createMCSimulation(box) {
         inject(".out-cv-ideal", cv_ideal.toFixed(2));
         inject(".out-cv-total", cv_total.toFixed(2));
 
-        // Inject B2V and P_virial if applicable
         const virialRow = box.querySelector(".virial-row");
         if (B2_part !== null) {
-            // Convert Å³/particle to cm³/mol (multiply by 10^-24 and Avogadro's number)
             const B2V_molar = B2_part * 0.000602214; 
             inject(".out-b2v", B2V_molar.toFixed(4));
             inject(".out-pvirial", P_virial.toFixed(2));
@@ -322,7 +354,6 @@ function createMCSimulation(box) {
             if (virialRow) virialRow.style.display = "none";
         }
 
-        // Toggle visibility to show the data block instead of the loading message
         const statusMsg = box.querySelector(".sim-status-msg");
         const outputsData = box.querySelector(".sim-outputs-data");
         if (statusMsg) statusMsg.style.display = "none";
@@ -395,9 +426,6 @@ function createMCSimulation(box) {
         histChart.data.datasets[0].data = [];
         histChart.update();
 
-        // ==========================================
-        // BYPASS FOR IDEAL GAS & HARD SPHERES
-        // ==========================================
         if (state.species.type === "IG" || state.species.type === "HS") {
             let P = 0;
 
@@ -532,7 +560,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!isNaN(lamVal)) species.lambda = lamVal;
             }
 
-            // Instead of overwriting innerHTML, toggle our displays
             const statusMsg = box.querySelector(".sim-status-msg");
             const outputsData = box.querySelector(".sim-outputs-data");
             
