@@ -315,7 +315,7 @@ function createMCSimulation(box) {
         if (B2_part !== null) {
             // Convert Å³/particle to cm³/mol (multiply by 10^-24 and Avogadro's number)
             const B2V_molar = B2_part * 0.000602214; 
-            inject(".out-b2v", B2V_molar.toFixed(1));
+            inject(".out-b2v", B2V_molar.toFixed(4));
             inject(".out-pvirial", P_virial.toFixed(2));
             if (virialRow) virialRow.style.display = "inline";
         } else {
