@@ -145,8 +145,9 @@ function createMCSimulation(box) {
             }
         }
 
-        // Dynamically align bins to perfectly capture contact boundaries
-        const drBin = p.species.sig ? (p.species.sig / 100.0) : 0.1;
+        // Slightly larger bin to smooth out graininess, but still perfectly aligned 
+        // to handle typical lambda values up to two decimal precision.
+        const drBin = p.species.sig ? (p.species.sig / 50.0) : 0.1;
         const maxR = p.boxSize / 2.0;
         const numBins = Math.floor(maxR / drBin);
 
@@ -155,7 +156,7 @@ function createMCSimulation(box) {
             energy,
             xi,
             step: 0,
-            eqStart: Math.floor(0.4 * p.maxSteps), // Increased to 40%
+            eqStart: Math.floor(0.4 * p.maxSteps), 
             eta: 0,
             Z: 1,        
 
@@ -176,7 +177,8 @@ function createMCSimulation(box) {
             pid: p.N * kB * p.T / (p.boxSize**3),
             pcoef: 8*kB/((p.boxSize**3)),
 
-            sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300)),
+            // Sample much more frequently to ensure a smoother g(r)
+            sampleEvery: Math.max(1, Math.floor(p.maxSteps / 2000)), 
 
             computeGr: p.computeGr || false,
             drBin: drBin,
@@ -315,7 +317,9 @@ function createMCSimulation(box) {
         s.meanP += (P_sim - s.meanP) / s.count;
         s.hist.push(E);
 
-        if (s.step % s.sampleEvery === 0) {
+        // Only plot charts less frequently to save UI performance
+        const plotEvery = Math.max(1, Math.floor(s.maxSteps / 300));
+        if (s.step % plotEvery === 0) {
             energyChart.data.labels.push(s.step);
             energyChart.data.datasets[0].data.push(E);
 
@@ -393,10 +397,14 @@ function createMCSimulation(box) {
             if (virialRow) virialRow.style.display = "none";
         }
 
-        const statusMsg = box.querySelector(".sim-status-msg");
         const outputsData = box.querySelector(".sim-outputs-data");
-        if (statusMsg) statusMsg.style.display = "none";
         if (outputsData) outputsData.style.display = "block";
+
+        const btnStatus = box.querySelector(".btn-status-msg");
+        if (btnStatus) {
+            btnStatus.innerText = "Simulação concluída!";
+            setTimeout(() => btnStatus.innerText = "", 3000);
+        }
 
         if (s.hist.length > 0) {
             let minE = Infinity;
@@ -533,11 +541,10 @@ function createMCSimulation(box) {
                 mcStep(state);
                 state.step++;
                 
-                // Dynamic dx optimization during equilibration
                 if (state.step < state.eqStart && state.step % 1000 === 0) {
                     const ratio = state.accCount / state.attCount;
-                    if (ratio > 0.6) state.dx *= 1.05;
-                    else if (ratio < 0.4) state.dx *= 0.95;
+                    if (ratio > 0.5) state.dx *= 1.05;
+                    else if (ratio < 0.3) state.dx *= 0.95;
                     
                     if (state.dx > state.boxSize / 2) state.dx = state.boxSize / 2;
                     
@@ -545,11 +552,10 @@ function createMCSimulation(box) {
                     state.attCount = 0;
                 }
 
-                // Update Status UI when switching from Equilibration to Sampling
                 if (state.step === state.eqStart) {
-                    const statusMsg = box.querySelector(".sim-status-msg");
-                    if (statusMsg) {
-                        statusMsg.innerText = "Amostrando dados...";
+                    const btnStatus = box.querySelector(".btn-status-msg");
+                    if (btnStatus) {
+                        btnStatus.innerText = "Amostrando dados...";
                     }
                 }
 
@@ -610,6 +616,21 @@ document.addEventListener("DOMContentLoaded", () => {
             speciesSelect.parentNode.appendChild(infoArea);
         }
 
+        // Set up the dynamic UI message next to the button
+        let btnStatus = box.querySelector(".btn-status-msg");
+        if (!btnStatus) {
+            btnStatus = document.createElement("span");
+            btnStatus.className = "btn-status-msg";
+            btnStatus.style.marginLeft = "15px";
+            btnStatus.style.fontWeight = "bold";
+            btnStatus.style.color = "#007BFF"; // A nice highlight color
+            btn.parentNode.insertBefore(btnStatus, btn.nextSibling);
+        }
+
+        // Hide legacy UI element if it still exists
+        const legacyStatusMsg = box.querySelector(".sim-status-msg");
+        if (legacyStatusMsg) legacyStatusMsg.style.display = "none";
+
         speciesSelect.addEventListener("change", (e) => {
             const val = e.target.value;
             const spec = speciesDB[val];
@@ -648,13 +669,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!isNaN(lamVal)) species.lambda = lamVal;
             }
 
-            const statusMsg = box.querySelector(".sim-status-msg");
             const outputsData = box.querySelector(".sim-outputs-data");
             
-            // Replaced initial text with exactly what you asked for
-            if (statusMsg) {
-                statusMsg.innerText = "Equilibrando o sistema, aguarde...";
-                statusMsg.style.display = "block";
+            if (btnStatus) {
+                btnStatus.innerText = "Equilibrando o sistema, aguarde...";
             }
             if (outputsData) outputsData.style.display = "none";
 
