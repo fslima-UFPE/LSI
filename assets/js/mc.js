@@ -41,7 +41,13 @@ function createMCSimulation(box) {
     if (grCanvas) {
         grChart = new Chart(grCanvas, {
             type: "line",
-            data: { labels: [], datasets: [{ label: "g(r)", data: [], borderWidth: 2, pointRadius: 0 }] },
+            data: { 
+                labels: [], 
+                datasets: [
+                    { label: "g(r)", data: [], borderWidth: 2, pointRadius: 0 },
+                    { label: "g(r) = exp(-βV(r))", data: [], borderColor: "red", borderWidth: 2, pointRadius: 0 }
+                ] 
+            },
             options: { animation: false }
         });
     }
@@ -284,31 +290,31 @@ function createMCSimulation(box) {
             if (s.species.type === "LJ") {
                 P_sim = s.pid + (s.xi * s.pcoef);
             } else if (s.species.type === "VDW") {
-    let Z_sim_core = 1.0;
-    
-    if (s.computeGr && s.grSamples > 0) {
-        const rho = s.N / s.V;
-        const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
-        
-        // Grab the first two bins right after the hard core
-        const g1 = getG_of_bin(s, bin_sigma_plus);
-        const g2 = getG_of_bin(s, bin_sigma_plus + 1);
-        
-        // Linearly extrapolate back half a bin width to the exact contact edge
-        let g_sig_plus = g1 + (g1 - g2) / 2.0;
-        
-        // Failsafe in case of extreme noise in early steps
-        if (g_sig_plus < 0) g_sig_plus = g1; 
+                let Z_sim_core = 1.0;
+                
+                if (s.computeGr && s.grSamples > 0) {
+                    const rho = s.N / s.V;
+                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
+                    
+                    // Grab the first two bins right after the hard core
+                    const g1 = getG_of_bin(s, bin_sigma_plus);
+                    const g2 = getG_of_bin(s, bin_sigma_plus + 1);
+                    
+                    // Linearly extrapolate back half a bin width to the exact contact edge
+                    let g_sig_plus = g1 + (g1 - g2) / 2.0;
+                    
+                    // Failsafe in case of extreme noise in early steps
+                    if (g_sig_plus < 0) g_sig_plus = g1; 
 
-        Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
-    } else {
-        const rho = s.N / s.V;
-        const eta = (Math.PI / 6) * rho * s.species.sig**3;
-        Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
-    }
+                    Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
+                } else {
+                    const rho = s.N / s.V;
+                    const eta = (Math.PI / 6) * rho * s.species.sig**3;
+                    Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+                }
 
-    P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
-} else if (s.species.type === "SW") {
+                P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
+            } else if (s.species.type === "SW") {
                 if (s.computeGr && s.grSamples > 0) {
                     const rho = s.N / s.V;
                     const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
@@ -480,6 +486,7 @@ function createMCSimulation(box) {
             const rho = s.N / s.V;
             const labels = [];
             const data = [];
+            const dataExp = []; // For g(r) = exp(-beta * V(r))
 
             for (let i = 0; i < s.numBins; i++) {
                 const r = (i + 0.5) * s.drBin;
@@ -487,6 +494,7 @@ function createMCSimulation(box) {
                 
                 if (s.species.type === "IG") {
                     data.push(1.0);
+                    dataExp.push(1.0);
                     continue;
                 }
 
@@ -497,9 +505,30 @@ function createMCSimulation(box) {
                     g = s.grHistogram[i] / (s.grSamples * s.N * ideal);
                 }
                 data.push(g);
+
+                // Calculate the theoretical g(r) = exp(-V(r) / T)
+                let vr = 0;
+                if (s.species.type === "HS") {
+                    vr = (r <= s.species.sig) ? Infinity : 0;
+                } else if (s.species.type === "LJ") {
+                    vr = LJ(r, s.species.eps, s.species.sig).en;
+                } else if (s.species.type === "VDW") {
+                    vr = VDW(r, s.species.eps, s.species.sig).en;
+                } else if (s.species.type === "SW") {
+                    vr = SW(r, s.species.eps, s.species.sig, s.species.lambda).en;
+                }
+
+                // Math.exp(-Infinity) evaluates nicely to 0 for repulsive hard cores
+                dataExp.push(Math.exp(-vr / s.T));
             }
             grChart.data.labels = labels;
             grChart.data.datasets[0].data = data;
+            
+            // Push theoretical data to the second dataset
+            if (grChart.data.datasets.length > 1) {
+                grChart.data.datasets[1].data = dataExp;
+            }
+            
             grChart.update();
         }
     }   
@@ -521,6 +550,9 @@ function createMCSimulation(box) {
         if (grChart) {
             grChart.data.labels = [];
             grChart.data.datasets[0].data = [];
+            if (grChart.data.datasets.length > 1) {
+                grChart.data.datasets[1].data = [];
+            }
             grChart.update();
         }
 
