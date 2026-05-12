@@ -44,7 +44,7 @@ function createMCSimulation(box) {
             data: { 
                 labels: [], 
                 datasets: [
-                    { label: "g(r)", data: [], borderWidth: 2, pointRadius: 0 },
+                    { label: "g(r)", data: [], borderColor: "blue", borderWidth: 2, pointRadius: 0 },
                     { label: "g(r) = exp(-βV(r))", data: [], borderColor: "red", borderWidth: 2, pointRadius: 0 }
                 ] 
             },
