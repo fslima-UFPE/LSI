@@ -36,9 +36,6 @@ function createMCSimulation(box) {
         }
     });
 
-    // ==========================================
-    // NEW: g(r) CHART INITIALIZATION
-    // ==========================================
     const grCanvas = box.querySelector("#grChart");
     let grChart = null;
     if (grCanvas) {
@@ -55,9 +52,6 @@ function createMCSimulation(box) {
 
     let state = null;
 
-    // ==========================================
-    // POTENTIAL FUNCTIONS
-    // ==========================================
     function LJ(dr, eps, sig) {
         const s = sig / dr;
         const s2 = s*s;
@@ -101,6 +95,16 @@ function createMCSimulation(box) {
         return Math.sqrt(dx*dx+dy*dy+dz*dz);
     }
 
+    // Helper to dynamically extract g(r) values during simulation for SW pressure
+    function getG_of_bin(s, binIndex) {
+        if (s.grSamples === 0 || binIndex < 0 || binIndex >= s.numBins) return 0;
+        const r = (binIndex + 0.5) * s.drBin;
+        const vol = (4.0 / 3.0) * Math.PI * (Math.pow(r + s.drBin / 2.0, 3) - Math.pow(r - s.drBin / 2.0, 3));
+        const rho = s.N / s.V;
+        const ideal = rho * vol;
+        return s.grHistogram[binIndex] / (s.grSamples * s.N * ideal);
+    }
+
     function initSimulation(p) {
 
         const positions = [];
@@ -142,7 +146,6 @@ function createMCSimulation(box) {
             }
         }
 
-        // g(r) Initializations
         const drBin = 0.1;
         const maxR = p.boxSize / 2.0;
         const numBins = Math.floor(maxR / drBin);
@@ -173,10 +176,7 @@ function createMCSimulation(box) {
 
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300)),
 
-            // ==========================================
-            // NEW: g(r) STATE VARIABLES
-            // ==========================================
-            computeGr: p.computeGr || false, // Guardrail: defaults to false
+            computeGr: p.computeGr || false,
             drBin: drBin,
             maxR: maxR,
             numBins: numBins,
@@ -185,11 +185,8 @@ function createMCSimulation(box) {
         };
     }
 
-    // ==========================================
-    // NEW: g(r) SAMPLING FUNCTION
-    // ==========================================
     function sampleGr(s) {
-        if (s.species.type === "IG") return; // Bypass heavy loop for Ideal Gas
+        if (s.species.type === "IG") return; 
 
         s.grSamples++;
         for (let i = 0; i < s.N - 1; i++) {
@@ -198,7 +195,7 @@ function createMCSimulation(box) {
                 if (r < s.maxR) {
                     const bin = Math.floor(r / s.drBin);
                     if (bin < s.numBins) {
-                        s.grHistogram[bin] += 2; // +2 for i-j and j-i pairs
+                        s.grHistogram[bin] += 2; 
                     }
                 }
             }
@@ -259,46 +256,50 @@ function createMCSimulation(box) {
 
         s.count++; 
 
-        // ==========================================
-        // NEW: SAMPLE g(r) IF REQUESTED
-        // ==========================================
         if (s.computeGr && s.step % s.sampleEvery === 0) {
             sampleGr(s);
         }
 
         let E = 0;
-        let P = 0;
+        let P_sim = 0;
 
         if (s.species.type === "IG") {
-            P = s.pid;
+            P_sim = s.pid;
         } else if (s.species.type === "HS") {
             const rho = s.N / s.V;
             s.eta = (Math.PI / 6) * rho * s.species.sig**3;
             s.Z = (1 + s.eta + s.eta**2 - s.eta**3) / (1 - s.eta)**3;
-            P = s.pid * s.Z;
+            P_sim = s.pid * s.Z;
         } else {
             const E_dim = s.energy;
             E = R * E_dim;
 
             if (s.species.type === "LJ") {
-                P = s.xi * s.pcoef + s.pid;
+                P_sim = s.pid + (s.xi * s.pcoef);
             } else if (s.species.type === "VDW") {
                 const rho = s.N / s.V;
                 const eta = (Math.PI / 6) * rho * s.species.sig**3;
                 const Z_HS = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
-                P = (s.pid * Z_HS) + (s.xi * s.pcoef); 
+                P_sim = (s.pid * Z_HS) + (s.xi * s.pcoef); 
             } else if (s.species.type === "SW") {
-                // Because force is zero except at boundaries, we approximate SW pressure
-                // dynamically using the Second Virial Coefficient
-                const rho = s.N / s.V;
-                const b_part = (2 * Math.PI * Math.pow(s.species.sig, 3)) / 3;
-                const eps_T = s.species.eps / s.T;
-                const lambda3 = Math.pow(s.species.lambda, 3);
-                
-                const B2_SW = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - lambda3));
-                const Z_virial = 1 + B2_SW * rho;
-                
-                P = s.pid * Z_virial;
+                if (s.computeGr && s.grSamples > 0) {
+                    const rho = s.N / s.V;
+                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
+                    const bin_lambda_minus = Math.floor((s.species.sig * s.species.lambda) / s.drBin) - 1; 
+                    const bin_lambda_plus = Math.floor((s.species.sig * s.species.lambda) / s.drBin); 
+
+                    const g_sig_plus = getG_of_bin(s, bin_sigma_plus);
+                    const g_lam_minus = getG_of_bin(s, bin_lambda_minus);
+                    const g_lam_plus = getG_of_bin(s, bin_lambda_plus);
+
+                    const term1 = Math.pow(s.species.sig, 3) * g_sig_plus;
+                    const term2 = Math.pow(s.species.sig * s.species.lambda, 3) * (g_lam_plus - g_lam_minus);
+
+                    const Z_sim = 1 + (2 * Math.PI * rho / 3) * (term1 + term2);
+                    P_sim = s.pid * Z_sim;
+                } else {
+                    P_sim = s.pid; 
+                }
             }
 
             const delta = E_dim - s.meanE;
@@ -306,8 +307,7 @@ function createMCSimulation(box) {
             s.M2E += delta * (E_dim - s.meanE);
         }
 
-        s.meanP += (P - s.meanP) / s.count;
-
+        s.meanP += (P_sim - s.meanP) / s.count;
         s.hist.push(E);
 
         if (s.step % s.sampleEvery === 0) {
@@ -315,7 +315,7 @@ function createMCSimulation(box) {
             energyChart.data.datasets[0].data.push(E);
 
             pressureChart.data.labels.push(s.step);
-            pressureChart.data.datasets[0].data.push(P);
+            pressureChart.data.datasets[0].data.push(P_sim);
         }
     }
 
@@ -333,7 +333,14 @@ function createMCSimulation(box) {
         const cv_ideal = 1.5 * Rj;
         const cv_total = cv_ideal + cv_real;
 
-        const zFactor = avgP / s.pid;        
+        let zFactor = 1.0; 
+        if (s.species.type === "HS") {
+            const rho = s.N / s.V;
+            const eta = (Math.PI / 6) * rho * s.species.sig**3;
+            zFactor = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+        } else if (s.species.type !== "IG") {
+            zFactor = avgP / s.pid; 
+        }
 
         let B2_part = null;
         let P_virial = null;
@@ -350,7 +357,7 @@ function createMCSimulation(box) {
                 B2_part = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - Math.pow(lambda, 3)));
             } else if (s.species.type === "VDW") {
                 const eps_T = s.species.eps / s.T;
-                B2_part = b_part * (1 - 4 * eps_T); 
+                B2_part = b_part * (1 - eps_T); 
             }
 
             const rho = s.N / s.V; 
@@ -436,9 +443,6 @@ function createMCSimulation(box) {
             histChart.update();
         }
 
-        // ==========================================
-        // NEW: FINALIZE g(r) CHART
-        // ==========================================
         if (s.computeGr && grChart) {
             const rho = s.N / s.V;
             const labels = [];
@@ -448,7 +452,6 @@ function createMCSimulation(box) {
                 const r = (i + 0.5) * s.drBin;
                 labels.push(r.toFixed(2));
                 
-                // BYPASS INJECTION: Exact analytical result for Ideal Gas
                 if (s.species.type === "IG") {
                     data.push(1.0);
                     continue;
@@ -482,42 +485,36 @@ function createMCSimulation(box) {
         histChart.data.datasets[0].data = [];
         histChart.update();
 
-        // Reset g(r) chart if it exists
         if (grChart) {
             grChart.data.labels = [];
             grChart.data.datasets[0].data = [];
             grChart.update();
         }
 
-        // ==========================================
-        // UPDATED BYPASS: 
-        // 1. Always bypass MC loop for Ideal Gas.
-        // 2. Bypass MC loop for Hard Spheres ONLY IF we aren't computing g(r).
-        // ==========================================
         if (state.species.type === "IG" || (state.species.type === "HS" && !state.computeGr)) {
-            let P = 0;
+            let P_sim = 0;
 
             if (state.species.type === "IG") {
-                P = state.pid;
+                P_sim = state.pid;
             } else { 
                 const rho = state.N / state.V;
                 const sigma = state.species.sig;
                 state.eta = (Math.PI / 6) * rho * sigma**3;
                 state.Z = (1 + state.eta + state.eta**2 - state.eta**3) / (1 - state.eta)**3;
-                P = state.pid * state.Z;
+                P_sim = state.pid * state.Z;
             }
 
             energyChart.data.labels = [0, state.maxSteps];
             energyChart.data.datasets[0].data = [0, 0];
             
             pressureChart.data.labels = [0, state.maxSteps];
-            pressureChart.data.datasets[0].data = [P, P];
+            pressureChart.data.datasets[0].data = [P_sim, P_sim];
 
             energyChart.update();
             pressureChart.update();
 
             state.meanE = 0; 
-            state.meanP = P;
+            state.meanP = P_sim;
             state.count = state.maxSteps; 
             state.M2E = 0;
             state.hist = [0]; 
@@ -550,9 +547,6 @@ function createMCSimulation(box) {
     return { run };
 }
 
-// ==========================
-// UI / BUTTON HANDLER
-// ==========================
 document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll(".toolbox").forEach(box => {
@@ -637,9 +631,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (outputsData) outputsData.style.display = "none";
 
-            // ==========================================
-            // NEW: READ COMPUTE GR FLAG FROM HTML
-            // ==========================================
             const grInput = box.querySelector(".compute-gr");
             const doComputeGr = grInput ? (grInput.value === "true" || grInput.checked) : false;
 
@@ -652,7 +643,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     : undefined,
                 maxSteps: parseInt(box.querySelector(".steps").value),
                 species: species,
-                computeGr: doComputeGr // Passes the flag dynamically!
+                computeGr: doComputeGr 
             });
         });
     });
