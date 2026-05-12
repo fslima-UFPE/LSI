@@ -36,6 +36,19 @@ function createMCSimulation(box) {
         }
     });
 
+    // ==========================================
+    // NEW: g(r) CHART INITIALIZATION
+    // ==========================================
+    const grCanvas = box.querySelector("#grChart");
+    let grChart = null;
+    if (grCanvas) {
+        grChart = new Chart(grCanvas, {
+            type: "line",
+            data: { labels: [], datasets: [{ label: "g(r)", data: [], borderWidth: 2, pointRadius: 0 }] },
+            options: { animation: false }
+        });
+    }
+
     const R = 0.0083145;
     const Rj = 8.3145;
     const kB = 138.0649;
@@ -129,6 +142,11 @@ function createMCSimulation(box) {
             }
         }
 
+        // g(r) Initializations
+        const drBin = 0.1;
+        const maxR = p.boxSize / 2.0;
+        const numBins = Math.floor(maxR / drBin);
+
         return {
             positions,
             energy,
@@ -153,8 +171,38 @@ function createMCSimulation(box) {
             pid: p.N * kB * p.T / (p.boxSize**3),
             pcoef: 8*kB/((p.boxSize**3)),
 
-            sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300))
+            sampleEvery: Math.max(1, Math.floor(p.maxSteps / 300)),
+
+            // ==========================================
+            // NEW: g(r) STATE VARIABLES
+            // ==========================================
+            computeGr: p.computeGr || false, // Guardrail: defaults to false
+            drBin: drBin,
+            maxR: maxR,
+            numBins: numBins,
+            grHistogram: new Array(numBins).fill(0),
+            grSamples: 0
         };
+    }
+
+    // ==========================================
+    // NEW: g(r) SAMPLING FUNCTION
+    // ==========================================
+    function sampleGr(s) {
+        if (s.species.type === "IG") return; // Bypass heavy loop for Ideal Gas
+
+        s.grSamples++;
+        for (let i = 0; i < s.N - 1; i++) {
+            for (let j = i + 1; j < s.N; j++) {
+                const r = dist(s.positions[i], s.positions[j], s.boxSize);
+                if (r < s.maxR) {
+                    const bin = Math.floor(r / s.drBin);
+                    if (bin < s.numBins) {
+                        s.grHistogram[bin] += 2; // +2 for i-j and j-i pairs
+                    }
+                }
+            }
+        }
     }
 
     function mcStep(s) {
@@ -210,6 +258,13 @@ function createMCSimulation(box) {
         if (s.step < s.eqStart) return;
 
         s.count++; 
+
+        // ==========================================
+        // NEW: SAMPLE g(r) IF REQUESTED
+        // ==========================================
+        if (s.computeGr && s.step % s.sampleEvery === 0) {
+            sampleGr(s);
+        }
 
         let E = 0;
         let P = 0;
@@ -268,15 +323,12 @@ function createMCSimulation(box) {
 
         const zFactor = avgP / s.pid;        
 
-        // ==========================================
-        // NEW VIRIAL B2V CALCULATION
-        // ==========================================
         let B2_part = null;
         let P_virial = null;
 
         if (["HS", "SW", "VDW"].includes(s.species.type)) {
             const sig = s.species.sig;
-            const b_part = (2 * Math.PI * Math.pow(sig, 3)) / 3; // volume term per particle
+            const b_part = (2 * Math.PI * Math.pow(sig, 3)) / 3; 
             
             if (s.species.type === "HS") {
                 B2_part = b_part;
@@ -286,17 +338,14 @@ function createMCSimulation(box) {
                 B2_part = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - Math.pow(lambda, 3)));
             } else if (s.species.type === "VDW") {
                 const eps_T = s.species.eps / s.T;
-                // For a 1/r^6 attractive tail, standard a = 4 * epsilon * b
                 B2_part = b_part * (1 - 4 * eps_T); 
             }
 
-            // Density rho = N / V (particles / Å³)
             const rho = s.N / s.V; 
             const Z_virial = 1 + B2_part * rho;
             P_virial = s.pid * Z_virial;
         }
 
-        // INJECTION LOGIC
         const inject = (className, value) => {
             const el = box.querySelector(className);
             if (el) el.innerText = value;
@@ -310,10 +359,8 @@ function createMCSimulation(box) {
         inject(".out-cv-ideal", cv_ideal.toFixed(2));
         inject(".out-cv-total", cv_total.toFixed(2));
 
-        // Inject B2V and P_virial if applicable
         const virialRow = box.querySelector(".virial-row");
         if (B2_part !== null) {
-            // Convert Å³/particle to cm³/mol (multiply by 10^-24 and Avogadro's number)
             const B2V_molar = B2_part * 0.000602214; 
             inject(".out-b2v", B2V_molar.toFixed(4));
             inject(".out-pvirial", P_virial.toFixed(2));
@@ -322,7 +369,6 @@ function createMCSimulation(box) {
             if (virialRow) virialRow.style.display = "none";
         }
 
-        // Toggle visibility to show the data block instead of the loading message
         const statusMsg = box.querySelector(".sim-status-msg");
         const outputsData = box.querySelector(".sim-outputs-data");
         if (statusMsg) statusMsg.style.display = "none";
@@ -363,9 +409,7 @@ function createMCSimulation(box) {
             }
 
             numBins = Math.max(10, Math.min(numBins, 100));
-
             const binSize = (maxE - minE) / numBins || 1; 
-
             const counts = new Array(numBins).fill(0);
             
             for (let val of s.hist) {
@@ -378,6 +422,37 @@ function createMCSimulation(box) {
             );
             histChart.data.datasets[0].data = counts;
             histChart.update();
+        }
+
+        // ==========================================
+        // NEW: FINALIZE g(r) CHART
+        // ==========================================
+        if (s.computeGr && grChart) {
+            const rho = s.N / s.V;
+            const labels = [];
+            const data = [];
+
+            for (let i = 0; i < s.numBins; i++) {
+                const r = (i + 0.5) * s.drBin;
+                labels.push(r.toFixed(2));
+                
+                // BYPASS INJECTION: Exact analytical result for Ideal Gas
+                if (s.species.type === "IG") {
+                    data.push(1.0);
+                    continue;
+                }
+
+                const vol = (4.0 / 3.0) * Math.PI * (Math.pow(r + s.drBin / 2.0, 3) - Math.pow(r - s.drBin / 2.0, 3));
+                const ideal = rho * vol;
+                let g = 0;
+                if (s.grSamples > 0) {
+                    g = s.grHistogram[i] / (s.grSamples * s.N * ideal);
+                }
+                data.push(g);
+            }
+            grChart.data.labels = labels;
+            grChart.data.datasets[0].data = data;
+            grChart.update();
         }
     }   
 
@@ -395,10 +470,19 @@ function createMCSimulation(box) {
         histChart.data.datasets[0].data = [];
         histChart.update();
 
+        // Reset g(r) chart if it exists
+        if (grChart) {
+            grChart.data.labels = [];
+            grChart.data.datasets[0].data = [];
+            grChart.update();
+        }
+
         // ==========================================
-        // BYPASS FOR IDEAL GAS & HARD SPHERES
+        // UPDATED BYPASS: 
+        // 1. Always bypass MC loop for Ideal Gas.
+        // 2. Bypass MC loop for Hard Spheres ONLY IF we aren't computing g(r).
         // ==========================================
-        if (state.species.type === "IG" || state.species.type === "HS") {
+        if (state.species.type === "IG" || (state.species.type === "HS" && !state.computeGr)) {
             let P = 0;
 
             if (state.species.type === "IG") {
@@ -532,7 +616,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!isNaN(lamVal)) species.lambda = lamVal;
             }
 
-            // Instead of overwriting innerHTML, toggle our displays
             const statusMsg = box.querySelector(".sim-status-msg");
             const outputsData = box.querySelector(".sim-outputs-data");
             
@@ -542,6 +625,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (outputsData) outputsData.style.display = "none";
 
+            // ==========================================
+            // NEW: READ COMPUTE GR FLAG FROM HTML
+            // ==========================================
+            const grInput = box.querySelector(".compute-gr");
+            const doComputeGr = grInput ? (grInput.value === "true" || grInput.checked) : false;
+
             sim.run({
                 N: parseInt(box.querySelector(".npart").value),
                 boxSize: parseFloat(box.querySelector(".box").value),
@@ -550,7 +639,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     ? parseFloat(box.querySelector(".dx").value)
                     : undefined,
                 maxSteps: parseInt(box.querySelector(".steps").value),
-                species: species
+                species: species,
+                computeGr: doComputeGr // Passes the flag dynamically!
             });
         });
     });
