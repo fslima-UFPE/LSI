@@ -44,8 +44,21 @@ function createMCSimulation(box) {
             data: { 
                 labels: [], 
                 datasets: [
-                    { label: "g(r)", data: [], borderColor: "blue", borderWidth: 2, pointRadius: 0 },
-                    { label: "g(r) = exp(-βV(r))", data: [], borderColor: "red", borderWidth: 2, pointRadius: 0 }
+                    { 
+                        label: "g(r)", 
+                        data: [], 
+                        borderColor: "blue", // Set MC data to blue
+                        borderWidth: 2,      // Keep line thicker
+                        pointRadius: 0 
+                    },
+                    { 
+                        label: "g(r) = exp(-βV(r))", 
+                        data: [], 
+                        borderColor: "red",  // Set theoretical data to red
+                        borderWidth: 1,      // Make line thinner
+                        borderDash: [5, 5],  // Make line dashed
+                        pointRadius: 0 
+                    }
                 ] 
             },
             options: { animation: false }
