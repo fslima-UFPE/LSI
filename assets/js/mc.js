@@ -282,11 +282,23 @@ function createMCSimulation(box) {
 
             if (s.species.type === "LJ") {
                 P = s.xi * s.pcoef + s.pid;
-            } else if (s.species.type === "VDW" || s.species.type === "SW") {
+            } else if (s.species.type === "VDW") {
                 const rho = s.N / s.V;
                 const eta = (Math.PI / 6) * rho * s.species.sig**3;
                 const Z_HS = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
                 P = (s.pid * Z_HS) + (s.xi * s.pcoef); 
+            } else if (s.species.type === "SW") {
+                // Because force is zero except at boundaries, we approximate SW pressure
+                // dynamically using the Second Virial Coefficient
+                const rho = s.N / s.V;
+                const b_part = (2 * Math.PI * Math.pow(s.species.sig, 3)) / 3;
+                const eps_T = s.species.eps / s.T;
+                const lambda3 = Math.pow(s.species.lambda, 3);
+                
+                const B2_SW = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - lambda3));
+                const Z_virial = 1 + B2_SW * rho;
+                
+                P = s.pid * Z_virial;
             }
 
             const delta = E_dim - s.meanE;
