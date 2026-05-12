@@ -95,7 +95,6 @@ function createMCSimulation(box) {
         return Math.sqrt(dx*dx+dy*dy+dz*dz);
     }
 
-    // Helper to dynamically extract g(r) values during simulation for SW pressure
     function getG_of_bin(s, binIndex) {
         if (s.grSamples === 0 || binIndex < 0 || binIndex >= s.numBins) return 0;
         const r = (binIndex + 0.5) * s.drBin;
@@ -146,7 +145,8 @@ function createMCSimulation(box) {
             }
         }
 
-        const drBin = 0.1;
+        // Dynamically align bins to perfectly capture contact boundaries
+        const drBin = p.species.sig ? (p.species.sig / 100.0) : 0.1;
         const maxR = p.boxSize / 2.0;
         const numBins = Math.floor(maxR / drBin);
 
@@ -155,7 +155,7 @@ function createMCSimulation(box) {
             energy,
             xi,
             step: 0,
-            eqStart: Math.floor(0.2*p.maxSteps),
+            eqStart: Math.floor(0.4 * p.maxSteps), // Increased to 40%
             eta: 0,
             Z: 1,        
 
@@ -169,6 +169,8 @@ function createMCSimulation(box) {
             ...p,
 
             dx: (p.dx !== undefined) ? p.dx : 5,
+            accCount: 0, 
+            attCount: 0,
 
             V: p.boxSize**3,
             pid: p.N * kB * p.T / (p.boxSize**3),
@@ -213,6 +215,8 @@ function createMCSimulation(box) {
         let dE = 0;
         let dXi = 0;
 
+        s.attCount++;
+
         for (let j=0;j<s.N;j++){
             if (j===i) continue;
 
@@ -247,6 +251,7 @@ function createMCSimulation(box) {
             s.positions[i] = newPos;
             s.energy += dE;
             s.xi += dXi;
+            s.accCount++;
         }
     }
 
@@ -527,6 +532,27 @@ function createMCSimulation(box) {
             for (let i=0;i<200;i++) {
                 mcStep(state);
                 state.step++;
+                
+                // Dynamic dx optimization during equilibration
+                if (state.step < state.eqStart && state.step % 1000 === 0) {
+                    const ratio = state.accCount / state.attCount;
+                    if (ratio > 0.6) state.dx *= 1.05;
+                    else if (ratio < 0.4) state.dx *= 0.95;
+                    
+                    if (state.dx > state.boxSize / 2) state.dx = state.boxSize / 2;
+                    
+                    state.accCount = 0;
+                    state.attCount = 0;
+                }
+
+                // Update Status UI when switching from Equilibration to Sampling
+                if (state.step === state.eqStart) {
+                    const statusMsg = box.querySelector(".sim-status-msg");
+                    if (statusMsg) {
+                        statusMsg.innerText = "Amostrando dados...";
+                    }
+                }
+
                 updateStats(state);
 
                 if (state.step >= state.maxSteps) {
@@ -625,8 +651,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const statusMsg = box.querySelector(".sim-status-msg");
             const outputsData = box.querySelector(".sim-outputs-data");
             
+            // Replaced initial text with exactly what you asked for
             if (statusMsg) {
-                statusMsg.innerText = "Calculando simulação... aguarde.";
+                statusMsg.innerText = "Equilibrando o sistema, aguarde...";
                 statusMsg.style.display = "block";
             }
             if (outputsData) outputsData.style.display = "none";
