@@ -284,26 +284,31 @@ function createMCSimulation(box) {
             if (s.species.type === "LJ") {
                 P_sim = s.pid + (s.xi * s.pcoef);
             } else if (s.species.type === "VDW") {
-                let Z_sim_core = 1.0;
+    let Z_sim_core = 1.0;
     
-                if (s.computeGr && s.grSamples > 0) {
-                    // Correct method: Use the simulated radial distribution function at contact
-                    const rho = s.N / s.V;
-                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
-                    const g_sig_plus = getG_of_bin(s, bin_sigma_plus);
+    if (s.computeGr && s.grSamples > 0) {
+        const rho = s.N / s.V;
+        const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
         
-                    // Hard-core collisional contribution to Z based on actual simulation
-                    Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
-                } else {
-                    // Fallback: Analytical HS approximation (will slightly underestimate pressure)
-                    const rho = s.N / s.V;
-                    const eta = (Math.PI / 6) * rho * s.species.sig**3;
-                    Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
-                }
+        // Grab the first two bins right after the hard core
+        const g1 = getG_of_bin(s, bin_sigma_plus);
+        const g2 = getG_of_bin(s, bin_sigma_plus + 1);
+        
+        // Linearly extrapolate back half a bin width to the exact contact edge
+        let g_sig_plus = g1 + (g1 - g2) / 2.0;
+        
+        // Failsafe in case of extreme noise in early steps
+        if (g_sig_plus < 0) g_sig_plus = g1; 
 
-                // Total Pressure = (Ideal + Collisional Core) + Attractive Tail
-                P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
-            } else if (s.species.type === "SW") {
+        Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
+    } else {
+        const rho = s.N / s.V;
+        const eta = (Math.PI / 6) * rho * s.species.sig**3;
+        Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+    }
+
+    P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
+} else if (s.species.type === "SW") {
                 if (s.computeGr && s.grSamples > 0) {
                     const rho = s.N / s.V;
                     const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
