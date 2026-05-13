@@ -8,111 +8,197 @@ document.addEventListener("DOMContentLoaded", () => {
         
         let chartInstance = null;
 
-        // Constants
-        const R_JOULES = 8.314; // J/(mol K) for energy math
-        const R_LBAR = 0.08314; // L bar/(mol K) for pressure mapping
+        const R_JOULES = 8.314; 
+        const R_LBAR = 0.08314; 
+
+        // 1. Criar padrão de hachura para a área reversível
+        function createHatchPattern(color) {
+            const patternCanvas = document.createElement('canvas');
+            patternCanvas.width = 10;
+            patternCanvas.height = 10;
+            const pctx = patternCanvas.getContext('2d');
+            pctx.strokeStyle = color;
+            pctx.lineWidth = 1;
+            pctx.beginPath();
+            pctx.moveTo(0, 10);
+            pctx.lineTo(10, 0);
+            pctx.stroke();
+            return pctx.createPattern(patternCanvas, 'repeat');
+        }
+
+        // 2. Função de Pressão (bar) para todos os modelos
+        function getPressure(V, model, prm) {
+            const { n, T, a, b, epsK, lambda } = prm;
+            
+            if (model !== 'ideal' && V <= n * b) {
+                return null; // Evita assíntotas verticais ruins no gráfico
+            }
+
+            switch (model) {
+                case 'ideal':
+                    return (n * R_LBAR * T) / V;
+                case 'hs': // Hard-Spheres
+                    return (n * R_LBAR * T) / (V - n * b);
+                case 'sw': // Square-Well
+                    const A = 1 + (Math.exp(epsK / T) - 1) * (1 - Math.pow(lambda, 3));
+                    return ((n * R_LBAR * T) / V) + ((Math.pow(n, 2) * R_LBAR * T * b * A) / Math.pow(V, 2));
+                case 'vdw': // Van der Waals
+                    return ((n * R_LBAR * T) / (V - n * b)) - ((Math.pow(n, 2) * a) / Math.pow(V, 2));
+                case 'rk': // Redlich-Kwong
+                    return ((n * R_LBAR * T) / (V - n * b)) - ((Math.pow(n, 2) * a) / (Math.sqrt(T) * V * (V + n * b)));
+                default:
+                    return (n * R_LBAR * T) / V;
+            }
+        }
+
+        // 3. Função de Trabalho Reversível (Joules)
+        function getRevWork(Vi, Vf, model, prm) {
+            const { n, T, a, b, epsK, lambda } = prm;
+            let w_Lbar = 0; // Calculamos primeiro em L.bar para alinhar com R=0.08314
+
+            switch (model) {
+                case 'ideal':
+                    w_Lbar = -n * R_LBAR * T * Math.log(Vf / Vi);
+                    break;
+                case 'hs':
+                    w_Lbar = -n * R_LBAR * T * Math.log((Vf - n * b) / (Vi - n * b));
+                    break;
+                case 'sw':
+                    const A = 1 + (Math.exp(epsK / T) - 1) * (1 - Math.pow(lambda, 3));
+                    w_Lbar = -n * R_LBAR * T * Math.log(Vf / Vi) + 
+                             Math.pow(n, 2) * R_LBAR * T * b * A * ((1 / Vf) - (1 / Vi));
+                    break;
+                case 'vdw':
+                    w_Lbar = -n * R_LBAR * T * Math.log((Vf - n * b) / (Vi - n * b)) - 
+                             Math.pow(n, 2) * a * ((1 / Vf) - (1 / Vi));
+                    break;
+                case 'rk':
+                    w_Lbar = -n * R_LBAR * T * Math.log((Vf - n * b) / (Vi - n * b)) + 
+                             ((n * a) / (b * Math.sqrt(T))) * Math.log((Vf * (Vi + n * b)) / (Vi * (Vf + n * b)));
+                    break;
+            }
+            return w_Lbar * 100; // Converte L.bar para Joules
+        }
 
         function updateSimulation() {
-            // Retrieve values
-            const T = parseFloat(box.querySelector(".param-t").value);
-            const n = parseFloat(box.querySelector(".param-n").value);
+            // Coletando Valores do Painel
+            const prm = {
+                T: parseFloat(box.querySelector(".param-t").value),
+                n: parseFloat(box.querySelector(".param-n").value),
+                a: parseFloat(box.querySelector(".param-a").value),
+                b: parseFloat(box.querySelector(".param-b").value),
+                epsK: parseFloat(box.querySelector(".param-epsk").value),
+                lambda: parseFloat(box.querySelector(".param-lambda").value)
+            };
+            
             const Vi = parseFloat(box.querySelector(".param-vi").value);
             const Vf = parseFloat(box.querySelector(".param-vf").value);
             const S = parseInt(box.querySelector(".param-s").value);
+            const model = box.querySelector(".param-model").value;
 
             if (Vi === Vf || S < 1) {
                 alert("O volume inicial deve ser diferente do final, e o número de etapas maior que 0.");
                 return;
             }
 
-            const isExpansion = Vf > Vi;
-            const dV = (Vf - Vi) / S; // will be negative for compression
-            
-            // 1. Calculate Reversible Work (W = -nRT ln(Vf/Vi))
-            const wRev = -n * R_JOULES * T * Math.log(Vf / Vi);
+            if (model !== 'ideal' && (Vi <= prm.n * prm.b || Vf <= prm.n * prm.b)) {
+                alert("Atenção: O volume não pode ser menor ou igual ao covolume excluído (n*b).");
+                return;
+            }
 
-            // 2. Calculate Irreversible Work and Map Box Coordinates
+            const isExpansion = Vf > Vi;
+            const dV = (Vf - Vi) / S;
+            
+            // --- Cálculo dos Trabalhos ---
+            const wRev = getRevWork(Vi, Vf, model, prm);
             let wIrrTotal = 0;
             let stepTextOutputs = [];
-            let steppedPoints = [{ x: Vi, y: 0 }]; // Start baseline for polygon fill
+            let steppedPoints = [{ x: Vi, y: 0 }];
 
             for (let k = 1; k <= S; k++) {
                 let V_prev = Vi + (k - 1) * dV;
                 let V_curr = Vi + k * dV;
                 
-                // External pressure of the step dictates the work done
-                let P_ext = (n * R_LBAR * T) / V_curr;
+                let P_ext = getPressure(V_curr, model, prm);
+                if(P_ext === null) P_ext = 0; // Fail-safe
                 
-                // Work for this step in Joules (P in bar, V in L -> L.bar to Joules = * 100)
-                let wStep = -P_ext * dV * 100; 
+                let wStep = -P_ext * dV * 100; // L.bar to Joules
                 wIrrTotal += wStep;
 
                 stepTextOutputs.push(`Etapa ${k}: W = ${wStep.toFixed(1)} J`);
-
-                // Map coordinates for the step block visualization
                 steppedPoints.push({ x: V_prev, y: P_ext });
                 steppedPoints.push({ x: V_curr, y: P_ext });
             }
-            // Close the polygon back to 0
             steppedPoints.push({ x: Vf, y: 0 });
 
-            // 3. Map Continuous Isotherm Curve
+            // --- Construção das Curvas ---
             let isothermPoints = [];
-            let vStart = Math.min(Vi, Vf);
-            let vEnd = Math.max(Vi, Vf);
-            let curveSteps = 100;
-            let vStepSize = (vEnd - vStart) / curveSteps;
+            let fillAreaPoints = [];
+            
+            let vMin = Math.min(Vi, Vf);
+            let vMax = Math.max(Vi, Vf);
+            
+            // Extensão da curva em 15% para as bordas (se não invadir nb)
+            let span = vMax - vMin;
+            let curveStart = Math.max(vMin - 0.15 * span, (model!=='ideal'? prm.n * prm.b + 0.1 : 0.1));
+            let curveEnd = vMax + 0.15 * span;
+            
+            let curveSteps = 150;
+            let vStepSize = (curveEnd - curveStart) / curveSteps;
 
             for (let i = 0; i <= curveSteps; i++) {
-                let v = vStart + i * vStepSize;
-                let p = (n * R_LBAR * T) / v;
-                isothermPoints.push({ x: v, y: p });
+                let v = curveStart + i * vStepSize;
+                let p = getPressure(v, model, prm);
+                if(p !== null) {
+                    isothermPoints.push({ x: v, y: p });
+                    // Adiciona na área hachurada se estiver entre Vi e Vf
+                    if(v >= vMin && v <= vMax) {
+                        fillAreaPoints.push({ x: v, y: p });
+                    }
+                }
             }
 
-            // 4. Determine steps needed for 5% difference
+            // --- Lógica de Diferença e Convergência (Aproximação de 5%) ---
             let error = Math.abs((wIrrTotal - wRev) / wRev);
-            let targetS = S;
             let stepsNeededStr = "";
 
             if (error <= 0.05) {
-                stepsNeededStr = `Com ${S} etapas, o caminho já atinge uma diferença menor ou igual a 5% em relação ao trabalho reversível.`;
+                stepsNeededStr = `Com ${S} etapas, já se atinge uma margem ≤ 5% de erro do trabalho reversível.`;
             } else {
                 let wTestIrr = 0;
                 let testS = S;
                 let testError = error;
 
-                // Loop to find the number of steps to reach <= 5% error
                 while (testError > 0.05 && testS <= 5000) {
                     testS++;
                     let dVTest = (Vf - Vi) / testS;
                     wTestIrr = 0;
                     for (let k = 1; k <= testS; k++) {
                         let Vk = Vi + k * dVTest;
-                        let Pk = (n * R_LBAR * T) / Vk;
+                        let Pk = getPressure(Vk, model, prm);
                         wTestIrr += -Pk * dVTest * 100;
                     }
                     testError = Math.abs((wTestIrr - wRev) / wRev);
                 }
                 
                 if (testS > 5000) {
-                    stepsNeededStr = `Serão necessárias mais de 5000 etapas para atingir uma diferença de 5%.`;
+                    stepsNeededStr = `Serão necessárias mais de 5000 etapas para convergir à margem de 5%.`;
                 } else {
-                    stepsNeededStr = `Faltam <b>${testS - S}</b> etapa(s) (totalizando ${testS} etapas) para que a diferença entre o trabalho irreversível e o reversível fique dentro da margem de 5%.`;
+                    stepsNeededStr = `Faltam <b>${testS - S}</b> etapa(s) (total de ${testS}) para atingir uma margem de diferença ≤ 5%.`;
                 }
             }
 
-            // 5. Update the Text Results Panel
-            // Format text indicating the thermodynamic implication
+            // Atualização do HTML de Texto
             let magnitudeComparison = isExpansion 
-                ? "Em expansões, o trabalho reversível fornece a <b>maior magnitude</b> (maior quantidade de energia útil extraída)."
-                : "Em compressões, o caminho reversível requer a <b>menor magnitude</b> de trabalho possível (menor gasto de energia).";
+                ? "Na expansão, o trabalho reversível possui a maior magnitude (mais energia extraída)."
+                : "Na compressão, o caminho reversível demanda a menor magnitude de trabalho.";
 
             resultsPanel.style.display = "block";
             resultsPanel.innerHTML = `
                 <div style="margin-bottom: 10px;">
-                    <strong>Tipo de Processo:</strong> ${isExpansion ? 'Expansão' : 'Compressão'} Isotérmica<br>
-                    <strong>Trabalho Reversível (Contínuo):</strong> ${wRev.toFixed(1)} J<br>
-                    <strong>Trabalho Irreversível Total (${S} etapas):</strong> ${wIrrTotal.toFixed(1)} J<br>
+                    <strong>Processo:</strong> ${isExpansion ? 'Expansão' : 'Compressão'} Isotérmica (${model.toUpperCase()})<br>
+                    <strong>Trabalho Reversível (Área Hachurada):</strong> ${wRev.toFixed(1)} J<br>
+                    <strong>Trabalho Irreversível (${S} etapas):</strong> ${wIrrTotal.toFixed(1)} J<br>
                 </div>
                 <div style="margin-bottom: 10px; font-size: 0.9em; color: #555;">
                     <em>${stepTextOutputs.join(' | ')}</em>
@@ -125,33 +211,47 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             `;
 
-            // 6. Draw Chart
+            // --- Renderização do Gráfico ---
             if (chartInstance) chartInstance.destroy();
+
+            // Gera Padrão de Hachura Vermelha
+            const hatchPattern = createHatchPattern('rgba(231, 76, 60, 0.4)');
 
             chartInstance = new Chart(canvas.getContext('2d'), {
                 type: 'line',
                 data: {
                     datasets: [
                         {
-                            label: 'Isoterma (Caminho Reversível)',
+                            label: 'Isoterma Contínua',
                             data: isothermPoints,
                             borderColor: '#e74c3c',
                             backgroundColor: 'transparent',
-                            borderWidth: 2,
+                            borderWidth: 2.5,
                             tension: 0,
                             pointRadius: 0,
                             order: 1
                         },
                         {
-                            label: 'Etapas (Trabalho Irreversível)',
-                            data: steppedPoints,
-                            borderColor: '#2980b9',
-                            backgroundColor: 'rgba(41, 128, 185, 0.2)',
-                            borderWidth: 1.5,
-                            fill: true,
+                            // Dataset auxiliar apenas para preencher a área reversível restrita a Vi-Vf
+                            label: 'Trabalho Reversível',
+                            data: fillAreaPoints,
+                            borderColor: 'transparent',
+                            backgroundColor: hatchPattern,
+                            fill: 'origin',
+                            borderWidth: 0,
                             tension: 0,
                             pointRadius: 0,
-                            stepped: false, // We created the steps manually with coordinates
+                            order: 3
+                        },
+                        {
+                            label: 'Trabalho Irreversível (Degraus)',
+                            data: steppedPoints,
+                            borderColor: '#2980b9',
+                            backgroundColor: 'rgba(41, 128, 185, 0.3)',
+                            borderWidth: 1.5,
+                            fill: 'origin',
+                            tension: 0,
+                            pointRadius: 0,
                             order: 2
                         }
                     ]
@@ -163,13 +263,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         x: { 
                             type: 'linear', 
                             title: { display: true, text: 'Volume (V / L)' },
-                            min: vStart - (vStart * 0.1),
-                            max: vEnd + (vEnd * 0.1)
+                            min: curveStart,
+                            max: curveEnd
                         },
                         y: { 
                             title: { display: true, text: 'Pressão (p / bar)' },
-                            min: 0, // Pressure base is zero for area visualization
-                            suggestedMax: Math.max(...isothermPoints.map(p => p.y)) * 1.1
+                            min: 0, 
+                            suggestedMax: Math.max(...isothermPoints.map(p => p.y)) * 1.05
                         }
                     },
                     plugins: {
@@ -185,8 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Initialize and bind
         btnUpdate.addEventListener("click", updateSimulation);
-        updateSimulation(); // Run on load
+        updateSimulation(); 
     });
 });
