@@ -134,7 +134,7 @@ Vou ver se funciona.
         Z = <span class="out-z"></span> <br>
         <span class="virial-row" style="display: none;"><br>
         B<sub>2V</sub><sup>modelo</sup> = <span class="out-b2v"></span> L/mol | 
-        p<sup>modelo</sup> = <span class="out-pvirial"></span> bar
+        p<sup>modelo</sup> = <span class="out-pvirial"></span> bar <br>
         </span>
         C<sub>V</sub><sup>real</sup> = <span class="out-cv-real"></span> | 
         C<sub>V</sub><sup>ideal</sup> = <span class="out-cv-ideal"></span> | 
