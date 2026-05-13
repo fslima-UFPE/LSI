@@ -13,6 +13,7 @@ Vou ver se funciona.
   <div class="toolbox-header">
     <h2 class="toolbox-title">Pressão de um gás real</h2>
   </div>
+  <input type="hidden" class="compute-gr" value="true">
 
   <div class="toolbox-content">
 
