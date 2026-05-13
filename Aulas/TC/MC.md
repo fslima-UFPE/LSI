@@ -131,8 +131,8 @@ Vou ver se funciona.
         ⟨p⟩ = <span class="out-avgP"></span> bar | 
         p<sup>id</sup> = <span class="out-pid"></span> bar | 
         Z = <span class="out-z"></span> <br> | 
-        B<sub>2V</sub> = <span class="out-b2V"</span> |
-        p<sub>model</sub> = <span class="out-pvirial"</span>
+        B<sub>2V</sub><sup>model</sup> = <span class="out-b2V"</span> |
+        p<sup>model</sup> = <span class="out-pvirial"</span>
         C<sub>V</sub><sup>real</sup> = <span class="out-cv-real"></span> | 
         C<sub>V</sub><sup>ideal</sup> = <span class="out-cv-ideal"></span> | 
         C<sub>V</sub><sup>total</sup> = <span class="out-cv-total"></span> J/mol·K
