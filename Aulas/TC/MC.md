@@ -130,7 +130,7 @@ Vou ver se funciona.
         ⟨E⟩ = <span class="out-avgE"></span> kJ/mol | 
         ⟨p⟩ = <span class="out-avgP"></span> bar | 
         p<sup>id</sup> = <span class="out-pid"></span> bar | 
-        Z = <span class="out-z"></span> <br> | 
+        Z = <span class="out-z"></span> <br>
         <span class="virial-row" style="display: none;"><br>
         B<sub>2V</sub><sup>modelo</sup> = <span class="out-b2v"></span> L/mol | 
         p<sup>modelo</sup> = <span class="out-pvirial"></span> bar
