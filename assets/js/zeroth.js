@@ -1,11 +1,13 @@
 document.addEventListener("DOMContentLoaded", () => {
     const getEl = (id) => document.getElementById(id);
-    const btnRun = getEl("btn-run");
-    const canvas = getEl("sim-canvas");
+    
+    // Updated all IDs with "-zeroth" to completely isolate this script
+    const btnRun = getEl("btn-run-zeroth");
+    const canvas = getEl("sim-canvas-zeroth");
 
     // Hide or disable unused playback UI if it still exists in your HTML
-    const btnPlay = getEl("btn-play");
-    const scrubber = getEl("inp-scrubber");
+    const btnPlay = getEl("btn-play-zeroth");
+    const scrubber = getEl("inp-scrubber-zeroth");
     if (btnPlay) btnPlay.style.display = "none";
     if (scrubber) scrubber.style.display = "none";
 
@@ -32,7 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Physics constants
     const dt = 0.005;
     const R = 8.314; 
-    const stepsPerFrame = 200; // How many physics steps happen per visual frame
     const requiredConvergenceSteps = 100000; // Must stay within 5% for this many steps
     let thermalConductivity = 0.15;
 
@@ -52,13 +53,15 @@ document.addEventListener("DOMContentLoaded", () => {
         btnRun.innerText = "SIMULANDO (Aguardando Convergência)...";
         btnRun.disabled = true;
 
+        // Updated all input IDs to include "-zeroth"
         boxConfigs = [
-            { id: 0, N: parseInt(getEl("b0-n").value), T: parseFloat(getEl("b0-t").value), m: 1.0, L: parseFloat(getEl("b0-l").value) },
-            { id: 1, N: parseInt(getEl("b1-n").value), T: parseFloat(getEl("b1-t").value), m: 1.0, L: parseFloat(getEl("b1-l").value) },
-            { id: 2, N: parseInt(getEl("b2-n").value), T: parseFloat(getEl("b2-t").value), m: 1.0, L: parseFloat(getEl("b2-l").value) }
+            { id: 0, N: parseInt(getEl("b0-n-zeroth").value), T: parseFloat(getEl("b0-t-zeroth").value), m: 1.0, L: parseFloat(getEl("b0-l-zeroth").value) },
+            { id: 1, N: parseInt(getEl("b1-n-zeroth").value), T: parseFloat(getEl("b1-t-zeroth").value), m: 1.0, L: parseFloat(getEl("b1-l-zeroth").value) },
+            { id: 2, N: parseInt(getEl("b2-n-zeroth").value), T: parseFloat(getEl("b2-t-zeroth").value), m: 1.0, L: parseFloat(getEl("b2-l-zeroth").value) }
         ];
 
-        thermalConductivity = parseFloat(getEl("wall-k").value) || 0.15;
+        // Updated wall-k ID
+        thermalConductivity = parseFloat(getEl("wall-k-zeroth").value) || 0.15;
         totalParticles = boxConfigs.reduce((sum, box) => sum + box.N, 0);
         
         totalL = 0;
@@ -153,129 +156,126 @@ document.addEventListener("DOMContentLoaded", () => {
     function gameLoop() {
         if (!isRunning) return;
 
-        // Perform multiple physics steps per frame for fast forwarding
-        for (let iter = 0; iter < stepsPerFrame; iter++) {
-            currentStep++;
-            let kineticE = new Array(boxConfigs.length).fill(0);
+        // Speed-up loop removed. Calculating exactly one physics step per frame now.
+        currentStep++;
+        let kineticE = new Array(boxConfigs.length).fill(0);
 
-            // Update Physics
-            for (let i = 0; i < totalParticles; i++) {
-                let p = particles[i];
-                let box = boxConfigs[p.boxId];
-                p.x += p.vx * dt; 
-                p.y += p.vy * dt;
+        // Update Physics
+        for (let i = 0; i < totalParticles; i++) {
+            let p = particles[i];
+            let box = boxConfigs[p.boxId];
+            p.x += p.vx * dt; 
+            p.y += p.vy * dt;
 
-                // Y-Axis Walls (Top and Bottom)
-                if (p.y <= particleRadius) {
-                    p.y = particleRadius; p.vy = Math.abs(p.vy);
-                } else if (p.y >= maxL - particleRadius) {
-                    p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
-                }
+            // Y-Axis Walls (Top and Bottom)
+            if (p.y <= particleRadius) {
+                p.y = particleRadius; p.vy = Math.abs(p.vy);
+            } else if (p.y >= maxL - particleRadius) {
+                p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
+            }
 
-                // X-Axis Walls & Thermal Boundaries
-                if (p.x <= particleRadius) {
-                    p.x = particleRadius;
-                    let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
+            // X-Axis Walls & Thermal Boundaries
+            if (p.x <= particleRadius) {
+                p.x = particleRadius;
+                let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
 
-                    if (p.boxId > 0 && Math.random() < thermalConductivity) {
-                        let targetIndices = boxParticleIndices[p.boxId - 1];
-                        if (targetIndices.length > 0) {
-                            let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
-                            let E_partner = 0.5 * partner.m * (partner.vx*partner.vx + partner.vy*partner.vy);
-                            
-                            let E_total = E_p + E_partner;
-                            let share = Math.random(); 
-                            let E_p_new = E_total * share;
-                            let E_partner_new = E_total * (1.0 - share);
+                if (p.boxId > 0 && Math.random() < thermalConductivity) {
+                    let targetIndices = boxParticleIndices[p.boxId - 1];
+                    if (targetIndices.length > 0) {
+                        let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
+                        let E_partner = 0.5 * partner.m * (partner.vx*partner.vx + partner.vy*partner.vy);
+                        
+                        let E_total = E_p + E_partner;
+                        let share = Math.random(); 
+                        let E_p_new = E_total * share;
+                        let E_partner_new = E_total * (1.0 - share);
 
-                            let v_p_new = Math.sqrt(2 * E_p_new / p.m);
-                            let v_partner_new = Math.sqrt(2 * E_partner_new / partner.m);
+                        let v_p_new = Math.sqrt(2 * E_p_new / p.m);
+                        let v_partner_new = Math.sqrt(2 * E_partner_new / partner.m);
 
-                            let theta_p = (Math.random() - 0.5) * Math.PI; 
-                            p.vx = Math.cos(theta_p) * v_p_new;
-                            p.vy = Math.sin(theta_p) * v_p_new;
+                        let theta_p = (Math.random() - 0.5) * Math.PI; 
+                        p.vx = Math.cos(theta_p) * v_p_new;
+                        p.vy = Math.sin(theta_p) * v_p_new;
 
-                            let theta_partner = Math.random() * 2 * Math.PI;
-                            partner.vx = Math.cos(theta_partner) * v_partner_new;
-                            partner.vy = Math.sin(theta_partner) * v_partner_new;
-                        } else {
-                            p.vx = Math.abs(p.vx);
-                        }
+                        let theta_partner = Math.random() * 2 * Math.PI;
+                        partner.vx = Math.cos(theta_partner) * v_partner_new;
+                        partner.vy = Math.sin(theta_partner) * v_partner_new;
                     } else {
-                        let v_p = Math.sqrt(2 * E_p / p.m);
-                        let theta_p = (Math.random() - 0.5) * Math.PI;
-                        p.vx = Math.cos(theta_p) * v_p;
-                        p.vy = Math.sin(theta_p) * v_p;
+                        p.vx = Math.abs(p.vx);
                     }
-                } 
-                else if (p.x >= box.L - particleRadius) {
-                    p.x = box.L - particleRadius;
-                    let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
-
-                    if (p.boxId < boxConfigs.length - 1 && Math.random() < thermalConductivity) {
-                        let targetIndices = boxParticleIndices[p.boxId + 1];
-                        if (targetIndices.length > 0) {
-                            let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
-                            let E_partner = 0.5 * partner.m * (partner.vx*partner.vx + partner.vy*partner.vy);
-                            
-                            let E_total = E_p + E_partner;
-                            let share = Math.random();
-                            let E_p_new = E_total * share;
-                            let E_partner_new = E_total * (1.0 - share);
-
-                            let v_p_new = Math.sqrt(2 * E_p_new / p.m);
-                            let v_partner_new = Math.sqrt(2 * E_partner_new / partner.m);
-
-                            let theta_p = (Math.random() - 0.5) * Math.PI; 
-                            p.vx = -Math.cos(theta_p) * v_p_new;
-                            p.vy = Math.sin(theta_p) * v_p_new;
-
-                            let theta_partner = Math.random() * 2 * Math.PI;
-                            partner.vx = Math.cos(theta_partner) * v_partner_new;
-                            partner.vy = Math.sin(theta_partner) * v_partner_new;
-                        } else {
-                            p.vx = -Math.abs(p.vx);
-                        }
-                    } else {
-                        let v_p = Math.sqrt(2 * E_p / p.m);
-                        let theta_p = (Math.random() - 0.5) * Math.PI;
-                        p.vx = -Math.cos(theta_p) * v_p;
-                        p.vy = Math.sin(theta_p) * v_p;
-                    }
+                } else {
+                    let v_p = Math.sqrt(2 * E_p / p.m);
+                    let theta_p = (Math.random() - 0.5) * Math.PI;
+                    p.vx = Math.cos(theta_p) * v_p;
+                    p.vy = Math.sin(theta_p) * v_p;
                 }
+            } 
+            else if (p.x >= box.L - particleRadius) {
+                p.x = box.L - particleRadius;
+                let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
 
-                kineticE[p.boxId] += 0.5 * p.m * (p.vx * p.vx + p.vy * p.vy);
-            }
-            
-            // Calculate instantaneous T for this step
-            let currentT = new Array(boxConfigs.length);
-            for (let b = 0; b < boxConfigs.length; b++) {
-                currentT[b] = kineticE[b] / (boxConfigs[b].N * R);
-                // Apply a slight exponential moving average to filter out micro-fluctuations
-                smoothedT[b] = 0.999 * smoothedT[b] + 0.001 * currentT[b]; 
+                if (p.boxId < boxConfigs.length - 1 && Math.random() < thermalConductivity) {
+                    let targetIndices = boxParticleIndices[p.boxId + 1];
+                    if (targetIndices.length > 0) {
+                        let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
+                        let E_partner = 0.5 * partner.m * (partner.vx*partner.vx + partner.vy*partner.vy);
+                        
+                        let E_total = E_p + E_partner;
+                        let share = Math.random();
+                        let E_p_new = E_total * share;
+                        let E_partner_new = E_total * (1.0 - share);
+
+                        let v_p_new = Math.sqrt(2 * E_p_new / p.m);
+                        let v_partner_new = Math.sqrt(2 * E_partner_new / partner.m);
+
+                        let theta_p = (Math.random() - 0.5) * Math.PI; 
+                        p.vx = -Math.cos(theta_p) * v_p_new;
+                        p.vy = Math.sin(theta_p) * v_p_new;
+
+                        let theta_partner = Math.random() * 2 * Math.PI;
+                        partner.vx = Math.cos(theta_partner) * v_partner_new;
+                        partner.vy = Math.sin(theta_partner) * v_partner_new;
+                    } else {
+                        p.vx = -Math.abs(p.vx);
+                    }
+                } else {
+                    let v_p = Math.sqrt(2 * E_p / p.m);
+                    let theta_p = (Math.random() - 0.5) * Math.PI;
+                    p.vx = -Math.cos(theta_p) * v_p;
+                    p.vy = Math.sin(theta_p) * v_p;
+                }
             }
 
-            // Record data for the chart
-            if (currentStep % chartSampleInterval === 0) {
-                chartHistory.push([...currentT]);
-            }
+            kineticE[p.boxId] += 0.5 * p.m * (p.vx * p.vx + p.vy * p.vy);
+        }
+        
+        // Calculate instantaneous T for this step
+        let currentT = new Array(boxConfigs.length);
+        for (let b = 0; b < boxConfigs.length; b++) {
+            currentT[b] = kineticE[b] / (boxConfigs[b].N * R);
+            // Apply a slight exponential moving average to filter out micro-fluctuations
+            smoothedT[b] = 0.999 * smoothedT[b] + 0.001 * currentT[b]; 
+        }
 
-            // Convergence Check
-            let maxT = Math.max(...smoothedT);
-            let minT = Math.min(...smoothedT);
-            let percentDiff = (maxT - minT) / maxT;
+        // Record data for the chart
+        if (currentStep % chartSampleInterval === 0) {
+            chartHistory.push([...currentT]);
+        }
 
-            if (percentDiff <= 0.05) {
-                convergenceCounter++;
-            } else {
-                convergenceCounter = 0;
-            }
+        // Convergence Check
+        let maxT = Math.max(...smoothedT);
+        let minT = Math.min(...smoothedT);
+        let percentDiff = (maxT - minT) / maxT;
 
-            // If we have stayed within 5% for the required number of steps, stop the simulation
-            if (convergenceCounter >= requiredConvergenceSteps) {
-                isRunning = false;
-                break; // Break out of the physics loop
-            }
+        if (percentDiff <= 0.05) {
+            convergenceCounter++;
+        } else {
+            convergenceCounter = 0;
+        }
+
+        // If we have stayed within 5% for the required number of steps, flag simulation to stop
+        if (convergenceCounter >= requiredConvergenceSteps) {
+            isRunning = false;
         }
 
         // Draw the current state to the canvas
