@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const ctx = canvas.getContext("2d");
 
-    const T_SCALE = 40; 
+    const T_SCALE = 20; 
 
     // Dimensões Fixas (O CSS cuidará de encolher isso em telas menores)
     const TOTAL_WIDTH = 600;
@@ -349,8 +349,8 @@ document.addEventListener("DOMContentLoaded", () => {
         let minT = Math.min(...smoothedT);
         let percentDiff = maxT > 0 ? (maxT - minT) / maxT : 0; // Guard against division by zero
 
-        // 2. Relax tolerance from 5% (0.05) to 8% (0.08)
-        if (percentDiff <= 0.08) {
+        // 2. Tolerance of 10%
+        if (percentDiff <= 0.10) {
             convergenceCounter++;
         } else {
             // 3. SOFT PENALTY: Instead of completely resetting to 0, subtract from the counter.
