@@ -1,19 +1,17 @@
 document.addEventListener("DOMContentLoaded", () => {
     const getEl = (id) => document.getElementById(id);
     
-    // Updated all IDs with "-zeroth" to completely isolate this script
     const btnRun = getEl("btn-run-zeroth");
+    const btnStop = getEl("btn-stop-zeroth");
+    const btnReset = getEl("btn-reset-zeroth");
     const canvas = getEl("sim-canvas-zeroth");
-
-    // Hide or disable unused playback UI if it still exists in your HTML
-    const btnPlay = getEl("btn-play-zeroth");
-    const scrubber = getEl("inp-scrubber-zeroth");
-    if (btnPlay) btnPlay.style.display = "none";
-    if (scrubber) scrubber.style.display = "none";
 
     if (!canvas || !btnRun) return;
 
     const ctx = canvas.getContext("2d");
+
+    // NEW: Temperature scaling factor to speed up the simulation artificially
+    const T_SCALE = 10;
 
     let totalParticles;
     let boxConfigs = [];
@@ -30,57 +28,96 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRunning = false;
     let currentStep = 0;
     let convergenceCounter = 0;
+    let animationId = null; // To keep track of the frame loop
     
     // Physics constants
     const dt = 0.005;
     const R = 8.314; 
-    const requiredConvergenceSteps = 100000; // Must stay within 5% for this many steps
+    // Lowered convergence steps! 300 frames = ~5 seconds of sustained equilibrium
+    const requiredConvergenceSteps = 300; 
     let thermalConductivity = 0.15;
 
     // Chart and Tracking
     let chartHistory = [];
-    let chartSampleInterval = 500; // Save a point for the chart every 500 steps
-    let smoothedT = []; // Used to calculate actual convergence without noise
+    // Lowered sample interval! Captures a point twice a second for a smooth real-time chart
+    let chartSampleInterval = 30; 
+    let smoothedT = []; 
 
-    // Scale Variables
     let displayScale = 1;
     let baseW = 0;
     let baseH = 0;
 
-    btnRun.addEventListener("click", () => {
-        if (isRunning) return; // Prevent double clicks
+    // --- BUTTON EVENT LISTENERS ---
 
-        btnRun.innerText = "SIMULANDO (Aguardando Convergência)...";
-        btnRun.disabled = true;
+    btnRun.addEventListener("click", startSimulation);
+    
+    btnStop.addEventListener("click", () => {
+        isRunning = false;
+        btnRun.innerText = "CONTINUAR SIMULAÇÃO";
+        btnRun.disabled = false;
+        btnStop.disabled = true;
+    });
 
-        // Updated all input IDs to include "-zeroth"
-        boxConfigs = [
-            { id: 0, N: parseInt(getEl("b0-n-zeroth").value), T: parseFloat(getEl("b0-t-zeroth").value), m: 1.0, L: parseFloat(getEl("b0-l-zeroth").value) },
-            { id: 1, N: parseInt(getEl("b1-n-zeroth").value), T: parseFloat(getEl("b1-t-zeroth").value), m: 1.0, L: parseFloat(getEl("b1-l-zeroth").value) },
-            { id: 2, N: parseInt(getEl("b2-n-zeroth").value), T: parseFloat(getEl("b2-t-zeroth").value), m: 1.0, L: parseFloat(getEl("b2-l-zeroth").value) }
-        ];
-
-        // Updated wall-k ID
-        thermalConductivity = parseFloat(getEl("wall-k-zeroth").value) || 0.15;
-        totalParticles = boxConfigs.reduce((sum, box) => sum + box.N, 0);
+    btnReset.addEventListener("click", () => {
+        isRunning = false;
+        cancelAnimationFrame(animationId);
         
-        totalL = 0;
-        maxL = 0;
-        globalOffsets = [];
-        maxExpectedT = Math.max(...boxConfigs.map(b => b.T)) * 1.2; 
-        smoothedT = boxConfigs.map(b => b.T); // Initialize moving average
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         chartHistory = [];
-        currentStep = 0;
-        convergenceCounter = 0;
+        particles = [];
+        
+        btnRun.innerText = "INICIAR SIMULAÇÃO";
+        btnRun.disabled = false;
+        btnStop.disabled = true;
+        btnReset.disabled = true;
+    });
 
-        for (let box of boxConfigs) {
-            globalOffsets.push(totalL);
-            totalL += box.L;
-            if (box.L > maxL) maxL = box.L;
+    // --- MAIN SIMULATION LOGIC ---
+
+    function startSimulation() {
+        if (isRunning) return; 
+
+        btnRun.innerText = "SIMULANDO (Aguardando)...";
+        btnRun.disabled = true;
+        btnStop.disabled = false;
+        btnReset.disabled = false;
+
+        // Only read inputs and reset arrays if we are starting fresh (not continuing after Stop)
+        if (particles.length === 0) {
+            boxConfigs = [
+                // Notice the * T_SCALE applied to the temperatures here!
+                { id: 0, N: parseInt(getEl("b0-n-zeroth").value), T: parseFloat(getEl("b0-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b0-l-zeroth").value) },
+                { id: 1, N: parseInt(getEl("b1-n-zeroth").value), T: parseFloat(getEl("b1-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b1-l-zeroth").value) },
+                { id: 2, N: parseInt(getEl("b2-n-zeroth").value), T: parseFloat(getEl("b2-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b2-l-zeroth").value) }
+            ];
+
+            thermalConductivity = parseFloat(getEl("wall-k-zeroth").value) || 0.15;
+            totalParticles = boxConfigs.reduce((sum, box) => sum + box.N, 0);
+            
+            totalL = 0;
+            maxL = 0;
+            globalOffsets = [];
+            maxExpectedT = Math.max(...boxConfigs.map(b => b.T)) * 1.2; 
+            smoothedT = boxConfigs.map(b => b.T); 
+            chartHistory = [];
+            currentStep = 0;
+            convergenceCounter = 0;
+
+            for (let box of boxConfigs) {
+                globalOffsets.push(totalL);
+                totalL += box.L;
+                if (box.L > maxL) maxL = box.L;
+            }
+
+            setupCanvas();
+            initParticles();
         }
 
-        setupCanvas();
+        isRunning = true;
+        gameLoop();
+    }
 
+    function initParticles() {
         function randomGaussian() {
             let u = 0, v = 0;
             while(u === 0) u = Math.random();
@@ -108,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Apply initial kinetic energy scaling
+        // Apply initial kinetic energy scaling based on the scaled-up temperature
         for (let b = 0; b < boxConfigs.length; b++) {
             let box = boxConfigs[b];
             let boxParticles = particles.filter(p => p.boxId === b);
@@ -117,7 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
             for (let p of boxParticles) {
                 currentKinetic += 0.5 * box.m * (p.vx * p.vx + p.vy * p.vy);
             }
-            let targetKinetic = box.N * R * box.T;
+            let targetKinetic = box.N * R * box.T; 
             let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
 
             for (let p of boxParticles) {
@@ -125,10 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 p.vy *= scaleFactor;
             }
         }
-
-        isRunning = true;
-        requestAnimationFrame(gameLoop);
-    });
+    }
 
     function setupCanvas() {
         const container = canvas.parentElement;
@@ -156,7 +190,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function gameLoop() {
         if (!isRunning) return;
 
-        // Speed-up loop removed. Calculating exactly one physics step per frame now.
         currentStep++;
         let kineticE = new Array(boxConfigs.length).fill(0);
 
@@ -167,14 +200,12 @@ document.addEventListener("DOMContentLoaded", () => {
             p.x += p.vx * dt; 
             p.y += p.vy * dt;
 
-            // Y-Axis Walls (Top and Bottom)
             if (p.y <= particleRadius) {
                 p.y = particleRadius; p.vy = Math.abs(p.vy);
             } else if (p.y >= maxL - particleRadius) {
                 p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
             }
 
-            // X-Axis Walls & Thermal Boundaries
             if (p.x <= particleRadius) {
                 p.x = particleRadius;
                 let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
@@ -249,20 +280,16 @@ document.addEventListener("DOMContentLoaded", () => {
             kineticE[p.boxId] += 0.5 * p.m * (p.vx * p.vx + p.vy * p.vy);
         }
         
-        // Calculate instantaneous T for this step
         let currentT = new Array(boxConfigs.length);
         for (let b = 0; b < boxConfigs.length; b++) {
             currentT[b] = kineticE[b] / (boxConfigs[b].N * R);
-            // Apply a slight exponential moving average to filter out micro-fluctuations
-            smoothedT[b] = 0.999 * smoothedT[b] + 0.001 * currentT[b]; 
+            smoothedT[b] = 0.995 * smoothedT[b] + 0.005 * currentT[b]; 
         }
 
-        // Record data for the chart
         if (currentStep % chartSampleInterval === 0) {
             chartHistory.push([...currentT]);
         }
 
-        // Convergence Check
         let maxT = Math.max(...smoothedT);
         let minT = Math.min(...smoothedT);
         let percentDiff = (maxT - minT) / maxT;
@@ -273,19 +300,18 @@ document.addEventListener("DOMContentLoaded", () => {
             convergenceCounter = 0;
         }
 
-        // If we have stayed within 5% for the required number of steps, flag simulation to stop
         if (convergenceCounter >= requiredConvergenceSteps) {
             isRunning = false;
         }
 
-        // Draw the current state to the canvas
         drawFrame();
 
         if (isRunning) {
-            requestAnimationFrame(gameLoop);
-        } else {
+            animationId = requestAnimationFrame(gameLoop);
+        } else if (convergenceCounter >= requiredConvergenceSteps) {
             btnRun.innerText = "EQUILÍBRIO ATINGIDO!";
             btnRun.disabled = false;
+            btnStop.disabled = true;
         }
     }
 
@@ -294,14 +320,12 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const chartColors = ["#d9534f", "#f0ad4e", "#5cb85c"]; 
 
-        // Draw Chart Background
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, totalL, chartHeight);
         ctx.strokeStyle = "#ccc";
         ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, totalL, chartHeight);
 
-        // Draw Temperature Lines
         if (chartHistory.length > 0) {
             for (let b = 0; b < boxConfigs.length; b++) {
                 let box = boxConfigs[b];
@@ -314,7 +338,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 for (let s = 0; s < chartHistory.length; s++) {
                     let temp = chartHistory[s][b];
-                    // Stretch the history array across the entire box width dynamically
                     let x = startX + (s / Math.max(1, chartHistory.length - 1)) * boxW;
                     let y = chartHeight - (temp / maxExpectedT) * (chartHeight - 15);
                     y = Math.max(0, Math.min(chartHeight, y)); 
@@ -324,23 +347,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 ctx.stroke();
 
-                // Draw Current T Text
+                // Divide by T_SCALE before showing the user the text!
                 let currentTempRaw = chartHistory[chartHistory.length - 1][b];
+                let displayedTemp = currentTempRaw / T_SCALE;
+
                 ctx.fillStyle = "#222";
                 ctx.font = "bold 15px Arial";
                 ctx.textAlign = "center";
-                ctx.fillText(`${currentTempRaw.toFixed(1)} K`, startX + boxW / 2, 25);
+                ctx.fillText(`${displayedTemp.toFixed(1)} K`, startX + boxW / 2, 25);
             }
         }
 
         const simOffsetY = chartHeight + 10;
         
-        // Draw Simulation Box Outlines
         ctx.strokeStyle = "#333";
         ctx.lineWidth = 2;
         ctx.strokeRect(0, simOffsetY, totalL, maxL);
 
-        // Draw Thermal Boundaries
         ctx.strokeStyle = "#999";
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
@@ -353,13 +376,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         ctx.setLineDash([]);
 
-        // Draw Particles
         const maxExpectedV = 3.0 * Math.sqrt(R * Math.max(...boxConfigs.map(b=>b.T)) / 1.0); 
 
         for (let i = 0; i < totalParticles; i++) {
             let p = particles[i];
             
-            // Calculate instantaneous color based on current velocity
             let vInst = Math.sqrt(p.vx**2 + p.vy**2);
             let ratio = Math.min(1, vInst / maxExpectedV);
             let redVal = Math.round(ratio * 255);
