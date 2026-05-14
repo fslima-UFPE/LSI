@@ -337,7 +337,8 @@ document.addEventListener("DOMContentLoaded", () => {
         let currentT = new Array(boxConfigs.length);
         for (let b = 0; b < boxConfigs.length; b++) {
             currentT[b] = kineticE[b] / (boxConfigs[b].N * R);
-            smoothedT[b] = 0.995 * smoothedT[b] + 0.005 * currentT[b]; 
+            // 1. Stronger smoothing (0.998 instead of 0.995) to filter out the chaotic particle noise
+            smoothedT[b] = 0.998 * smoothedT[b] + 0.002 * currentT[b]; 
         }
 
         if (currentStep % chartSampleInterval === 0) {
@@ -346,13 +347,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let maxT = Math.max(...smoothedT);
         let minT = Math.min(...smoothedT);
-        let percentDiff = (maxT - minT) / maxT;
+        let percentDiff = maxT > 0 ? (maxT - minT) / maxT : 0; // Guard against division by zero
 
-        if (percentDiff <= 0.05) {
+        // 2. Relax tolerance from 5% (0.05) to 8% (0.08)
+        if (percentDiff <= 0.08) {
             convergenceCounter++;
         } else {
-            convergenceCounter = 0;
+            // 3. SOFT PENALTY: Instead of completely resetting to 0, subtract from the counter.
+            // This prevents a single millisecond fluctuation from destroying 4 seconds of progress.
+            convergenceCounter = Math.max(0, convergenceCounter - 5);
         }
+
+        // Optional: Log it so you can see it trying to converge in the developer console
+        // console.log(`Diff: ${(percentDiff*100).toFixed(1)}% | Counter: ${convergenceCounter}/300`);
 
         if (convergenceCounter >= requiredConvergenceSteps) {
             isRunning = false;
