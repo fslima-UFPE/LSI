@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const ctx = canvas.getContext("2d");
 
-    const T_SCALE = 10; 
+    const T_SCALE = 30; 
 
     // Dimensões Fixas (O CSS cuidará de encolher isso em telas menores)
     const TOTAL_WIDTH = 600;
