@@ -5,13 +5,46 @@ document.addEventListener("DOMContentLoaded", () => {
         const canvas = box.querySelector("#workChart");
         const btnUpdate = box.querySelector(".generate-work-btn");
         const resultsPanel = box.querySelector("#results-panel");
+        const modelSelect = box.querySelector(".param-model");
         
         let chartInstance = null;
 
         const R_JOULES = 8.314; 
         const R_LBAR = 0.08314; 
 
-        // 1. Criar padrão de hachura para a área reversível
+        // -- UI Logic: Hide/Show inputs based on model --
+        function updateInputVisibility() {
+            const model = modelSelect.value;
+            const toggle = (className, show) => {
+                box.querySelector(className).style.display = show ? "flex" : "none";
+            };
+
+            // Reset all to hidden
+            toggle(".row-a", false);
+            toggle(".row-b", false);
+            toggle(".row-sigma", false);
+            toggle(".row-epsk", false);
+            toggle(".row-lambda", false);
+
+            if (model === 'hs') {
+                toggle(".row-sigma", true);
+            } else if (model === 'sw') {
+                toggle(".row-sigma", true);
+                toggle(".row-epsk", true);
+                toggle(".row-lambda", true);
+            } else if (model === 'vdw') {
+                toggle(".row-sigma", true);
+                toggle(".row-epsk", true);
+            } else if (model === 'rk') {
+                toggle(".row-a", true);
+                toggle(".row-b", true);
+            }
+            // 'ideal' leaves everything hidden
+        }
+        modelSelect.addEventListener("change", updateInputVisibility);
+        updateInputVisibility(); // Init
+
+        // -- Chart Hatch Pattern --
         function createHatchPattern(color) {
             const patternCanvas = document.createElement('canvas');
             patternCanvas.width = 10;
@@ -26,35 +59,33 @@ document.addEventListener("DOMContentLoaded", () => {
             return pctx.createPattern(patternCanvas, 'repeat');
         }
 
-        // 2. Função de Pressão (bar) para todos os modelos
+        // -- State Equations (Pressure) --
         function getPressure(V, model, prm) {
             const { n, T, a, b, epsK, lambda } = prm;
             
-            if (model !== 'ideal' && V <= n * b) {
-                return null; // Evita assíntotas verticais ruins no gráfico
-            }
+            if (model !== 'ideal' && V <= n * b) return null; // Avoid asymptotes
 
             switch (model) {
                 case 'ideal':
                     return (n * R_LBAR * T) / V;
-                case 'hs': // Hard-Spheres
+                case 'hs': 
                     return (n * R_LBAR * T) / (V - n * b);
-                case 'sw': // Square-Well
+                case 'sw': 
                     const A = 1 + (Math.exp(epsK / T) - 1) * (1 - Math.pow(lambda, 3));
                     return ((n * R_LBAR * T) / V) + ((Math.pow(n, 2) * R_LBAR * T * b * A) / Math.pow(V, 2));
-                case 'vdw': // Van der Waals
+                case 'vdw': 
                     return ((n * R_LBAR * T) / (V - n * b)) - ((Math.pow(n, 2) * a) / Math.pow(V, 2));
-                case 'rk': // Redlich-Kwong
+                case 'rk': 
                     return ((n * R_LBAR * T) / (V - n * b)) - ((Math.pow(n, 2) * a) / (Math.sqrt(T) * V * (V + n * b)));
                 default:
                     return (n * R_LBAR * T) / V;
             }
         }
 
-        // 3. Função de Trabalho Reversível (Joules)
+        // -- Reversible Work Equations --
         function getRevWork(Vi, Vf, model, prm) {
             const { n, T, a, b, epsK, lambda } = prm;
-            let w_Lbar = 0; // Calculamos primeiro em L.bar para alinhar com R=0.08314
+            let w_Lbar = 0; 
 
             switch (model) {
                 case 'ideal':
@@ -77,39 +108,52 @@ document.addEventListener("DOMContentLoaded", () => {
                              ((n * a) / (b * Math.sqrt(T))) * Math.log((Vf * (Vi + n * b)) / (Vi * (Vf + n * b)));
                     break;
             }
-            return w_Lbar * 100; // Converte L.bar para Joules
+            return w_Lbar * 100; // L.bar to Joules conversion
         }
 
         function updateSimulation() {
-            // Coletando Valores do Painel
-            const prm = {
+            const model = box.querySelector(".param-model").value;
+            
+            // Raw User Inputs
+            let prm = {
                 T: parseFloat(box.querySelector(".param-t").value),
                 n: parseFloat(box.querySelector(".param-n").value),
                 a: parseFloat(box.querySelector(".param-a").value),
                 b: parseFloat(box.querySelector(".param-b").value),
+                sigma: parseFloat(box.querySelector(".param-sigma").value),
                 epsK: parseFloat(box.querySelector(".param-epsk").value),
                 lambda: parseFloat(box.querySelector(".param-lambda").value)
             };
+
+            // Map microscopic to macroscopic (b in L/mol, a in L^2 bar/mol^2)
+            if (['hs', 'sw', 'vdw'].includes(model)) {
+                // b = (2/3) * pi * NA * sigma^3. 
+                // Using sigma in Angstroms, b factor is approx 1.26127e-3 * sigma^3 L/mol
+                prm.b = 1.26127e-3 * Math.pow(prm.sigma, 3);
+            }
+            if (model === 'vdw') {
+                // Derived from Lennard-Jones attractive tail: a = b * R * (eps/k)
+                prm.a = prm.b * R_LBAR * prm.epsK; 
+            }
             
             const Vi = parseFloat(box.querySelector(".param-vi").value);
             const Vf = parseFloat(box.querySelector(".param-vf").value);
             const S = parseInt(box.querySelector(".param-s").value);
-            const model = box.querySelector(".param-model").value;
 
             if (Vi === Vf || S < 1) {
-                alert("O volume inicial deve ser diferente do final, e o número de etapas maior que 0.");
+                alert("Initial volume must be different from final volume, and steps > 0.");
                 return;
             }
 
             if (model !== 'ideal' && (Vi <= prm.n * prm.b || Vf <= prm.n * prm.b)) {
-                alert("Atenção: O volume não pode ser menor ou igual ao covolume excluído (n*b).");
+                alert(`Warning: Volume cannot be less than or equal to the excluded covolume (n*b = ${(prm.n*prm.b).toFixed(3)} L).`);
                 return;
             }
 
             const isExpansion = Vf > Vi;
             const dV = (Vf - Vi) / S;
             
-            // --- Cálculo dos Trabalhos ---
+            // --- Work Calculations ---
             const wRev = getRevWork(Vi, Vf, model, prm);
             let wIrrTotal = 0;
             let stepTextOutputs = [];
@@ -120,27 +164,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 let V_curr = Vi + k * dV;
                 
                 let P_ext = getPressure(V_curr, model, prm);
-                if(P_ext === null) P_ext = 0; // Fail-safe
+                if(P_ext === null) P_ext = 0; 
                 
-                let wStep = -P_ext * dV * 100; // L.bar to Joules
+                let wStep = -P_ext * dV * 100; // Joules
                 wIrrTotal += wStep;
 
-                stepTextOutputs.push(`Etapa ${k}: W = ${wStep.toFixed(1)} J`);
+                stepTextOutputs.push(`Step ${k}: W = ${wStep.toFixed(1)} J`);
                 steppedPoints.push({ x: V_prev, y: P_ext });
                 steppedPoints.push({ x: V_curr, y: P_ext });
             }
             steppedPoints.push({ x: Vf, y: 0 });
 
-            // --- Construção das Curvas ---
+            // --- Construct Curves ---
             let isothermPoints = [];
             let fillAreaPoints = [];
             
             let vMin = Math.min(Vi, Vf);
             let vMax = Math.max(Vi, Vf);
             
-            // Extensão da curva em 15% para as bordas (se não invadir nb)
+            // Extend curve 15% past endpoints (if safe from excluded volume)
             let span = vMax - vMin;
-            let curveStart = Math.max(vMin - 0.15 * span, (model!=='ideal'? prm.n * prm.b + 0.1 : 0.1));
+            let curveStart = Math.max(vMin - 0.15 * span, (model!=='ideal' ? prm.n * prm.b + 0.05 : 0.05));
             let curveEnd = vMax + 0.15 * span;
             
             let curveSteps = 150;
@@ -149,21 +193,20 @@ document.addEventListener("DOMContentLoaded", () => {
             for (let i = 0; i <= curveSteps; i++) {
                 let v = curveStart + i * vStepSize;
                 let p = getPressure(v, model, prm);
-                if(p !== null) {
+                if(p !== null && p > 0) { // Limit absurd pressures
                     isothermPoints.push({ x: v, y: p });
-                    // Adiciona na área hachurada se estiver entre Vi e Vf
                     if(v >= vMin && v <= vMax) {
                         fillAreaPoints.push({ x: v, y: p });
                     }
                 }
             }
 
-            // --- Lógica de Diferença e Convergência (Aproximação de 5%) ---
+            // --- Convergence Logic (5% margin) ---
             let error = Math.abs((wIrrTotal - wRev) / wRev);
             let stepsNeededStr = "";
 
             if (error <= 0.05) {
-                stepsNeededStr = `Com ${S} etapas, já se atinge uma margem ≤ 5% de erro do trabalho reversível.`;
+                stepsNeededStr = `With ${S} steps, the error is already ≤ 5% compared to the reversible path.`;
             } else {
                 let wTestIrr = 0;
                 let testS = S;
@@ -182,39 +225,41 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 
                 if (testS > 5000) {
-                    stepsNeededStr = `Serão necessárias mais de 5000 etapas para convergir à margem de 5%.`;
+                    stepsNeededStr = `It will take over 5000 steps to converge within a 5% difference margin.`;
                 } else {
-                    stepsNeededStr = `Faltam <b>${testS - S}</b> etapa(s) (total de ${testS}) para atingir uma margem de diferença ≤ 5%.`;
+                    stepsNeededStr = `You need <b>${testS - S}</b> more step(s) (total ${testS}) to reach a difference margin ≤ 5%.`;
                 }
             }
 
-            // Atualização do HTML de Texto
+            // --- Text Panel ---
             let magnitudeComparison = isExpansion 
-                ? "Na expansão, o trabalho reversível possui a maior magnitude (mais energia extraída)."
-                : "Na compressão, o caminho reversível demanda a menor magnitude de trabalho.";
+                ? "During expansion, the reversible path provides the greatest magnitude of work (most energy extracted)."
+                : "During compression, the reversible path requires the least magnitude of work (least energy spent).";
+            
+            // Format model name for output
+            let modelName = modelSelect.options[modelSelect.selectedIndex].text;
 
             resultsPanel.style.display = "block";
             resultsPanel.innerHTML = `
                 <div style="margin-bottom: 10px;">
-                    <strong>Processo:</strong> ${isExpansion ? 'Expansão' : 'Compressão'} Isotérmica (${model.toUpperCase()})<br>
-                    <strong>Trabalho Reversível (Área Hachurada):</strong> ${wRev.toFixed(1)} J<br>
-                    <strong>Trabalho Irreversível (${S} etapas):</strong> ${wIrrTotal.toFixed(1)} J<br>
+                    <strong>Process:</strong> Isothermal ${isExpansion ? 'Expansion' : 'Compression'} (${modelName})<br>
+                    <strong>Reversible Work (Hatched Area):</strong> ${wRev.toFixed(1)} J<br>
+                    <strong>Irreversible Work (${S} steps):</strong> ${wIrrTotal.toFixed(1)} J<br>
                 </div>
                 <div style="margin-bottom: 10px; font-size: 0.9em; color: #555;">
                     <em>${stepTextOutputs.join(' | ')}</em>
                 </div>
                 <div style="margin-bottom: 10px;">
-                    ${magnitudeComparison} A diferença atual é de <b>${(error * 100).toFixed(2)}%</b>.
+                    ${magnitudeComparison} Current difference is <b>${(error * 100).toFixed(2)}%</b>.
                 </div>
                 <div style="color: #007bff;">
                     ${stepsNeededStr}
                 </div>
             `;
 
-            // --- Renderização do Gráfico ---
+            // --- Chart Rendering ---
             if (chartInstance) chartInstance.destroy();
 
-            // Gera Padrão de Hachura Vermelha
             const hatchPattern = createHatchPattern('rgba(231, 76, 60, 0.4)');
 
             chartInstance = new Chart(canvas.getContext('2d'), {
@@ -222,7 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 data: {
                     datasets: [
                         {
-                            label: 'Isoterma Contínua',
+                            label: 'Continuous Isotherm',
                             data: isothermPoints,
                             borderColor: '#e74c3c',
                             backgroundColor: 'transparent',
@@ -232,8 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             order: 1
                         },
                         {
-                            // Dataset auxiliar apenas para preencher a área reversível restrita a Vi-Vf
-                            label: 'Trabalho Reversível',
+                            label: 'Reversible Work',
                             data: fillAreaPoints,
                             borderColor: 'transparent',
                             backgroundColor: hatchPattern,
@@ -244,7 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             order: 3
                         },
                         {
-                            label: 'Trabalho Irreversível (Degraus)',
+                            label: 'Irreversible Work (Steps)',
                             data: steppedPoints,
                             borderColor: '#2980b9',
                             backgroundColor: 'rgba(41, 128, 185, 0.3)',
@@ -267,9 +311,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             max: curveEnd
                         },
                         y: { 
-                            title: { display: true, text: 'Pressão (p / bar)' },
+                            title: { display: true, text: 'Pressure (p / bar)' },
                             min: 0, 
-                            suggestedMax: Math.max(...isothermPoints.map(p => p.y)) * 1.05
+                            suggestedMax: Math.max(...fillAreaPoints.map(p => p.y)) * 1.2
                         }
                     },
                     plugins: {
