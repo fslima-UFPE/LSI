@@ -39,10 +39,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 toggle(".row-a", true);
                 toggle(".row-b", true);
             }
-            // 'ideal' deixa tudo escondido
         }
         modelSelect.addEventListener("change", updateInputVisibility);
-        updateInputVisibility(); // Init
+        updateInputVisibility(); 
 
         // -- Padrão de Hachura do Gráfico --
         function createHatchPattern(color) {
@@ -63,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
         function getPressure(V, model, prm) {
             const { n, T, a, b, epsK, lambda } = prm;
             
-            if (model !== 'ideal' && V <= n * b) return null; // Evita assíntotas
+            if (model !== 'ideal' && V <= n * b) return null; 
 
             switch (model) {
                 case 'ideal':
@@ -127,12 +126,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Mapeamento microscópico para macroscópico (b em L/mol, a em L^2 bar/mol^2)
             if (['hs', 'sw', 'vdw'].includes(model)) {
-                // b = (2/3) * pi * NA * sigma^3. 
-                // Usando sigma em Angstroms, o fator para b é aprox 1.26127e-3 * sigma^3 L/mol
                 prm.b = 1.26127e-3 * Math.pow(prm.sigma, 3);
             }
             if (model === 'vdw') {
-                // Derivado da cauda atrativa de Lennard-Jones: a = b * R * (eps/k)
                 prm.a = prm.b * R_LBAR * prm.epsK; 
             }
             
@@ -146,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (model !== 'ideal' && (Vi <= prm.n * prm.b || Vf <= prm.n * prm.b)) {
-                alert(`Atenção: O volume não pode ser menor ou igual ao covolume excluído (n*b = ${(prm.n*prm.b).toFixed(3)} L).`);
+                alert(`Atenção: O volume não pode ser menor ou igual à Constante b (n*b = ${(prm.n*prm.b).toFixed(3)} L).`);
                 return;
             }
 
@@ -182,7 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
             let vMin = Math.min(Vi, Vf);
             let vMax = Math.max(Vi, Vf);
             
-            // Extensão da curva em 15% para as bordas (se seguro do covolume)
             let span = vMax - vMin;
             let curveStart = Math.max(vMin - 0.15 * span, (model!=='ideal' ? prm.n * prm.b + 0.05 : 0.05));
             let curveEnd = vMax + 0.15 * span;
@@ -193,7 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
             for (let i = 0; i <= curveSteps; i++) {
                 let v = curveStart + i * vStepSize;
                 let p = getPressure(v, model, prm);
-                if(p !== null && p > 0) { // Limita pressões absurdas
+                if(p !== null && p > 0) { 
                     isothermPoints.push({ x: v, y: p });
                     if(v >= vMin && v <= vMax) {
                         fillAreaPoints.push({ x: v, y: p });
@@ -201,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // --- Lógica de Convergência (Margem de 5%) ---
+            // --- Lógica de Convergência ---
             let error = Math.abs((wIrrTotal - wRev) / wRev);
             let stepsNeededStr = "";
 
@@ -236,7 +231,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? "Na expansão, o caminho reversível possui a maior magnitude de trabalho (mais energia extraída)."
                 : "Na compressão, o caminho reversível demanda a menor magnitude de trabalho (menos energia gasta).";
             
-            // Formatar o nome do modelo para o output
             let modelName = modelSelect.options[modelSelect.selectedIndex].text;
 
             resultsPanel.style.display = "block";
