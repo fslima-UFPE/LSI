@@ -200,10 +200,19 @@ document.addEventListener("DOMContentLoaded", () => {
             p.x += p.vx * dt; 
             p.y += p.vy * dt;
 
+            // Y-Axis Walls (Top and Bottom) - DIFFUSE REFLECTION
             if (p.y <= particleRadius) {
-                p.y = particleRadius; p.vy = Math.abs(p.vy);
+                p.y = particleRadius; 
+                let v = Math.sqrt(p.vx * p.vx + p.vy * p.vy); // Calculate total speed
+                let theta = Math.random() * Math.PI; // Random angle pointing DOWN (0 to PI)
+                p.vx = v * Math.cos(theta);
+                p.vy = v * Math.sin(theta);
             } else if (p.y >= maxL - particleRadius) {
-                p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
+                p.y = maxL - particleRadius; 
+                let v = Math.sqrt(p.vx * p.vx + p.vy * p.vy); // Calculate total speed
+                let theta = Math.PI + Math.random() * Math.PI; // Random angle pointing UP (PI to 2*PI)
+                p.vx = v * Math.cos(theta);
+                p.vy = v * Math.sin(theta);
             }
 
             if (p.x <= particleRadius) {
