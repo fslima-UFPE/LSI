@@ -10,16 +10,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const ctx = canvas.getContext("2d");
 
-    const T_SCALE = 40; // Temperature scaling factor for faster physics simulation
+    const T_SCALE = 10; 
+
+    // Fixed Dimensions
+    const TOTAL_WIDTH = 600;
+    const BOX_HEIGHT = 200;
 
     let totalParticles;
     let boxConfigs = [];
     let globalOffsets = [];
-    let maxL = 0;
-    let totalL = 0;
     const chartHeight = 100; 
     let maxExpectedT = 0; 
-    const particleRadius = 3.5; 
 
     // Real-time Simulation State
     let particles = [];
@@ -44,8 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let baseW = 0;
     let baseH = 0;
 
-    // --- BUTTON EVENT LISTENERS ---
-
     btnRun.addEventListener("click", startSimulation);
     
     btnStop.addEventListener("click", () => {
@@ -69,8 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
         btnReset.disabled = true;
     });
 
-    // --- MAIN SIMULATION LOGIC ---
-
     function startSimulation() {
         if (isRunning) return; 
 
@@ -80,18 +77,45 @@ document.addEventListener("DOMContentLoaded", () => {
         btnReset.disabled = false;
 
         if (particles.length === 0) {
+            // Read width ratios
+            let r0 = parseFloat(getEl("b0-l-zeroth").value) || 1;
+            let r1 = parseFloat(getEl("b1-l-zeroth").value) || 1;
+            let r2 = parseFloat(getEl("b2-l-zeroth").value) || 1;
+            let sumR = r0 + r1 + r2;
+
             boxConfigs = [
-                { id: 0, N: parseInt(getEl("b0-n-zeroth").value), T: parseFloat(getEl("b0-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b0-l-zeroth").value) },
-                { id: 1, N: parseInt(getEl("b1-n-zeroth").value), T: parseFloat(getEl("b1-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b1-l-zeroth").value) },
-                { id: 2, N: parseInt(getEl("b2-n-zeroth").value), T: parseFloat(getEl("b2-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b2-l-zeroth").value) }
+                { 
+                    id: 0, 
+                    N: parseInt(getEl("b0-n-zeroth").value), 
+                    T: parseFloat(getEl("b0-t-zeroth").value) * T_SCALE, 
+                    m: 1.0, 
+                    L: TOTAL_WIDTH * (r0 / sumR),
+                    r: parseFloat(getEl("b0-r-zeroth").value) || 3.5
+                },
+                { 
+                    id: 1, 
+                    N: parseInt(getEl("b1-n-zeroth").value), 
+                    T: parseFloat(getEl("b1-t-zeroth").value) * T_SCALE, 
+                    m: 1.0, 
+                    L: TOTAL_WIDTH * (r1 / sumR),
+                    r: parseFloat(getEl("b1-r-zeroth").value) || 3.5
+                },
+                { 
+                    id: 2, 
+                    N: parseInt(getEl("b2-n-zeroth").value), 
+                    T: parseFloat(getEl("b2-t-zeroth").value) * T_SCALE, 
+                    m: 1.0, 
+                    L: TOTAL_WIDTH * (r2 / sumR),
+                    r: parseFloat(getEl("b2-r-zeroth").value) || 3.5
+                }
             ];
 
             thermalConductivity = parseFloat(getEl("wall-k-zeroth").value) || 0.15;
             totalParticles = boxConfigs.reduce((sum, box) => sum + box.N, 0);
             
-            totalL = 0;
-            maxL = 0;
             globalOffsets = [];
+            let currentOffset = 0;
+            
             maxExpectedT = Math.max(...boxConfigs.map(b => b.T)) * 1.2; 
             smoothedT = boxConfigs.map(b => b.T); 
             chartHistory = [];
@@ -99,9 +123,8 @@ document.addEventListener("DOMContentLoaded", () => {
             convergenceCounter = 0;
 
             for (let box of boxConfigs) {
-                globalOffsets.push(totalL);
-                totalL += box.L;
-                if (box.L > maxL) maxL = box.L;
+                globalOffsets.push(currentOffset);
+                currentOffset += box.L;
             }
 
             setupCanvas();
@@ -130,8 +153,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 particles.push({
                     boxId: b,
                     m: box.m,
-                    x: particleRadius + Math.random() * (box.L - 2 * particleRadius),
-                    y: particleRadius + Math.random() * (maxL - 2 * particleRadius),
+                    r: box.r, // Store individual radius on the particle
+                    x: box.r + Math.random() * (box.L - 2 * box.r),
+                    y: box.r + Math.random() * (BOX_HEIGHT - 2 * box.r),
                     vx: randomGaussian(),
                     vy: randomGaussian()
                 });
@@ -162,8 +186,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const container = canvas.parentElement;
         const containerW = container.clientWidth || 800; 
         
-        baseW = totalL;
-        baseH = maxL + chartHeight + 20;
+        baseW = TOTAL_WIDTH;
+        baseH = BOX_HEIGHT + chartHeight + 20;
         
         displayScale = containerW / baseW; 
         
@@ -181,11 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.scale(dpr * displayScale, dpr * displayScale);
     }
 
-    // NEW: Hard Sphere Inter-particle Elastic Collisions
     function resolveCollisions() {
-        const minDistSq = (2 * particleRadius) * (2 * particleRadius);
-        
-        // Only check for collisions within the same box
         for (let b = 0; b < boxConfigs.length; b++) {
             let pIndices = boxParticleIndices[b];
             let len = pIndices.length;
@@ -199,15 +219,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     let dy = p1.y - p2.y;
                     let distSq = dx * dx + dy * dy;
                     
-                    // If particles overlap
+                    // Dynamic minimum distance based on the sum of their radii
+                    let minDist = p1.r + p2.r;
+                    let minDistSq = minDist * minDist;
+                    
                     if (distSq <= minDistSq && distSq > 0) {
                         let vxDiff = p1.vx - p2.vx;
                         let vyDiff = p1.vy - p2.vy;
                         
-                        // Check if they are actually moving towards each other
-                        // (prevents particles that are already moving apart from "sticking")
                         if (vxDiff * dx + vyDiff * dy < 0) {
-                            // 2D Elastic Collision Math (Assuming equal masses)
                             let dotProduct = vxDiff * dx + vyDiff * dy;
                             let collisionScale = dotProduct / distSq;
                             
@@ -232,30 +252,27 @@ document.addEventListener("DOMContentLoaded", () => {
         currentStep++;
         let kineticE = new Array(boxConfigs.length).fill(0);
 
-        // 1. Update Position
         for (let i = 0; i < totalParticles; i++) {
             let p = particles[i];
             p.x += p.vx * dt; 
             p.y += p.vy * dt;
         }
 
-        // 2. Inter-particle Collisions (Hard Sphere dynamics)
         resolveCollisions();
 
-        // 3. Wall Collisions & Thermal Exchange
         for (let i = 0; i < totalParticles; i++) {
             let p = particles[i];
             let box = boxConfigs[p.boxId];
 
-            // Reverted back to simple specular reflection for Y-axis
-            if (p.y <= particleRadius) {
-                p.y = particleRadius; p.vy = Math.abs(p.vy);
-            } else if (p.y >= maxL - particleRadius) {
-                p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
+            // Use p.r and BOX_HEIGHT instead of particleRadius and maxL
+            if (p.y <= p.r) {
+                p.y = p.r; p.vy = Math.abs(p.vy);
+            } else if (p.y >= BOX_HEIGHT - p.r) {
+                p.y = BOX_HEIGHT - p.r; p.vy = -Math.abs(p.vy);
             }
 
-            if (p.x <= particleRadius) {
-                p.x = particleRadius;
+            if (p.x <= p.r) {
+                p.x = p.r;
                 let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
 
                 if (p.boxId > 0 && Math.random() < thermalConductivity) {
@@ -289,8 +306,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     p.vy = Math.sin(theta_p) * v_p;
                 }
             } 
-            else if (p.x >= box.L - particleRadius) {
-                p.x = box.L - particleRadius;
+            else if (p.x >= box.L - p.r) {
+                p.x = box.L - p.r;
                 let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
 
                 if (p.boxId < boxConfigs.length - 1 && Math.random() < thermalConductivity) {
@@ -369,10 +386,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const chartColors = ["#d9534f", "#f0ad4e", "#5cb85c"]; 
 
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, totalL, chartHeight);
+        ctx.fillRect(0, 0, TOTAL_WIDTH, chartHeight);
         ctx.strokeStyle = "#ccc";
         ctx.lineWidth = 1;
-        ctx.strokeRect(0, 0, totalL, chartHeight);
+        ctx.strokeRect(0, 0, TOTAL_WIDTH, chartHeight);
 
         if (chartHistory.length > 0) {
             for (let b = 0; b < boxConfigs.length; b++) {
@@ -409,7 +426,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         ctx.strokeStyle = "#333";
         ctx.lineWidth = 2;
-        ctx.strokeRect(0, simOffsetY, totalL, maxL);
+        ctx.strokeRect(0, simOffsetY, TOTAL_WIDTH, BOX_HEIGHT);
 
         ctx.strokeStyle = "#999";
         ctx.lineWidth = 2;
@@ -418,7 +435,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (offset === 0) continue;
             ctx.beginPath();
             ctx.moveTo(offset, simOffsetY);
-            ctx.lineTo(offset, simOffsetY + maxL);
+            ctx.lineTo(offset, simOffsetY + BOX_HEIGHT);
             ctx.stroke();
         }
         ctx.setLineDash([]);
@@ -435,7 +452,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             ctx.fillStyle = `rgb(${redVal}, 40, ${blueVal})`; 
             ctx.beginPath();
-            ctx.arc(p.x + globalOffsets[p.boxId], p.y + simOffsetY, particleRadius, 0, Math.PI*2);
+            // Use p.r instead of particleRadius
+            ctx.arc(p.x + globalOffsets[p.boxId], p.y + simOffsetY, p.r, 0, Math.PI*2);
             ctx.fill();
         }
     }
