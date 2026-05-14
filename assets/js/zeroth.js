@@ -19,11 +19,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let totalL = 0;
     const chartHeight = 100; 
     let maxExpectedT = 0; 
-    const particleRadius = 3.5; // Partículas maiores para visibilidade
+    const particleRadius = 3.5; 
 
     btnRun.addEventListener("click", () => {
         let originalRunText = btnRun.innerText;
-        btnRun.innerText = "CALCULANDO...";
+        btnRun.innerText = "CALCULANDO (Aguarde)...";
         btnRun.disabled = true;
         btnPlay.disabled = true;
         scrubber.disabled = true;
@@ -49,11 +49,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const dt = 0.005;
-        totalSteps = 15000;
+        // Aumentado drasticamente para garantir que a onda de calor chegue ao equilíbrio
+        totalSteps = 50000; 
         
         let avgT = boxConfigs.reduce((sum, box) => sum + box.T, 0) / boxConfigs.length;
         const boost = Math.pow(avgT, 0.5) / 10;
-        playbackSpeed = Math.max(1, Math.round(5 * boost));
+        playbackSpeed = Math.max(2, Math.round(15 * boost)); // Playback mais rápido
 
         historyX = new Float32Array(totalParticles * totalSteps);
         historyY = new Float32Array(totalParticles * totalSteps);
@@ -109,7 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let step = 0;
 
         function computeChunk() {
-            const chunkSize = 800;
+            const chunkSize = 1500; 
             const end = Math.min(step + chunkSize, totalSteps);
             const maxExpectedV = 3.0 * Math.sqrt(R * Math.max(...boxConfigs.map(b=>b.T)) / 1.0); 
 
@@ -122,14 +123,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     p.x += p.vx * dt; 
                     p.y += p.vy * dt;
 
-                    // Paredes Y (Rebatimento Simples)
                     if (p.y <= particleRadius) {
                         p.y = particleRadius; p.vy = Math.abs(p.vy);
                     } else if (p.y >= maxL - particleRadius) {
                         p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
                     }
 
-                    // Parede X Esquerda (Compartilhamento de Energia 2D)
                     if (p.x <= particleRadius) {
                         p.x = particleRadius;
                         let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
@@ -140,7 +139,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                 let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
                                 let E_partner = 0.5 * partner.m * (partner.vx*partner.vx + partner.vy*partner.vy);
                                 
-                                // Conservação rigorosa de energia no contato térmico
                                 let E_total = E_p + E_partner;
                                 let share = Math.random(); 
                                 let E_p_new = E_total * share;
@@ -166,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             p.vy = Math.sin(theta_p) * v_p;
                         }
                     } 
-                    // Parede X Direita (Compartilhamento de Energia 2D)
                     else if (p.x >= box.L - particleRadius) {
                         p.x = box.L - particleRadius;
                         let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
@@ -231,6 +228,11 @@ document.addEventListener("DOMContentLoaded", () => {
         computeChunk();
     });
     
+    // VARIÁVEIS GLOBAIS DE ESCALA
+    let displayScale = 1;
+    let baseW = 0;
+    let baseH = 0;
+
     function finishSimulation(originalText) {
         btnRun.innerText = originalText;
         btnRun.disabled = false;
@@ -239,31 +241,40 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (scrubber) { scrubber.max = totalSteps - 1; scrubber.value = 0; }
         
-        // Escala de Alta Resolução (DPI Scaling)
-        const dpr = window.devicePixelRatio || 1;
-        const w = totalL;
-        const h = maxL + chartHeight + 20;
+        // --- SISTEMA DE ESCALA DE ALTA RESOLUÇÃO ---
+        const container = canvas.parentElement;
+        const containerW = container.clientWidth || 800; // Pega a largura real da div cinza
         
-        canvas.width = w * dpr;
-        canvas.height = h * dpr;
-        canvas.style.width = w + "px";
-        canvas.style.height = h + "px";
+        baseW = totalL;
+        baseH = maxL + chartHeight + 20;
+        
+        // Faz o canvas preencher a largura do container
+        displayScale = containerW / baseW; 
+        
+        const dpr = window.devicePixelRatio || 1;
+        const finalW = baseW * displayScale;
+        const finalH = baseH * displayScale;
+
+        // Estilo CSS controla o tamanho visual na tela
+        canvas.style.width = finalW + "px";
+        canvas.style.height = finalH + "px";
+        
+        // Propriedades Width/Height controlam os pixels reais (DPR)
+        canvas.width = finalW * dpr;
+        canvas.height = finalH * dpr;
         
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr, dpr);
+        ctx.scale(dpr * displayScale, dpr * displayScale);
 
         drawFrame(0);
     }
 
     function drawFrame(frame) {
-        // Redefinir área baseando-se no tamanho lógico
-        const logicalWidth = canvas.width / (window.devicePixelRatio || 1);
-        const logicalHeight = canvas.height / (window.devicePixelRatio || 1);
-        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+        // Limpa usando as dimensões lógicas originais
+        ctx.clearRect(0, 0, baseW, baseH);
         
         const chartColors = ["#d9534f", "#f0ad4e", "#5cb85c"]; 
 
-        // Fundo do Gráfico CLARO
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, totalL, chartHeight);
         ctx.strokeStyle = "#ccc";
@@ -279,7 +290,10 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.strokeStyle = chartColors[b];
             ctx.lineWidth = 2.5;
             
-            for (let s = 0; s <= frame; s += Math.max(1, Math.floor(frame / boxW))) {
+            // Otimização para não desenhar 50.000 pontos por linha se não precisar
+            let stepIncrement = Math.max(1, Math.floor(totalSteps / boxW));
+            
+            for (let s = 0; s <= frame; s += stepIncrement) {
                 let temp = historyT[s * boxConfigs.length + b];
                 let x = startX + (s / totalSteps) * boxW;
                 let y = chartHeight - (temp / maxExpectedT) * (chartHeight - 15);
@@ -288,13 +302,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (s === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             }
+            // Desenha o último ponto para garantir que a linha vá até o fim do scrubber
+            let tempFinal = historyT[frame * boxConfigs.length + b];
+            let xFinal = startX + (frame / totalSteps) * boxW;
+            let yFinal = chartHeight - (tempFinal / maxExpectedT) * (chartHeight - 15);
+            ctx.lineTo(xFinal, Math.max(0, Math.min(chartHeight, yFinal)));
             ctx.stroke();
 
-            let currentT = historyT[frame * boxConfigs.length + b];
             ctx.fillStyle = "#222";
             ctx.font = "bold 15px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(`${currentT.toFixed(1)} K`, startX + boxW / 2, 25);
+            ctx.fillText(`${tempFinal.toFixed(1)} K`, startX + boxW / 2, 25);
         }
 
         const simOffsetY = chartHeight + 10;
@@ -343,15 +361,15 @@ document.addEventListener("DOMContentLoaded", () => {
         currentFrame += playbackSpeed; 
         
         if(currentFrame >= totalSteps) { 
-            currentFrame = 0; 
+            currentFrame = totalSteps - 1; 
             isPlaying = false; 
             if (btnPlay) {
                 btnPlay.innerText = "Reproduzir"; 
                 btnPlay.style.backgroundColor = "#28a745";
                 btnPlay.style.borderColor = "#28a745";
             }
-            if(scrubber) scrubber.value = 0;
-            drawFrame(0);
+            if(scrubber) scrubber.value = totalSteps - 1;
+            drawFrame(currentFrame);
             return; 
         }
         
