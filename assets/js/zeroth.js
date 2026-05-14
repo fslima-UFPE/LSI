@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctx = canvas.getContext("2d");
 
     // NEW: Temperature scaling factor to speed up the simulation artificially
-    const T_SCALE = 10;
+    const T_SCALE = 20;
 
     let totalParticles;
     let boxConfigs = [];
