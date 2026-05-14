@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const T_SCALE = 10; 
 
-    // Fixed Dimensions
+    // Dimensões Fixas (O CSS cuidará de encolher isso em telas menores)
     const TOTAL_WIDTH = 600;
     const BOX_HEIGHT = 200;
 
@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const chartHeight = 100; 
     let maxExpectedT = 0; 
 
-    // Real-time Simulation State
     let particles = [];
     let boxParticleIndices = [];
     let isRunning = false;
@@ -30,20 +29,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let convergenceCounter = 0;
     let animationId = null; 
     
-    // Physics constants
     const dt = 0.005;
     const R = 8.314; 
     const requiredConvergenceSteps = 300; 
     let thermalConductivity = 0.15;
 
-    // Chart and Tracking
     let chartHistory = [];
     let chartSampleInterval = 30; 
     let smoothedT = []; 
 
-    let displayScale = 1;
-    let baseW = 0;
-    let baseH = 0;
+    let baseW = TOTAL_WIDTH;
+    let baseH = BOX_HEIGHT + chartHeight + 20;
 
     btnRun.addEventListener("click", startSimulation);
     
@@ -77,7 +73,6 @@ document.addEventListener("DOMContentLoaded", () => {
         btnReset.disabled = false;
 
         if (particles.length === 0) {
-            // Read width ratios
             let r0 = parseFloat(getEl("b0-l-zeroth").value) || 1;
             let r1 = parseFloat(getEl("b1-l-zeroth").value) || 1;
             let r2 = parseFloat(getEl("b2-l-zeroth").value) || 1;
@@ -86,24 +81,24 @@ document.addEventListener("DOMContentLoaded", () => {
             boxConfigs = [
                 { 
                     id: 0, 
-                    N: parseInt(getEl("b0-n-zeroth").value), 
-                    T: parseFloat(getEl("b0-t-zeroth").value) * T_SCALE, 
+                    N: parseInt(getEl("b0-n-zeroth").value) || 100, 
+                    T: (parseFloat(getEl("b0-t-zeroth").value) || 300) * T_SCALE, 
                     m: 1.0, 
                     L: TOTAL_WIDTH * (r0 / sumR),
                     r: parseFloat(getEl("b0-r-zeroth").value) || 3.5
                 },
                 { 
                     id: 1, 
-                    N: parseInt(getEl("b1-n-zeroth").value), 
-                    T: parseFloat(getEl("b1-t-zeroth").value) * T_SCALE, 
+                    N: parseInt(getEl("b1-n-zeroth").value) || 100, 
+                    T: (parseFloat(getEl("b1-t-zeroth").value) || 300) * T_SCALE, 
                     m: 1.0, 
                     L: TOTAL_WIDTH * (r1 / sumR),
                     r: parseFloat(getEl("b1-r-zeroth").value) || 3.5
                 },
                 { 
                     id: 2, 
-                    N: parseInt(getEl("b2-n-zeroth").value), 
-                    T: parseFloat(getEl("b2-t-zeroth").value) * T_SCALE, 
+                    N: parseInt(getEl("b2-n-zeroth").value) || 100, 
+                    T: (parseFloat(getEl("b2-t-zeroth").value) || 300) * T_SCALE, 
                     m: 1.0, 
                     L: TOTAL_WIDTH * (r2 / sumR),
                     r: parseFloat(getEl("b2-r-zeroth").value) || 3.5
@@ -116,7 +111,8 @@ document.addEventListener("DOMContentLoaded", () => {
             globalOffsets = [];
             let currentOffset = 0;
             
-            maxExpectedT = Math.max(...boxConfigs.map(b => b.T)) * 1.2; 
+            // Impede divisão por zero caso o usuário coloque temperatura 0
+            maxExpectedT = Math.max(...boxConfigs.map(b => b.T), 10) * 1.2; 
             smoothedT = boxConfigs.map(b => b.T); 
             chartHistory = [];
             currentStep = 0;
@@ -153,9 +149,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 particles.push({
                     boxId: b,
                     m: box.m,
-                    r: box.r, // Store individual radius on the particle
-                    x: box.r + Math.random() * (box.L - 2 * box.r),
-                    y: box.r + Math.random() * (BOX_HEIGHT - 2 * box.r),
+                    r: box.r, 
+                    x: box.r + Math.random() * Math.max(1, (box.L - 2 * box.r)),
+                    y: box.r + Math.random() * Math.max(1, (BOX_HEIGHT - 2 * box.r)),
                     vx: randomGaussian(),
                     vy: randomGaussian()
                 });
@@ -172,6 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
             for (let p of boxParticles) {
                 currentKinetic += 0.5 * box.m * (p.vx * p.vx + p.vy * p.vy);
             }
+            if (currentKinetic === 0) currentKinetic = 0.0001; // Previne divisão por zero
+            
             let targetKinetic = box.N * R * box.T; 
             let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
 
@@ -182,27 +180,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // A MÁGICA ACONTECE AQUI: Deixa o navegador (CSS) cuidar do resize!
     function setupCanvas() {
-        const container = canvas.parentElement;
-        const containerW = container.clientWidth || 800; 
-        
-        baseW = TOTAL_WIDTH;
-        baseH = BOX_HEIGHT + chartHeight + 20;
-        
-        displayScale = containerW / baseW; 
-        
         const dpr = window.devicePixelRatio || 1;
-        const finalW = baseW * displayScale;
-        const finalH = baseH * displayScale;
 
-        canvas.style.width = finalW + "px";
-        canvas.style.height = finalH + "px";
+        canvas.width = baseW * dpr;
+        canvas.height = baseH * dpr;
         
-        canvas.width = finalW * dpr;
-        canvas.height = finalH * dpr;
+        canvas.style.width = "100%";
+        canvas.style.maxWidth = baseW + "px";
+        canvas.style.height = "auto";
+        canvas.style.backgroundColor = "#ffffff";
         
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr * displayScale, dpr * displayScale);
+        ctx.scale(dpr, dpr);
     }
 
     function resolveCollisions() {
@@ -219,7 +210,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     let dy = p1.y - p2.y;
                     let distSq = dx * dx + dy * dy;
                     
-                    // Dynamic minimum distance based on the sum of their radii
                     let minDist = p1.r + p2.r;
                     let minDistSq = minDist * minDist;
                     
@@ -264,7 +254,6 @@ document.addEventListener("DOMContentLoaded", () => {
             let p = particles[i];
             let box = boxConfigs[p.boxId];
 
-            // Use p.r and BOX_HEIGHT instead of particleRadius and maxL
             if (p.y <= p.r) {
                 p.y = p.r; p.vy = Math.abs(p.vy);
             } else if (p.y >= BOX_HEIGHT - p.r) {
@@ -452,7 +441,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             ctx.fillStyle = `rgb(${redVal}, 40, ${blueVal})`; 
             ctx.beginPath();
-            // Use p.r instead of particleRadius
             ctx.arc(p.x + globalOffsets[p.boxId], p.y + simOffsetY, p.r, 0, Math.PI*2);
             ctx.fill();
         }
