@@ -17,9 +17,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let globalOffsets = [];
     let maxL = 0;
     let totalL = 0;
-    const chartHeight = 70; // Reduzido
+    const chartHeight = 100; 
     let maxExpectedT = 0; 
-    const particleRadius = 2.5; // Aumentado
+    const particleRadius = 3.5; // Partículas maiores para visibilidade
 
     btnRun.addEventListener("click", () => {
         let originalRunText = btnRun.innerText;
@@ -129,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
                     }
 
-                    // Parede X Esquerda (Transferência Total de Energia + Reflexão Difusa)
+                    // Parede X Esquerda (Compartilhamento de Energia 2D)
                     if (p.x <= particleRadius) {
                         p.x = particleRadius;
                         let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
@@ -140,8 +140,14 @@ document.addEventListener("DOMContentLoaded", () => {
                                 let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
                                 let E_partner = 0.5 * partner.m * (partner.vx*partner.vx + partner.vy*partner.vy);
                                 
-                                let v_p_new = Math.sqrt(2 * E_partner / p.m);
-                                let v_partner_new = Math.sqrt(2 * E_p / partner.m);
+                                // Conservação rigorosa de energia no contato térmico
+                                let E_total = E_p + E_partner;
+                                let share = Math.random(); 
+                                let E_p_new = E_total * share;
+                                let E_partner_new = E_total * (1.0 - share);
+
+                                let v_p_new = Math.sqrt(2 * E_p_new / p.m);
+                                let v_partner_new = Math.sqrt(2 * E_partner_new / partner.m);
 
                                 let theta_p = (Math.random() - 0.5) * Math.PI; 
                                 p.vx = Math.cos(theta_p) * v_p_new;
@@ -151,10 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 partner.vx = Math.cos(theta_partner) * v_partner_new;
                                 partner.vy = Math.sin(theta_partner) * v_partner_new;
                             } else {
-                                let v_p = Math.sqrt(2 * E_p / p.m);
-                                let theta_p = (Math.random() - 0.5) * Math.PI;
-                                p.vx = Math.cos(theta_p) * v_p;
-                                p.vy = Math.sin(theta_p) * v_p;
+                                p.vx = Math.abs(p.vx);
                             }
                         } else {
                             let v_p = Math.sqrt(2 * E_p / p.m);
@@ -163,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             p.vy = Math.sin(theta_p) * v_p;
                         }
                     } 
-                    // Parede X Direita (Transferência Total de Energia + Reflexão Difusa)
+                    // Parede X Direita (Compartilhamento de Energia 2D)
                     else if (p.x >= box.L - particleRadius) {
                         p.x = box.L - particleRadius;
                         let E_p = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
@@ -174,8 +177,13 @@ document.addEventListener("DOMContentLoaded", () => {
                                 let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
                                 let E_partner = 0.5 * partner.m * (partner.vx*partner.vx + partner.vy*partner.vy);
                                 
-                                let v_p_new = Math.sqrt(2 * E_partner / p.m);
-                                let v_partner_new = Math.sqrt(2 * E_p / partner.m);
+                                let E_total = E_p + E_partner;
+                                let share = Math.random();
+                                let E_p_new = E_total * share;
+                                let E_partner_new = E_total * (1.0 - share);
+
+                                let v_p_new = Math.sqrt(2 * E_p_new / p.m);
+                                let v_partner_new = Math.sqrt(2 * E_partner_new / partner.m);
 
                                 let theta_p = (Math.random() - 0.5) * Math.PI; 
                                 p.vx = -Math.cos(theta_p) * v_p_new;
@@ -185,10 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 partner.vx = Math.cos(theta_partner) * v_partner_new;
                                 partner.vy = Math.sin(theta_partner) * v_partner_new;
                             } else {
-                                let v_p = Math.sqrt(2 * E_p / p.m);
-                                let theta_p = (Math.random() - 0.5) * Math.PI;
-                                p.vx = -Math.cos(theta_p) * v_p;
-                                p.vy = Math.sin(theta_p) * v_p;
+                                p.vx = -Math.abs(p.vx);
                             }
                         } else {
                             let v_p = Math.sqrt(2 * E_p / p.m);
@@ -233,21 +238,36 @@ document.addEventListener("DOMContentLoaded", () => {
         scrubber.disabled = false;
         
         if (scrubber) { scrubber.max = totalSteps - 1; scrubber.value = 0; }
-        canvas.width = totalL;
-        canvas.height = maxL + chartHeight + 20; // Espaço extra
+        
+        // Escala de Alta Resolução (DPI Scaling)
+        const dpr = window.devicePixelRatio || 1;
+        const w = totalL;
+        const h = maxL + chartHeight + 20;
+        
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+        
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+
         drawFrame(0);
     }
 
     function drawFrame(frame) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Redefinir área baseando-se no tamanho lógico
+        const logicalWidth = canvas.width / (window.devicePixelRatio || 1);
+        const logicalHeight = canvas.height / (window.devicePixelRatio || 1);
+        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
         
-        ctx.lineWidth = 1.5;
         const chartColors = ["#d9534f", "#f0ad4e", "#5cb85c"]; 
 
-        // Desenhar Fundo dos Gráficos
-        ctx.fillStyle = "#fafafa";
+        // Fundo do Gráfico CLARO
+        ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, totalL, chartHeight);
-        ctx.strokeStyle = "#ddd";
+        ctx.strokeStyle = "#ccc";
+        ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, totalL, chartHeight);
 
         for (let b = 0; b < boxConfigs.length; b++) {
@@ -257,12 +277,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             ctx.beginPath();
             ctx.strokeStyle = chartColors[b];
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.5;
             
             for (let s = 0; s <= frame; s += Math.max(1, Math.floor(frame / boxW))) {
                 let temp = historyT[s * boxConfigs.length + b];
                 let x = startX + (s / totalSteps) * boxW;
-                let y = chartHeight - (temp / maxExpectedT) * (chartHeight - 10);
+                let y = chartHeight - (temp / maxExpectedT) * (chartHeight - 15);
                 y = Math.max(0, Math.min(chartHeight, y)); 
 
                 if (s === 0) ctx.moveTo(x, y);
@@ -271,21 +291,20 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.stroke();
 
             let currentT = historyT[frame * boxConfigs.length + b];
-            ctx.fillStyle = "#333";
-            ctx.font = "bold 14px Arial";
+            ctx.fillStyle = "#222";
+            ctx.font = "bold 15px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(`${currentT.toFixed(1)} K`, startX + boxW / 2, 20);
+            ctx.fillText(`${currentT.toFixed(1)} K`, startX + boxW / 2, 25);
         }
 
         const simOffsetY = chartHeight + 10;
         
-        // Desenhar Caixas
         ctx.strokeStyle = "#333";
         ctx.lineWidth = 2;
         ctx.strokeRect(0, simOffsetY, totalL, maxL);
 
-        // Paredes Diatérmicas
         ctx.strokeStyle = "#999";
+        ctx.lineWidth = 2;
         ctx.setLineDash([5, 5]);
         for (let offset of globalOffsets) {
             if (offset === 0) continue;
