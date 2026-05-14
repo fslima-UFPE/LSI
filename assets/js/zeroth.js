@@ -10,8 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const ctx = canvas.getContext("2d");
 
-    // NEW: Temperature scaling factor to speed up the simulation artificially
-    const T_SCALE = 20;
+    const T_SCALE = 40; // Temperature scaling factor for faster physics simulation
 
     let totalParticles;
     let boxConfigs = [];
@@ -28,18 +27,16 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRunning = false;
     let currentStep = 0;
     let convergenceCounter = 0;
-    let animationId = null; // To keep track of the frame loop
+    let animationId = null; 
     
     // Physics constants
     const dt = 0.005;
     const R = 8.314; 
-    // Lowered convergence steps! 300 frames = ~5 seconds of sustained equilibrium
     const requiredConvergenceSteps = 300; 
     let thermalConductivity = 0.15;
 
     // Chart and Tracking
     let chartHistory = [];
-    // Lowered sample interval! Captures a point twice a second for a smooth real-time chart
     let chartSampleInterval = 30; 
     let smoothedT = []; 
 
@@ -82,10 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
         btnStop.disabled = false;
         btnReset.disabled = false;
 
-        // Only read inputs and reset arrays if we are starting fresh (not continuing after Stop)
         if (particles.length === 0) {
             boxConfigs = [
-                // Notice the * T_SCALE applied to the temperatures here!
                 { id: 0, N: parseInt(getEl("b0-n-zeroth").value), T: parseFloat(getEl("b0-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b0-l-zeroth").value) },
                 { id: 1, N: parseInt(getEl("b1-n-zeroth").value), T: parseFloat(getEl("b1-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b1-l-zeroth").value) },
                 { id: 2, N: parseInt(getEl("b2-n-zeroth").value), T: parseFloat(getEl("b2-t-zeroth").value) * T_SCALE, m: 1.0, L: parseFloat(getEl("b2-l-zeroth").value) }
@@ -145,7 +140,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Apply initial kinetic energy scaling based on the scaled-up temperature
         for (let b = 0; b < boxConfigs.length; b++) {
             let box = boxConfigs[b];
             let boxParticles = particles.filter(p => p.boxId === b);
@@ -187,32 +181,77 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.scale(dpr * displayScale, dpr * displayScale);
     }
 
+    // NEW: Hard Sphere Inter-particle Elastic Collisions
+    function resolveCollisions() {
+        const minDistSq = (2 * particleRadius) * (2 * particleRadius);
+        
+        // Only check for collisions within the same box
+        for (let b = 0; b < boxConfigs.length; b++) {
+            let pIndices = boxParticleIndices[b];
+            let len = pIndices.length;
+            
+            for (let i = 0; i < len; i++) {
+                for (let j = i + 1; j < len; j++) {
+                    let p1 = particles[pIndices[i]];
+                    let p2 = particles[pIndices[j]];
+                    
+                    let dx = p1.x - p2.x;
+                    let dy = p1.y - p2.y;
+                    let distSq = dx * dx + dy * dy;
+                    
+                    // If particles overlap
+                    if (distSq <= minDistSq && distSq > 0) {
+                        let vxDiff = p1.vx - p2.vx;
+                        let vyDiff = p1.vy - p2.vy;
+                        
+                        // Check if they are actually moving towards each other
+                        // (prevents particles that are already moving apart from "sticking")
+                        if (vxDiff * dx + vyDiff * dy < 0) {
+                            // 2D Elastic Collision Math (Assuming equal masses)
+                            let dotProduct = vxDiff * dx + vyDiff * dy;
+                            let collisionScale = dotProduct / distSq;
+                            
+                            let collisionX = dx * collisionScale;
+                            let collisionY = dy * collisionScale;
+                            
+                            p1.vx -= collisionX;
+                            p1.vy -= collisionY;
+                            
+                            p2.vx += collisionX;
+                            p2.vy += collisionY;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     function gameLoop() {
         if (!isRunning) return;
 
         currentStep++;
         let kineticE = new Array(boxConfigs.length).fill(0);
 
-        // Update Physics
+        // 1. Update Position
+        for (let i = 0; i < totalParticles; i++) {
+            let p = particles[i];
+            p.x += p.vx * dt; 
+            p.y += p.vy * dt;
+        }
+
+        // 2. Inter-particle Collisions (Hard Sphere dynamics)
+        resolveCollisions();
+
+        // 3. Wall Collisions & Thermal Exchange
         for (let i = 0; i < totalParticles; i++) {
             let p = particles[i];
             let box = boxConfigs[p.boxId];
-            p.x += p.vx * dt; 
-            p.y += p.vy * dt;
 
-            // Y-Axis Walls (Top and Bottom) - DIFFUSE REFLECTION
+            // Reverted back to simple specular reflection for Y-axis
             if (p.y <= particleRadius) {
-                p.y = particleRadius; 
-                let v = Math.sqrt(p.vx * p.vx + p.vy * p.vy); // Calculate total speed
-                let theta = Math.random() * Math.PI; // Random angle pointing DOWN (0 to PI)
-                p.vx = v * Math.cos(theta);
-                p.vy = v * Math.sin(theta);
+                p.y = particleRadius; p.vy = Math.abs(p.vy);
             } else if (p.y >= maxL - particleRadius) {
-                p.y = maxL - particleRadius; 
-                let v = Math.sqrt(p.vx * p.vx + p.vy * p.vy); // Calculate total speed
-                let theta = Math.PI + Math.random() * Math.PI; // Random angle pointing UP (PI to 2*PI)
-                p.vx = v * Math.cos(theta);
-                p.vy = v * Math.sin(theta);
+                p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
             }
 
             if (p.x <= particleRadius) {
@@ -356,7 +395,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 ctx.stroke();
 
-                // Divide by T_SCALE before showing the user the text!
                 let currentTempRaw = chartHistory[chartHistory.length - 1][b];
                 let displayedTemp = currentTempRaw / T_SCALE;
 
