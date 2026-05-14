@@ -9,33 +9,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const ctx = canvas.getContext("2d");
 
-    // Histórico para o "filme"
     let historyX, historyY, historyR, historyT; 
     let totalSteps, totalParticles;
-    
-    // Controles de animação
     let isPlaying = false, currentFrame = 0;
     let playbackSpeed = 5; 
-
-    // Configuração da Simulação
-    let boxConfigs = [
-        { id: 0, N: 300, T: 800, m: 1.0, L: 150 }, // Caixa 1: Quente
-        { id: 1, N: 300, T: 100, m: 1.0, L: 150 }, // Caixa 2: Fria
-        { id: 2, N: 300, T: 400, m: 1.0, L: 150 }  // Caixa 3: Média
-    ];
-    
+    let boxConfigs = [];
     let globalOffsets = [];
     let maxL = 0;
     let totalL = 0;
-    const chartHeight = 120; // Espaço para os gráficos no topo
-
+    const chartHeight = 120; 
     let maxExpectedT = 0; 
 
     btnRun.addEventListener("click", () => {
-        // Mudar texto do botão para indicar carregamento
         let originalRunText = btnRun.innerText;
         btnRun.innerText = "CALCULANDO...";
         btnRun.disabled = true;
+        btnPlay.disabled = true;
+        scrubber.disabled = true;
+
+        // Capturar inputs do usuário
+        boxConfigs = [
+            { id: 0, N: parseInt(getEl("b0-n").value), T: parseFloat(getEl("b0-t").value), m: 1.0, L: parseFloat(getEl("b0-l").value) },
+            { id: 1, N: parseInt(getEl("b1-n").value), T: parseFloat(getEl("b1-t").value), m: 1.0, L: parseFloat(getEl("b1-l").value) },
+            { id: 2, N: parseInt(getEl("b2-n").value), T: parseFloat(getEl("b2-t").value), m: 1.0, L: parseFloat(getEl("b2-l").value) }
+        ];
+
+        // Nova constante de condutividade capturada do HTML
+        const thermalConductivity = parseFloat(getEl("wall-k").value) || 0.15;
 
         totalParticles = boxConfigs.reduce((sum, box) => sum + box.N, 0);
         totalL = 0;
@@ -43,7 +43,6 @@ document.addEventListener("DOMContentLoaded", () => {
         globalOffsets = [];
         maxExpectedT = Math.max(...boxConfigs.map(b => b.T)) * 1.2; 
 
-        // Coordenadas globais X
         for (let box of boxConfigs) {
             globalOffsets.push(totalL);
             totalL += box.L;
@@ -72,8 +71,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
         }
 
-        // --- 1. INICIALIZAÇÃO ---
         let particles = [];
+        let boxParticleIndices = boxConfigs.map(() => []);
+
+        // 1. Inicialização
+        let pIndex = 0;
         for (let b = 0; b < boxConfigs.length; b++) {
             let box = boxConfigs[b];
             for (let i = 0; i < box.N; i++) {
@@ -81,28 +83,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     boxId: b,
                     m: box.m,
                     x: particleRadius + Math.random() * (box.L - 2 * particleRadius),
-                    y: particleRadius + Math.random() * (box.L - 2 * particleRadius),
+                    y: particleRadius + Math.random() * (maxL - 2 * particleRadius),
                     vx: randomGaussian(),
                     vy: randomGaussian()
                 });
+                boxParticleIndices[b].push(pIndex);
+                pIndex++;
             }
         }
 
-        // --- 2. ESCALA DE TEMPERATURA POR CAIXA ---
+        // 2. Escala de Temperatura Inicial
         for (let b = 0; b < boxConfigs.length; b++) {
             let box = boxConfigs[b];
             let boxParticles = particles.filter(p => p.boxId === b);
             
-            let vCMx = 0, vCMy = 0;
-            for (let p of boxParticles) { vCMx += p.vx; vCMy += p.vy; }
-            vCMx /= box.N; vCMy /= box.N;
-            for (let p of boxParticles) { p.vx -= vCMx; p.vy -= vCMy; }
-
             let currentKinetic = 0;
             for (let p of boxParticles) {
                 currentKinetic += 0.5 * box.m * (p.vx * p.vx + p.vy * p.vy);
             }
-
             let targetKinetic = box.N * R * box.T;
             let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
 
@@ -113,16 +111,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         let step = 0;
-        let wallQueues = new Array(boxConfigs.length - 1).fill(null).map(() => ({left: [], right: []}));
 
-        // --- 3. LOOP DE SIMULAÇÃO ---
+        // 3. Loop de Simulação
         function computeChunk() {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
             const maxExpectedV = 3.0 * Math.sqrt(R * Math.max(...boxConfigs.map(b=>b.T)) / 1.0); 
 
             for (; step < end; step++) {
-                
                 let kineticE = new Array(boxConfigs.length).fill(0);
 
                 for (let i = 0; i < totalParticles; i++) {
@@ -131,86 +127,65 @@ document.addEventListener("DOMContentLoaded", () => {
                     p.x += p.vx * dt; 
                     p.y += p.vy * dt;
 
-                    // Paredes Y Rígidas
+                    // Paredes Y (Apenas rebatimento)
                     if (p.y <= particleRadius) {
                         p.y = particleRadius; p.vy = Math.abs(p.vy);
-                    } else if (p.y >= box.L - particleRadius) {
-                        p.y = box.L - particleRadius; p.vy = -Math.abs(p.vy);
+                    } else if (p.y >= maxL - particleRadius) {
+                        p.y = maxL - particleRadius; p.vy = -Math.abs(p.vy);
                     }
 
-                    // Paredes X
+                    // Paredes X (Condução Térmica Diatérmica com Fator K)
                     if (p.x <= particleRadius) {
-                        if (p.boxId > 0) {
-                            wallQueues[p.boxId - 1].right.push(p);
+                        p.x = particleRadius;
+                        if (p.boxId > 0 && Math.random() < thermalConductivity) {
+                            let targetIndices = boxParticleIndices[p.boxId - 1];
+                            if (targetIndices.length > 0) {
+                                let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
+                                let kx_p = 0.5 * p.m * p.vx * p.vx;
+                                let kx_partner = 0.5 * partner.m * partner.vx * partner.vx;
+                                p.vx = Math.sqrt((2 * kx_partner) / p.m); // Rebate para a direita
+                                partner.vx = Math.sign(partner.vx) * Math.sqrt((2 * kx_p) / partner.m);
+                            } else {
+                                p.vx = Math.abs(p.vx); // Pulo adiabático se a vizinha estiver vazia
+                            }
                         } else {
-                            p.x = particleRadius; p.vx = Math.abs(p.vx);
+                            p.vx = Math.abs(p.vx); // Pulo adiabático
                         }
                     } else if (p.x >= box.L - particleRadius) {
-                        if (p.boxId < boxConfigs.length - 1) {
-                            wallQueues[p.boxId].left.push(p);
+                        p.x = box.L - particleRadius;
+                        if (p.boxId < boxConfigs.length - 1 && Math.random() < thermalConductivity) {
+                            let targetIndices = boxParticleIndices[p.boxId + 1];
+                            if (targetIndices.length > 0) {
+                                let partner = particles[targetIndices[Math.floor(Math.random() * targetIndices.length)]];
+                                let kx_p = 0.5 * p.m * p.vx * p.vx;
+                                let kx_partner = 0.5 * partner.m * partner.vx * partner.vx;
+                                p.vx = -Math.sqrt((2 * kx_partner) / p.m); // Rebate para a esquerda
+                                partner.vx = Math.sign(partner.vx) * Math.sqrt((2 * kx_p) / partner.m);
+                            } else {
+                                p.vx = -Math.abs(p.vx);
+                            }
                         } else {
-                            p.x = box.L - particleRadius; p.vx = -Math.abs(p.vx);
+                            p.vx = -Math.abs(p.vx);
                         }
                     }
 
                     kineticE[p.boxId] += 0.5 * p.m * (p.vx * p.vx + p.vy * p.vy);
                 }
-
-                // Paredes Diatérmicas
-                for (let w = 0; w < wallQueues.length; w++) {
-                    let q = wallQueues[w];
-                    
-                    q.left.sort(() => Math.random() - 0.5);
-                    q.right.sort(() => Math.random() - 0.5);
-
-                    let pairs = Math.min(q.left.length, q.right.length);
-
-                    for (let i = 0; i < pairs; i++) {
-                        let pL = q.left[i];  
-                        let pR = q.right[i]; 
-
-                        let Kx = 0.5 * pL.m * (pL.vx ** 2) + 0.5 * pR.m * (pR.vx ** 2);
-                        
-                        let fractionL = Math.random();
-                        let Kx_L = fractionL * Kx;
-                        let Kx_R = (1 - fractionL) * Kx;
-
-                        pL.vx = -Math.sqrt((2 * Kx_L) / pL.m); 
-                        pR.vx = Math.sqrt((2 * Kx_R) / pR.m);  
-
-                        pL.x = boxConfigs[pL.boxId].L - particleRadius;
-                        pR.x = particleRadius;
-                    }
-
-                    for (let i = pairs; i < q.left.length; i++) {
-                        let pL = q.left[i];
-                        pL.vx = -Math.abs(pL.vx);
-                        pL.x = boxConfigs[pL.boxId].L - particleRadius;
-                    }
-                    for (let i = pairs; i < q.right.length; i++) {
-                        let pR = q.right[i];
-                        pR.vx = Math.abs(pR.vx);
-                        pR.x = particleRadius;
-                    }
-
-                    q.left = []; q.right = [];
-                }
                 
-                // Armazenar Dados do Frame
+                // Salvar dados do Frame
                 let offset = step * totalParticles;
                 for (let i = 0; i < totalParticles; i++) {
                     let p = particles[i];
                     historyX[offset + i] = p.x + globalOffsets[p.boxId];
                     historyY[offset + i] = p.y; 
 
-                    let vInstantanea = Math.sqrt(p.vx**2 + p.vy**2);
-                    let ratio = Math.min(1, vInstantanea / maxExpectedV);
+                    let vInst = Math.sqrt(p.vx**2 + p.vy**2);
+                    let ratio = Math.min(1, vInst / maxExpectedV);
                     historyR[offset + i] = Math.round(ratio * 255);
                 }
 
                 for (let b = 0; b < boxConfigs.length; b++) {
-                    let instT = kineticE[b] / (boxConfigs[b].N * R);
-                    historyT[step * boxConfigs.length + b] = instT;
+                    historyT[step * boxConfigs.length + b] = kineticE[b] / (boxConfigs[b].N * R);
                 }
             }
             
@@ -226,6 +201,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function finishSimulation(originalText) {
         btnRun.innerText = originalText;
         btnRun.disabled = false;
+        btnPlay.disabled = false;
+        scrubber.disabled = false;
+        
         if (scrubber) { scrubber.max = totalSteps - 1; scrubber.value = 0; }
         canvas.width = totalL;
         canvas.height = maxL + chartHeight; 
@@ -235,7 +213,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function drawFrame(frame) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // --- 1. GRÁFICOS NO TOPO ---
         ctx.lineWidth = 1.5;
         for (let b = 0; b < boxConfigs.length; b++) {
             let box = boxConfigs[b];
@@ -261,15 +238,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             ctx.stroke();
 
-            // Texto de Temperatura
             let currentT = historyT[frame * boxConfigs.length + b];
             ctx.fillStyle = "white";
             ctx.font = "14px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(`Caixa ${b+1}: ${currentT.toFixed(1)} K`, startX + boxW / 2, 20);
+            ctx.fillText(`C${b+1}: ${currentT.toFixed(1)} K`, startX + boxW / 2, 20);
         }
 
-        // --- 2. CAIXAS DA SIMULAÇÃO ---
         const simOffsetY = chartHeight;
         
         ctx.strokeStyle = "white";
@@ -284,14 +259,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         ctx.setLineDash([]);
 
-        // --- 3. PARTÍCULAS ---
         const offsetData = frame * totalParticles;
         const particleRadius = 1.0; 
         
         for (let i = 0; i < totalParticles; i++) {
             let redVal = historyR[offsetData+i];
             let blueVal = 255 - redVal; 
-            
             ctx.fillStyle = `rgb(${redVal}, 0, ${blueVal})`; 
             ctx.beginPath();
             ctx.arc(historyX[offsetData+i], historyY[offsetData+i] + simOffsetY, particleRadius, 0, Math.PI*2);
@@ -301,13 +274,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (btnPlay) {
         btnPlay.onclick = () => {
-            if (totalSteps === undefined) {
-                alert("Por favor, clique em 'GERAR SIMULAÇÃO' primeiro!");
-                return;
-            }
+            if (totalSteps === undefined) return;
             isPlaying = !isPlaying;
             btnPlay.innerText = isPlaying ? "Pausar" : "Reproduzir";
-            btnPlay.style.backgroundColor = isPlaying ? "#dc3545" : "#28a745"; // Vermelho pausar, Verde play
+            btnPlay.style.backgroundColor = isPlaying ? "#dc3545" : "#28a745"; 
             btnPlay.style.borderColor = isPlaying ? "#dc3545" : "#28a745";
             if(isPlaying) animate();
         };
