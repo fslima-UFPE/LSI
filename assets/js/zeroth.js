@@ -12,9 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const T_SCALE = 20; 
 
-    // Dimensões Fixas (O CSS cuidará de encolher isso em telas menores)
+    // Dimensões Fixas e Fator de Segurança
     const TOTAL_WIDTH = 600;
     const BOX_HEIGHT = 200;
+    const SAFETY_FACTOR = 0.90; 
 
     let totalParticles;
     let boxConfigs = [];
@@ -73,7 +74,6 @@ document.addEventListener("DOMContentLoaded", () => {
         btnReset.disabled = false;
 
         if (particles.length === 0) {
-            // Box sizes are now divided equally among the 3 boxes
             boxConfigs = [
                 { 
                     id: 0, 
@@ -101,13 +101,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             ];
 
+            // Verificação de superlotamento usando a constante SAFETY_FACTOR
+            for (let box of boxConfigs) {
+                let maxCols = Math.floor(box.L / (2 * box.r));
+                let maxRows = Math.floor(BOX_HEIGHT / (2 * box.r));
+                let absoluteMax = maxCols * maxRows;
+                
+                let safeMax = Math.floor(absoluteMax * SAFETY_FACTOR);
+
+                if (box.N > safeMax) {
+                    alert(`Erro: A caixa ${box.id + 1} está superlotada!\nCom o raio de ${box.r}, o limite seguro para evitar falhas na física é de ${safeMax} partículas. Você tentou inserir ${box.N}.`);
+                    
+                    btnRun.innerText = "INICIAR SIMULAÇÃO";
+                    btnRun.disabled = false;
+                    btnStop.disabled = true;
+                    btnReset.disabled = true;
+                    return; 
+                }
+            }
+
             thermalConductivity = parseFloat(getEl("wall-k-zeroth").value) || 0.15;
             totalParticles = boxConfigs.reduce((sum, box) => sum + box.N, 0);
             
             globalOffsets = [];
             let currentOffset = 0;
             
-            // Impede divisão por zero caso o usuário coloque temperatura 0
             maxExpectedT = Math.max(...boxConfigs.map(b => b.T), 10) * 1.2; 
             smoothedT = boxConfigs.map(b => b.T); 
             chartHistory = [];
@@ -141,13 +159,40 @@ document.addEventListener("DOMContentLoaded", () => {
         let pIndex = 0;
         for (let b = 0; b < boxConfigs.length; b++) {
             let box = boxConfigs[b];
+            
             for (let i = 0; i < box.N; i++) {
+                let pX, pY;
+                let overlapping = true;
+                let attempts = 0;
+                let maxAttempts = 1000; 
+
+                while (overlapping && attempts < maxAttempts) {
+                    pX = box.r + Math.random() * Math.max(1, (box.L - 2 * box.r));
+                    pY = box.r + Math.random() * Math.max(1, (BOX_HEIGHT - 2 * box.r));
+                    overlapping = false;
+
+                    for (let j = 0; j < boxParticleIndices[b].length; j++) {
+                        let existingP = particles[boxParticleIndices[b][j]];
+                        let dx = pX - existingP.x;
+                        let dy = pY - existingP.y;
+                        let distSq = dx * dx + dy * dy;
+                        
+                        let minDist = box.r + existingP.r;
+                        
+                        if (distSq < minDist * minDist) {
+                            overlapping = true;
+                            break;
+                        }
+                    }
+                    attempts++;
+                }
+
                 particles.push({
                     boxId: b,
                     m: box.m,
                     r: box.r, 
-                    x: box.r + Math.random() * Math.max(1, (box.L - 2 * box.r)),
-                    y: box.r + Math.random() * Math.max(1, (BOX_HEIGHT - 2 * box.r)),
+                    x: pX,
+                    y: pY,
                     vx: randomGaussian(),
                     vy: randomGaussian()
                 });
@@ -164,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
             for (let p of boxParticles) {
                 currentKinetic += 0.5 * box.m * (p.vx * p.vx + p.vy * p.vy);
             }
-            if (currentKinetic === 0) currentKinetic = 0.0001; // Previne divisão por zero
+            if (currentKinetic === 0) currentKinetic = 0.0001; 
             
             let targetKinetic = box.N * R * box.T; 
             let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
@@ -176,7 +221,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // A MÁGICA ACONTECE AQUI: Deixa o navegador (CSS) cuidar do resize!
     function setupCanvas() {
         const dpr = window.devicePixelRatio || 1;
 
@@ -333,7 +377,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let currentT = new Array(boxConfigs.length);
         for (let b = 0; b < boxConfigs.length; b++) {
             currentT[b] = kineticE[b] / (boxConfigs[b].N * R);
-            // 1. Stronger smoothing (0.998 instead of 0.995) to filter out the chaotic particle noise
             smoothedT[b] = 0.998 * smoothedT[b] + 0.002 * currentT[b]; 
         }
 
@@ -343,14 +386,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let maxT = Math.max(...smoothedT);
         let minT = Math.min(...smoothedT);
-        let percentDiff = maxT > 0 ? (maxT - minT) / maxT : 0; // Guard against division by zero
+        let percentDiff = maxT > 0 ? (maxT - minT) / maxT : 0; 
 
-        // 2. Tolerance of 10%
         if (percentDiff <= 0.10) {
             convergenceCounter++;
         } else {
-            // 3. SOFT PENALTY: Instead of completely resetting to 0, subtract from the counter.
-            // This prevents a single millisecond fluctuation from destroying 4 seconds of progress.
             convergenceCounter = Math.max(0, convergenceCounter - 5);
         }
 
