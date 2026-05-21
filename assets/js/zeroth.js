@@ -412,7 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function drawFrame() {
         ctx.clearRect(0, 0, baseW, baseH);
         
-        const chartColors = ["#d9534f", "#f0ad4e", "#5cb85c"]; 
+        const chartColors = ["blue", "red", "green"]; 
 
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, TOTAL_WIDTH, chartHeight);
