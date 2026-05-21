@@ -73,18 +73,14 @@ document.addEventListener("DOMContentLoaded", () => {
         btnReset.disabled = false;
 
         if (particles.length === 0) {
-            let r0 = parseFloat(getEl("b0-l-zeroth").value) || 1;
-            let r1 = parseFloat(getEl("b1-l-zeroth").value) || 1;
-            let r2 = parseFloat(getEl("b2-l-zeroth").value) || 1;
-            let sumR = r0 + r1 + r2;
-
+            // Box sizes are now divided equally among the 3 boxes
             boxConfigs = [
                 { 
                     id: 0, 
                     N: parseInt(getEl("b0-n-zeroth").value) || 100, 
                     T: (parseFloat(getEl("b0-t-zeroth").value) || 300) * T_SCALE, 
                     m: 1.0, 
-                    L: TOTAL_WIDTH * (r0 / sumR),
+                    L: TOTAL_WIDTH / 3,
                     r: parseFloat(getEl("b0-r-zeroth").value) || 3.5
                 },
                 { 
@@ -92,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     N: parseInt(getEl("b1-n-zeroth").value) || 100, 
                     T: (parseFloat(getEl("b1-t-zeroth").value) || 300) * T_SCALE, 
                     m: 1.0, 
-                    L: TOTAL_WIDTH * (r1 / sumR),
+                    L: TOTAL_WIDTH / 3,
                     r: parseFloat(getEl("b1-r-zeroth").value) || 3.5
                 },
                 { 
@@ -100,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     N: parseInt(getEl("b2-n-zeroth").value) || 100, 
                     T: (parseFloat(getEl("b2-t-zeroth").value) || 300) * T_SCALE, 
                     m: 1.0, 
-                    L: TOTAL_WIDTH * (r2 / sumR),
+                    L: TOTAL_WIDTH / 3,
                     r: parseFloat(getEl("b2-r-zeroth").value) || 3.5
                 }
             ];
@@ -357,9 +353,6 @@ document.addEventListener("DOMContentLoaded", () => {
             // This prevents a single millisecond fluctuation from destroying 4 seconds of progress.
             convergenceCounter = Math.max(0, convergenceCounter - 5);
         }
-
-        // Optional: Log it so you can see it trying to converge in the developer console
-        // console.log(`Diff: ${(percentDiff*100).toFixed(1)}% | Counter: ${convergenceCounter}/300`);
 
         if (convergenceCounter >= requiredConvergenceSteps) {
             isRunning = false;
