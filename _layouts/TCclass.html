@@ -32,24 +32,43 @@ layout: base
       </nav>
 
       <div class="class-navigation d-flex justify-content-between mb-4">
-        {% if page.previous_class %}
-          {% assign prev_page = site.pages | where: "url", page.previous_class | first %}
-          <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
-          <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;{% if prev_page %}{{ prev_page.title }}{% else %}Aula Anterior{% endif %}
-          </a>
-        {% else %}
-          <div></div>
-        {% endif %}
+  
+  {% if page.previous_class %}
+    {% assign prev_target = page.previous_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
+    {% assign prev_page = nil %}
+    {% for p in site.pages %}
+      {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
+      {% if p_url == prev_target %}
+        {% assign prev_page = p %}
+        {% break %}
+      {% endif %}
+    {% endfor %}
+    
+    <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
+      <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;{% if prev_page %}{{ prev_page.title }}{% else %}Aula Anterior{% endif %}
+    </a>
+  {% else %}
+    <div></div>
+  {% endif %}
 
-        {% if page.next_class %}
-          {% assign next_page = site.pages | where: "url", page.next_class | first %}
-          <a href="{{ page.next_class }}" class="btn btn-outline-primary">
-          {% if next_page %}{{ next_page.title }}{% else %}Próxima Aula{% endif %}&nbsp;&nbsp;<i class="fas fa-chevron-right" aria-hidden="true"></i>
-          </a>
-        {% else %}
-          <div></div>
-        {% endif %}
-        </div>
+  {% if page.next_class %}
+    {% assign next_target = page.next_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
+    {% assign next_page = nil %}
+    {% for p in site.pages %}
+      {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
+      {% if p_url == next_target %}
+        {% assign next_page = p %}
+        {% break %}
+      {% endif %}
+    {% endfor %}
+    
+    <a href="{{ page.next_class }}" class="btn btn-outline-primary">
+      {% if next_page %}{{ next_page.title }}{% else %}Próxima Aula{% endif %}&nbsp;&nbsp;<i class="fas fa-chevron-right" aria-hidden="true"></i>
+    </a>
+  {% else %}
+    <div></div>
+  {% endif %}
+</div>
 
       <div class="aula-container">
         {{ content }}
