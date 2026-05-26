@@ -2,6 +2,7 @@
 layout: TCclass
 title: Termodinâmica Clássica
 subtitle: Curso online
+next_class: "/LSI/Aulas/TC/A1"
 ---
 
 <p class="jt">
