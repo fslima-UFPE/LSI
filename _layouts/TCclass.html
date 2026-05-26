@@ -16,7 +16,7 @@ layout: base
         </div>
       {% endif %}
 
-     <nav class="side-nav">
+      <nav class="side-nav">
         <ul>
           <li><a style="font-family: 'Montserrat', sans-serif; font-weight: bold; color: #404040; text-decoration: underline; text-align: center; font-size: 1.5rem;" href="/LSI/Aulas/TC" class="{% if page.url == '/LSI/Aulas/TC' or page.url == '/LSI/Aulas/TC/' %}active{% endif %}">TC</a></li>
           <li><a href="/LSI/Aulas/TC/A1" class="{% if page.url contains '/Aulas/TC/A1' %}active{% endif %}">1. Sistemas</a></li>
@@ -27,76 +27,65 @@ layout: base
           <li><a href="/LSI/Aulas/TC/A6" class="{% if page.url contains '/Aulas/TC/A6' %}active{% endif %}">6. Lei Zero</a></li>
           <li><a href="/LSI/Aulas/TC/A7" class="{% if page.url contains '/Aulas/TC/A7' %}active{% endif %}">7. 1<sup>a</sup> Lei</a></li>
           <li><a href="/LSI/Aulas/TC/A8" class="{% if page.url contains '/Aulas/TC/A8' %}active{% endif %}">8. 2<sup>a</sup> Lei</a></li>
-          <li><a href="/LSI/Aulas/TC/Ze" class="{% if page.url contains '/Aulas/TC/Teste_Ze' %}active{% endif %}">9. Teste Ze</a></li>
         </ul>
       </nav>
 
       <div class="class-navigation d-flex justify-content-between mb-4">
   
-  {% if page.previous_class %}
-    {% assign prev_target = page.previous_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
-    {% assign prev_page = nil %}
-    {% for p in site.pages %}
-      {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
-      {% if p_url == prev_target %}
-        {% assign prev_page = p %}
-        {% break %}
-      {% endif %}
-    {% endfor %}
-    
-    <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
-      <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;
-      {% if prev_page %}
-        {% assign prev_slug = prev_page.url | remove: ".html" | split: "/" | last %}
-        {% if prev_slug == "TC" %}
-        {% elsif prev_slug contains "Ze" %}
-          9. 
+        {% if page.previous_class %}
+          {% assign prev_target = page.previous_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
+          {% assign prev_page = nil %}
+          {% for p in site.pages %}
+            {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
+            {% if p_url == prev_target %}
+              {% assign prev_page = p %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          
+          <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;
+            {% if prev_page %}
+              {% assign prev_slug = prev_page.url | remove: ".html" | split: "/" | last %}
+              {% unless prev_slug == "TC" %}
+                {{ prev_slug | remove: "A" }}. 
+              {% endunless %}
+              {{ prev_page.title }}
+            {% else %}
+              Aula Anterior
+            {% endif %}
+          </a>
         {% else %}
-          {{ prev_slug | remove: "A" }}. 
+          <div></div>
         {% endif %}
-        {{ prev_page.title }}
-      {% else %}
-        Aula Anterior
-      {% endif %}
-    </a>
-  {% else %}
-    <div></div>
-  {% endif %}
 
-  {% if page.next_class %}
-    {% assign next_target = page.next_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
-    {% assign next_page = nil %}
-    {% for p in site.pages %}
-      {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
-      {% if p_url == next_target %}
-        {% assign next_page = p %}
-        {% break %}
-      {% endif %}
-    {% endfor %}
-    
-    <a href="{{ page.next_class }}" class="btn btn-outline-primary">
-      {% if next_page %}
-        {% assign next_slug = next_page.url | remove: ".html" | split: "/" | last %}
-        {% if next_slug == "TC" %}
-        {% elsif next_slug contains "Ze" %}
-          9. 
+        {% if page.next_class %}
+          {% assign next_target = page.next_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
+          {% assign next_page = nil %}
+          {% for p in site.pages %}
+            {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
+            {% if p_url == next_target %}
+              {% assign next_page = p %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+          
+          <a href="{{ page.next_class }}" class="btn btn-outline-primary">
+            {% if next_page %}
+              {% assign next_slug = next_page.url | remove: ".html" | split: "/" | last %}
+              {% unless next_slug == "TC" %}
+                {{ next_slug | remove: "A" }}. 
+              {% endunless %}
+              {{ next_page.title }}
+            {% else %}
+              Próxima Aula
+            {% endif %}&nbsp;&nbsp;<i class="fas fa-chevron-right" aria-hidden="true"></i>
+          </a>
         {% else %}
-          {{ next_slug | remove: "A" }}. 
+          <div></div>
         {% endif %}
-        {{ next_page.title }}
-      {% else %}
-        Próxima Aula
-      {% endif %}&nbsp;&nbsp;<i class="fas fa-chevron-right" aria-hidden="true"></i>
-    </a>
-  {% else %}
-    <div></div>
-  {% endif %}
-</div>
-
-      <div class="aula-container">
-        {{ content }}
       </div>
-      
+
       <div class="aula-container">
         {{ content }}
       </div>
