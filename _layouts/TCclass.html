@@ -45,7 +45,19 @@ layout: base
     {% endfor %}
     
     <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
-      <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;{% if prev_page %}{{ prev_page.title }}{% else %}Aula Anterior{% endif %}
+      <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;
+      {% if prev_page %}
+        {% assign prev_slug = prev_page.url | remove: ".html" | split: "/" | last %}
+        {% if prev_slug == "TC" %}
+          {% Goldelsif prev_slug contains "Ze" %}
+          9. 
+        {% else %}
+          {{ prev_slug | remove: "A" }}. 
+        {% endif %}
+        {{ prev_page.title }}
+      {% else %}
+        Aula Anterior
+      {% endif %}
     </a>
   {% else %}
     <div></div>
@@ -63,7 +75,18 @@ layout: base
     {% endfor %}
     
     <a href="{{ page.next_class }}" class="btn btn-outline-primary">
-      {% if next_page %}{{ next_page.title }}{% else %}Próxima Aula{% endif %}&nbsp;&nbsp;<i class="fas fa-chevron-right" aria-hidden="true"></i>
+      {% if next_page %}
+        {% assign next_slug = next_page.url | remove: ".html" | split: "/" | last %}
+        {% if next_slug == "TC" %}
+          {% elsif next_slug contains "Ze" %}
+          9. 
+        {% else %}
+          {{ next_slug | remove: "A" }}. 
+        {% endif %}
+        {{ next_page.title }}
+      {% else %}
+        Próxima Aula
+      {% endif %}&nbsp;&nbsp;<i class="fas fa-chevron-right" aria-hidden="true"></i>
     </a>
   {% else %}
     <div></div>
