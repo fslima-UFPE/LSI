@@ -198,53 +198,77 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 for (let i = 0; i < numParticles; i++) {
                     let p = particles[i];
-                    p.x += p.vx * dt; p.y += p.vy * dt;
+                    p.x += p.vx * dt; 
+                    p.y += p.vy * dt;
 
-                    // Colisões Parede (X)
-                    if (p.x <= particleRadius) {
-                        p.x = particleRadius;
-                        p.vx = Math.abs(p.vx);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vx);
-                            wallCollisionCount++;
+                    if (isIG) {
+                        // ==========================================
+                        // IDEAL GAS: FIXED WALLS
+                        // ==========================================
+                        
+                        // Colisões Parede (X)
+                        if (p.x <= particleRadius) {
+                            p.x = particleRadius;
+                            p.vx = Math.abs(p.vx);
+                            if (isEquilibrated) { 
+                                collisionsThisStep++; 
+                                wallMomentumTransfer += 2 * m * Math.abs(p.vx);
+                                wallCollisionCount++;
+                            }
+                        } else if (p.x >= edgeLength - particleRadius) {
+                            p.x = edgeLength - particleRadius;
+                            p.vx = -Math.abs(p.vx);
+                            if (isEquilibrated) { 
+                                collisionsThisStep++; 
+                                wallMomentumTransfer += 2 * m * Math.abs(p.vx);
+                                wallCollisionCount++;
+                            }
                         }
-                    } else if (p.x >= edgeLength - particleRadius) {
-                        p.x = edgeLength - particleRadius;
-                        p.vx = -Math.abs(p.vx);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vx);
-                            wallCollisionCount++;
+
+                        // Colisões Parede (Y)
+                        if (p.y <= particleRadius) {
+                            p.y = particleRadius;
+                            p.vy = Math.abs(p.vy);
+                            if (isEquilibrated) { 
+                                collisionsThisStep++; 
+                                wallMomentumTransfer += 2 * m * Math.abs(p.vy);
+                                wallCollisionCount++;
+                            }
+                        } else if (p.y >= edgeLength - particleRadius) {
+                            p.y = edgeLength - particleRadius;
+                            p.vy = -Math.abs(p.vy);
+                            if (isEquilibrated) { 
+                                collisionsThisStep++; 
+                                wallMomentumTransfer += 2 * m * Math.abs(p.vy);
+                                wallCollisionCount++;
+                            }
                         }
+                    } else {
+                        // ==========================================
+                        // HARD SPHERES: PERIODIC BOUNDARY CONDITIONS
+                        // ==========================================
+                        
+                        if (p.x < 0) p.x += edgeLength;
+                        else if (p.x >= edgeLength) p.x -= edgeLength;
+
+                        if (p.y < 0) p.y += edgeLength;
+                        else if (p.y >= edgeLength) p.y -= edgeLength;
                     }
 
-                    // Colisões Parede (Y)
-                    if (p.y <= particleRadius) {
-                        p.y = particleRadius;
-                        p.vy = Math.abs(p.vy);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vy);
-                            wallCollisionCount++;
-                        }
-                    } else if (p.y >= edgeLength - particleRadius) {
-                        p.y = edgeLength - particleRadius;
-                        p.vy = -Math.abs(p.vy);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vy);
-                            wallCollisionCount++;
-                        }
-                    }
-
-                    // Colisões entre Partículas
-                    // 3. BYPASS ACTUAL COLLISIONS IF IDEAL GAS
+                    // ==========================================
+                    // COLISÕES ENTRE PARTÍCULAS
+                    // ==========================================
                     if (!isIG) {
                         for (let j = i + 1; j < numParticles; j++) {
                             let p2 = particles[j];
                             let dx = p.x - p2.x; 
                             let dy = p.y - p2.y;
+
+                            // CONVENÇÃO DA IMAGEM MÍNIMA (Necessário para o PBC funcionar)
+                            // Isso garante que as partículas vizinhas "através" da parede se vejam
+                            dx -= edgeLength * Math.round(dx / edgeLength);
+                            dy -= edgeLength * Math.round(dy / edgeLength);
+
                             let distSq = dx*dx + dy*dy;
                             
                             if (distSq < sigmaEffective * sigmaEffective) {
@@ -263,6 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 
+                // (O restante do loop, coleta de dados, etc., continua exatamente igual)
                 if (isEquilibrated) {
                     intervalCollisions += collisionsThisStep;
                     let equilibratedStep = step - equilibriumStep;
@@ -311,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (step < totalSteps) {
                 setTimeout(computeChunk, 0);
             } else {
-                // --- FECHAMENTO E CÁLCULO FINAL DAS CURVAS ---
+                // Fechamento e cálculos finais
                 if (!selX) {
                     histAtual = new Array(numBins).fill(0);
                     for (let i = 0; i < numParticles; i++) {
