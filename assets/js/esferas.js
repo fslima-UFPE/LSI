@@ -557,25 +557,61 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const chartData = simulationResults.map(d => ({ x: d[vX], y: d[vY] }));
 
+        // 1. Setup the empirical simulation dataset
+        let datasets = [{
+            label: 'Simulação (Empírico)',
+            data: chartData,
+            backgroundColor: '#d9534f',
+            borderColor: '#003366',
+            borderWidth: 1.5,
+            pointRadius: 6,
+            pointHoverRadius: 9,
+            type: 'scatter'
+        }];
+
+        // 2. Add Santos, Haro and Yuste (1995) curve IF plotting eta vs Z
+        let showLegend = false;
+        if (vX === "eta" && vY === "Z") {
+            showLegend = true; // Turn on legend to distinguish the curves
+            
+            const eta0 = (Math.sqrt(3) * Math.PI) / 6;
+            const coeff = (2 * eta0 - 1) / (eta0 * eta0);
+            
+            let theoreticalData = [];
+            // Dynamically calculate how far to draw the curve based on your highest data point
+            let maxEta = Math.max(...chartData.map(d => d.x));
+            maxEta = Math.min(0.8, Math.max(0.6, maxEta + 0.1)); // Ensure it draws nicely up to at least 0.6
+            
+            for (let e = 0; e <= maxEta; e += 0.01) {
+                let z_val = 1 / (1 - 2 * e + coeff * e * e);
+                theoreticalData.push({ x: e, y: z_val });
+            }
+
+            datasets.push({
+                label: 'Teórico (Santos et al., 1995)',
+                data: theoreticalData,
+                type: 'line',
+                borderColor: '#28a745', // Green theoretical line
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0 // Hide points, just show the smooth line
+            });
+        }
+
         if (stateChart) {
-            stateChart.data.datasets[0].data = chartData;
+            // Update existing chart
+            stateChart.data.datasets = datasets;
             stateChart.options.scales.x.title.text = labels[vX];
             stateChart.options.scales.y.title.text = labels[vY];
+            stateChart.options.plugins.legend.display = showLegend;
             stateChart.update();
         } else {
+            // Create new chart
             const ctxChart = canvasEl.getContext('2d');
             stateChart = new Chart(ctxChart, {
-                type: 'scatter',
                 data: {
-                    datasets: [{
-                        label: 'Resultados da Simulação',
-                        data: chartData,
-                        backgroundColor: '#d9534f',
-                        borderColor: '#003366',
-                        borderWidth: 1.5,
-                        pointRadius: 6,
-                        pointHoverRadius: 9
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -591,7 +627,12 @@ document.addEventListener("DOMContentLoaded", () => {
                             grid: { color: '#e9ecef' }
                         }
                     },
-                    plugins: { legend: { display: false } }
+                    plugins: { 
+                        legend: { 
+                            display: showLegend,
+                            position: 'top'
+                        } 
+                    }
                 }
             });
         }
