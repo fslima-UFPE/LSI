@@ -557,7 +557,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const chartData = simulationResults.map(d => ({ x: d[vX], y: d[vY] }));
 
-        // 1. Setup the empirical simulation dataset
+        // --- NEW: Calculate dynamic ranges based strictly on simulated data ---
+        const xVals = chartData.map(d => d.x);
+        const yVals = chartData.map(d => d.y);
+        const minX = Math.min(...xVals);
+        const maxX = Math.max(...xVals);
+        const minY = Math.min(...yVals);
+        const maxY = Math.max(...yVals);
+
+        // Add 5% padding so points don't sit exactly on the borders
+        const padX = (maxX - minX) === 0 ? (maxX * 0.05 || 0.1) : (maxX - minX) * 0.05;
+        const padY = (maxY - minY) === 0 ? (maxY * 0.05 || 0.1) : (maxY - minY) * 0.05;
+
+        // Ensure axes generally don't go below 0 for these physical properties
+        const axisMinX = Math.max(0, minX - padX); 
+        const axisMaxX = maxX + padX;
+        const axisMinY = Math.max(0, minY - padY);
+        const axisMaxY = maxY + padY;
+
         let datasets = [{
             label: 'Simulação (Empírico)',
             data: chartData,
@@ -569,20 +586,19 @@ document.addEventListener("DOMContentLoaded", () => {
             type: 'scatter'
         }];
 
-        // 2. Add Santos, Haro and Yuste (1995) curve IF plotting eta vs Z
         let showLegend = false;
+        
+        // --- Add theoretical curve IF plotting eta vs Z ---
         if (vX === "eta" && vY === "Z") {
-            showLegend = true; // Turn on legend to distinguish the curves
+            showLegend = true; 
             
             const eta0 = (Math.sqrt(3) * Math.PI) / 6;
             const coeff = (2 * eta0 - 1) / (eta0 * eta0);
             
             let theoreticalData = [];
-            // Dynamically calculate how far to draw the curve based on your highest data point
-            let maxEta = Math.max(...chartData.map(d => d.x));
-            maxEta = Math.min(0.8, Math.max(0.6, maxEta + 0.1)); // Ensure it draws nicely up to at least 0.6
             
-            for (let e = 0; e <= maxEta; e += 0.01) {
+            // Draw the curve only up to the dynamic maximum X limit of the graph
+            for (let e = 0; e <= axisMaxX; e += 0.005) {
                 let z_val = 1 / (1 - 2 * e + coeff * e * e);
                 theoreticalData.push({ x: e, y: z_val });
             }
@@ -591,11 +607,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 label: 'Teórico (Santos et al., 1995)',
                 data: theoreticalData,
                 type: 'line',
-                borderColor: '#28a745', // Green theoretical line
+                borderColor: '#28a745', 
                 borderWidth: 2,
                 borderDash: [5, 5],
                 fill: false,
-                pointRadius: 0 // Hide points, just show the smooth line
+                pointRadius: 0 
             });
         }
 
@@ -604,6 +620,13 @@ document.addEventListener("DOMContentLoaded", () => {
             stateChart.data.datasets = datasets;
             stateChart.options.scales.x.title.text = labels[vX];
             stateChart.options.scales.y.title.text = labels[vY];
+            
+            // Force the dynamic limits
+            stateChart.options.scales.x.min = axisMinX;
+            stateChart.options.scales.x.max = axisMaxX;
+            stateChart.options.scales.y.min = axisMinY;
+            stateChart.options.scales.y.max = axisMaxY;
+            
             stateChart.options.plugins.legend.display = showLegend;
             stateChart.update();
         } else {
@@ -618,11 +641,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     maintainAspectRatio: false,
                     scales: {
                         x: {
-                            type: 'linear', position: 'bottom',
+                            type: 'linear', 
+                            position: 'bottom',
+                            min: axisMinX,
+                            max: axisMaxX,
                             title: { display: true, text: labels[vX], font: { size: 14, weight: 'bold' } },
                             grid: { color: '#e9ecef' }
                         },
                         y: {
+                            min: axisMinY,
+                            max: axisMaxY,
                             title: { display: true, text: labels[vY], font: { size: 14, weight: 'bold' } },
                             grid: { color: '#e9ecef' }
                         }
