@@ -186,6 +186,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const chunkSize = 800;
             const end = Math.min(step + chunkSize, totalSteps);
             const maxExpectedV = 3.0 * sigmaV; 
+            
+            // PRE-CALCULATE FOR PERFORMANCE
+            const halfEdge = edgeLength / 2; 
+            const sigmaSq = sigmaEffective * sigmaEffective;
 
             for (; step < end; step++) {
                 let collisionsThisStep = 0;
@@ -205,8 +209,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         // ==========================================
                         // IDEAL GAS: FIXED WALLS
                         // ==========================================
-                        
-                        // Colisões Parede (X)
                         if (p.x <= particleRadius) {
                             p.x = particleRadius;
                             p.vx = Math.abs(p.vx);
@@ -225,7 +227,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         }
 
-                        // Colisões Parede (Y)
                         if (p.y <= particleRadius) {
                             p.y = particleRadius;
                             p.vy = Math.abs(p.vy);
@@ -247,7 +248,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         // ==========================================
                         // HARD SPHERES: PERIODIC BOUNDARY CONDITIONS
                         // ==========================================
-                        
                         if (p.x < 0) p.x += edgeLength;
                         else if (p.x >= edgeLength) p.x -= edgeLength;
 
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
 
                     // ==========================================
-                    // COLISÕES ENTRE PARTÍCULAS
+                    // COLISÕES ENTRE PARTÍCULAS (OTIMIZADO)
                     // ==========================================
                     if (!isIG) {
                         for (let j = i + 1; j < numParticles; j++) {
@@ -264,14 +264,18 @@ document.addEventListener("DOMContentLoaded", () => {
                             let dx = p.x - p2.x; 
                             let dy = p.y - p2.y;
 
-                            // CONVENÇÃO DA IMAGEM MÍNIMA (Necessário para o PBC funcionar)
-                            // Isso garante que as partículas vizinhas "através" da parede se vejam
-                            dx -= edgeLength * Math.round(dx / edgeLength);
-                            dy -= edgeLength * Math.round(dy / edgeLength);
+                            // FAST MINIMUM IMAGE CONVENTION
+                            // Evita divisão e Math.round no loop interno
+                            if (dx > halfEdge) dx -= edgeLength;
+                            else if (dx < -halfEdge) dx += edgeLength;
+
+                            if (dy > halfEdge) dy -= edgeLength;
+                            else if (dy < -halfEdge) dy += edgeLength;
 
                             let distSq = dx*dx + dy*dy;
                             
-                            if (distSq < sigmaEffective * sigmaEffective) {
+                            // Usamos sigmaSq pré-calculado para evitar multiplicação extra
+                            if (distSq < sigmaSq) {
                                 let dvx = p.vx - p2.vx;
                                 let dvy = p.vy - p2.vy;
                                 
