@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const lowerThreshold = 0.75 * Tc; // T is too low compared to Tc
 
         if (T >= Tc) {
-            if (tcAlert) tcAlert.innerHTML = `⚠️ Choose T < ${Tc.toFixed(1)} K`;
+            if (tcAlert) tcAlert.innerHTML = `⚠️ Escolha uma T < ${Tc.toFixed(1)} K`;
             Plotly.purge(chartDiv); 
             if (btnUp) btnUp.disabled = true; if (btnDown) btnDown.disabled = true;
             if (pDisplayBox) pDisplayBox.style.display = "none";
