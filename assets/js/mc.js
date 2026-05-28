@@ -565,10 +565,16 @@ function createMCSimulation(box) {
                 counts[idx]++;
             }
 
+            // NORMALIZATION: Convert raw counts to probability density
+            const totalSamples = s.hist.length;
+            const pdf = counts.map(c => c / (totalSamples * binSize));
+
             histChart.data.labels = Array.from({length: numBins}, (_, i) => 
                 (minE + (i + 0.5) * binSize).toFixed(2)
             );
-            histChart.data.datasets[0].data = counts;
+            
+            // Assign the normalized data
+            histChart.data.datasets[0].data = pdf;
             histChart.update();
         }
 
