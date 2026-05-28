@@ -2,13 +2,13 @@ function createMCSimulation(box) {
 
     const energyChart = new Chart(box.querySelector("#energyChart"), {
         type: "line",
-        data: { labels: [], datasets: [{ label: "Energia / kJ/mol", data: [], borderWidth: 2, pointRadius: 0 }] },
+        data: { labels: [], datasets: [{ label: "Energia (kJ/mol)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
     const pressureChart = new Chart(box.querySelector("#pressureChart"), {
         type: "line",
-        data: { labels: [], datasets: [{ label: "Pressão / bar", data: [], borderWidth: 2, pointRadius: 0 }] },
+        data: { labels: [], datasets: [{ label: "Pressão (bar)", data: [], borderWidth: 2, pointRadius: 0 }] },
         options: { animation: false }
     });
 
@@ -17,7 +17,7 @@ function createMCSimulation(box) {
         data: { 
             labels: [], 
             datasets: [{ 
-                label: "Histograma de Energia / kJ/mol", 
+                label: "Histograma de Energia (kJ/mol)", 
                 data: [],
                 barPercentage: 1.0, 
                 categoryPercentage: 1.0 
@@ -131,36 +131,6 @@ function createMCSimulation(box) {
             const v = 4 * eps * (s12 - s6);
             
             const f = (Math.exp(-v / T) - 1.0) * r * r;
-            let weight = (i === 0 || i === nSteps) ? 0.5 : 1.0;
-            integral += f * weight;
-        }
-        integral *= dr;
-        
-        const coreIntegral = -Math.pow(rMin, 3) / 3.0;
-        return -2.0 * Math.PI * (coreIntegral + integral);
-    }
-
-    // Adapted Numerical Integrator for VDW Second Virial Coefficient
-    function computeB2_VDW(eps, sig, T) {
-        const rMin = 0.5 * sig; 
-        const rMax = 10.0 * sig; 
-        const nSteps = 1000;
-        const dr = (rMax - rMin) / nSteps;
-        
-        let integral = 0;
-        
-        for (let i = 0; i <= nSteps; i++) {
-            const r = rMin + i * dr;
-            let v;
-            if (r <= sig) {
-                v = Infinity;
-            } else {
-                const s = sig / r;
-                const s6 = Math.pow(s, 6);
-                v = -4 * eps * s6; // Matches your exact VDW energy definition
-            }
-            
-            const f = (v === Infinity) ? -r * r : (Math.exp(-v / T) - 1.0) * r * r;
             let weight = (i === 0 || i === nSteps) ? 0.5 : 1.0;
             integral += f * weight;
         }
@@ -493,8 +463,8 @@ function createMCSimulation(box) {
                 const lambda = s.species.lambda;
                 B2_part = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - Math.pow(lambda, 3)));
             } else if (s.species.type === "VDW") {
-                // Adjusted from algebraic mean-field approximation to numerical integration
-                B2_part = computeB2_VDW(s.species.eps, s.species.sig, s.T);
+                const eps_T = s.species.eps / s.T;
+                B2_part = b_part * (1 - eps_T); 
             }
 
             Z_virial = 1 + B2_part * rho;
