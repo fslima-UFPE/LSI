@@ -304,7 +304,7 @@ function createMCSimulation(box) {
 
     function updateStats(s) {
         // 1. Determine when to start sampling the g(r) histogram.
-        // For SW, we start at half of the equilibration period to pre-converge the bins.
+        // For SW and VDW, we start at half of the equilibration period to pre-converge the bins.
         const sampleStartStep = (s.species.type === "SW" || s.species.type === "VDW") ? Math.floor(s.eqStart / 2) : s.eqStart;
 
         if (s.computeGr && s.step >= sampleStartStep && s.step % s.sampleEvery === 0) {
@@ -334,21 +334,32 @@ function createMCSimulation(box) {
             if (s.species.type === "LJ") {
                 P_sim = s.pid + (s.xi * s.pcoef);
             } else if (s.species.type === "VDW") {
-                let Z_sim_core = 1.0;
+                const rho = s.N / s.V;
+                const sig = s.species.sig;
+                const eps = s.species.eps;
+
+                // Analytical Hard-Sphere Core (Carnahan-Starling) -> Completely noise-free!
+                const eta = (Math.PI / 6) * rho * Math.pow(sig, 3);
+                const Z_core = (1 + eta + eta**2 - eta**3) / Math.pow(1 - eta, 3);
+
                 if (s.computeGr && s.grSamples > 0) {
-                    const rho = s.N / s.V;
-                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
-                    const g1 = getG_of_bin(s, bin_sigma_plus);
-                    const g2 = getG_of_bin(s, bin_sigma_plus + 1);
-                    let g_sig_plus = g1 + (g1 - g2) / 2.0;
-                    if (g_sig_plus < 0) g_sig_plus = g1; 
-                    Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
+                    // Integrated Attractive Tail -> Bin variations smoothly cancel out over the sum
+                    const bin_sigma_plus = Math.floor(sig / s.drBin);
+                    let tailIntegral = 0;
+                    
+                    for (let i = bin_sigma_plus; i < s.numBins; i++) {
+                        const r = (i + 0.5) * s.drBin;
+                        if (r <= sig) continue; 
+                        
+                        const g_r = getG_of_bin(s, i);
+                        tailIntegral += Math.pow(r, -4) * g_r * s.drBin;
+                    }
+                    const Z_tail = - (16 * Math.PI * rho * eps * Math.pow(sig, 6) / s.T) * tailIntegral;
+                    P_sim = s.pid * (Z_core + Z_tail);
                 } else {
-                    const rho = s.N / s.V;
-                    const eta = (Math.PI / 6) * rho * s.species.sig**3;
-                    Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+                    // Fallback to instantaneous configuration virial safely (uses s.pcoef directly)
+                    P_sim = (s.pid * Z_core) + (s.xi * s.pcoef); 
                 }
-                P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
             } else if (s.species.type === "SW") {
                 if (s.computeGr && s.grSamples > 0) {
                     const rho = s.N / s.V;
