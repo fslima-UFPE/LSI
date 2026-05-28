@@ -47,16 +47,16 @@ function createMCSimulation(box) {
                     { 
                         label: "g(r)", 
                         data: [], 
-                        borderColor: "blue", // Set MC data to blue
-                        borderWidth: 1,      // Keep line thicker
+                        borderColor: "blue", 
+                        borderWidth: 1,      
                         pointRadius: 0 
                     },
                     { 
                         label: "g(r) = exp(-βV(r))", 
                         data: [], 
-                        borderColor: "red",  // Set theoretical data to red
-                        borderWidth: 2,      // Make line thinner
-                        borderDash: [5, 5],  // Make line dashed
+                        borderColor: "red",  
+                        borderWidth: 2,      
+                        borderDash: [5, 5],  
                         pointRadius: 0 
                     }
                 ] 
@@ -114,6 +114,32 @@ function createMCSimulation(box) {
         return Math.sqrt(dx*dx+dy*dy+dz*dz);
     }
 
+    // Numerical Integrator for LJ Second Virial Coefficient
+    function computeB2_LJ(eps, sig, T) {
+        const rMin = 0.5 * sig; 
+        const rMax = 10.0 * sig; 
+        const nSteps = 1000;
+        const dr = (rMax - rMin) / nSteps;
+        
+        let integral = 0;
+        
+        for (let i = 0; i <= nSteps; i++) {
+            const r = rMin + i * dr;
+            const s = sig / r;
+            const s6 = Math.pow(s, 6);
+            const s12 = s6 * s6;
+            const v = 4 * eps * (s12 - s6);
+            
+            const f = (Math.exp(-v / T) - 1.0) * r * r;
+            let weight = (i === 0 || i === nSteps) ? 0.5 : 1.0;
+            integral += f * weight;
+        }
+        integral *= dr;
+        
+        const coreIntegral = -Math.pow(rMin, 3) / 3.0;
+        return -2.0 * Math.PI * (coreIntegral + integral);
+    }
+
     function getG_of_bin(s, binIndex) {
         if (s.grSamples === 0 || binIndex < 0 || binIndex >= s.numBins) return 0;
         const r = (binIndex + 0.5) * s.drBin;
@@ -124,7 +150,6 @@ function createMCSimulation(box) {
     }
 
     function initSimulation(p) {
-
         const positions = [];
         const ngrid = Math.ceil(Math.cbrt(p.N));
         const spacing = p.boxSize / ngrid;
@@ -149,15 +174,13 @@ function createMCSimulation(box) {
         let xi = 0;
 
         if (p.species.type === "LJ" || p.species.type === "VDW" || p.species.type === "SW") {
-            const rc = p.boxSize / 2.0; // Spherical cutoff radius
+            const rc = p.boxSize / 2.0; 
             for (let i=0;i<p.N;i++){
                 for (let j=i+1;j<p.N;j++){
                     const dr = dist(positions[i], positions[j], p.boxSize);
-                    
-                    if (dr > rc) continue; // Apply spherical cutoff
+                    if (dr > rc) continue; 
 
                     let res = {en: 0, xi: 0};
-                    
                     if (p.species.type === "LJ") res = LJ(dr, p.species.eps, p.species.sig);
                     else if (p.species.type === "VDW") res = VDW(dr, p.species.eps, p.species.sig);
                     else if (p.species.type === "SW") res = SW(dr, p.species.eps, p.species.sig, p.species.lambda);
@@ -168,8 +191,6 @@ function createMCSimulation(box) {
             }
         }
 
-        // Slightly larger bin to smooth out graininess, but still perfectly aligned 
-        // to handle typical lambda values up to two decimal precision.
         const drBin = p.species.sig ? (p.species.sig / 50.0) : 0.1;
         const maxR = p.boxSize / 2.0;
         const numBins = Math.floor(maxR / drBin);
@@ -200,7 +221,6 @@ function createMCSimulation(box) {
             pid: p.N * kB * p.T / (p.boxSize**3),
             pcoef: 8*kB/((p.boxSize**3)),
 
-            // Sample much more frequently to ensure a smoother g(r)
             sampleEvery: Math.max(1, Math.floor(p.maxSteps / 2000)), 
 
             computeGr: p.computeGr || false,
@@ -230,7 +250,6 @@ function createMCSimulation(box) {
     }
 
     function mcStep(s) {
-
         const i = Math.floor(Math.random()*s.N);
         const old = [...s.positions[i]];
 
@@ -241,7 +260,6 @@ function createMCSimulation(box) {
         let dXi = 0;
 
         s.attCount++;
-
         const rc = s.boxSize / 2.0;
 
         for (let j=0;j<s.N;j++){
@@ -250,7 +268,6 @@ function createMCSimulation(box) {
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
 
-            // Skip interactions entirely outside the spherical cutoff
             if (drOld > rc && drNew > rc) continue;
 
             if (s.species.type === "HS" || s.species.type === "VDW" || s.species.type === "SW") {
@@ -262,7 +279,6 @@ function createMCSimulation(box) {
             let oldRes = {en: 0, xi: 0};
             let newRes = {en: 0, xi: 0};
 
-            // Evaluate forces only if within cutoff, otherwise treat as 0
             if (s.species.type === "LJ") {
                 oldRes = (drOld <= rc) ? LJ(drOld, s.species.eps, s.species.sig) : {en: 0, xi: 0};
                 newRes = (drNew <= rc) ? LJ(drNew, s.species.eps, s.species.sig) : {en: 0, xi: 0};
@@ -287,9 +303,7 @@ function createMCSimulation(box) {
     }
 
     function updateStats(s) {
-
         if (s.step < s.eqStart) return;
-
         s.count++; 
 
         if (s.computeGr && s.step % s.sampleEvery === 0) {
@@ -314,28 +328,19 @@ function createMCSimulation(box) {
                 P_sim = s.pid + (s.xi * s.pcoef);
             } else if (s.species.type === "VDW") {
                 let Z_sim_core = 1.0;
-                
                 if (s.computeGr && s.grSamples > 0) {
                     const rho = s.N / s.V;
                     const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
-                    
-                    // Grab the first two bins right after the hard core
                     const g1 = getG_of_bin(s, bin_sigma_plus);
                     const g2 = getG_of_bin(s, bin_sigma_plus + 1);
-                    
-                    // Linearly extrapolate back half a bin width to the exact contact edge
                     let g_sig_plus = g1 + (g1 - g2) / 2.0;
-                    
-                    // Failsafe in case of extreme noise in early steps
                     if (g_sig_plus < 0) g_sig_plus = g1; 
-
                     Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
                 } else {
                     const rho = s.N / s.V;
                     const eta = (Math.PI / 6) * rho * s.species.sig**3;
                     Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
                 }
-
                 P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
             } else if (s.species.type === "SW") {
                 if (s.computeGr && s.grSamples > 0) {
@@ -366,7 +371,6 @@ function createMCSimulation(box) {
         s.meanP += (P_sim - s.meanP) / s.count;
         s.hist.push(E);
 
-        // Only plot charts less frequently to save UI performance
         const plotEvery = Math.max(1, Math.floor(s.maxSteps / 300));
         if (s.step % plotEvery === 0) {
             energyChart.data.labels.push(s.step);
@@ -378,7 +382,6 @@ function createMCSimulation(box) {
     }
 
     function finalize(s) {
-
         let e_lrc = 0;
         let p_lrc = 0;
         const rc = s.boxSize / 2.0;
@@ -398,7 +401,6 @@ function createMCSimulation(box) {
                 p_lrc = -(16.0 / 3.0) * Math.PI * rho * rho * s.species.eps * kB * sig3 * s_rc3;
             }
         } else if (s.species.type === "SW" && (s.species.lambda * s.species.sig > rc)) {
-            // Safety measure in case users make lambda excessively large relative to box
             const r_end = s.species.lambda * s.species.sig;
             e_lrc = -s.N * (2.0 / 3.0) * Math.PI * rho * s.species.eps * (Math.pow(r_end, 3) - Math.pow(rc, 3));
         }
@@ -407,10 +409,7 @@ function createMCSimulation(box) {
         const avgE = hasEnergy ? R * (s.meanE + e_lrc) : 0;
         const avgP = s.meanP + p_lrc;
 
-        const varianceE = (hasEnergy && s.count > 1)
-            ? s.M2E / (s.count - 1)
-            : 0;
-
+        const varianceE = (hasEnergy && s.count > 1) ? s.M2E / (s.count - 1) : 0;
         const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
         const cv_ideal = 1.5 * Rj;
         const cv_total = cv_ideal + cv_real;
@@ -423,14 +422,22 @@ function createMCSimulation(box) {
             zFactor = avgP / s.pid; 
         }
 
+        // MC Apparent Second Virial Coefficient 
+        const b2v_mc_part = (zFactor - 1) / rho;
+        const b2v_mc_molar = b2v_mc_part * 0.000602214;
+
         let B2_part = null;
         let P_virial = null;
+        let Z_virial = null;
 
-        if (["HS", "SW", "VDW"].includes(s.species.type)) {
+        // Model Virial Expansion
+        if (["HS", "SW", "VDW", "LJ"].includes(s.species.type)) {
             const sig = s.species.sig;
             const b_part = (2 * Math.PI * Math.pow(sig, 3)) / 3; 
             
-            if (s.species.type === "HS") {
+            if (s.species.type === "LJ") {
+                B2_part = computeB2_LJ(s.species.eps, s.species.sig, s.T);
+            } else if (s.species.type === "HS") {
                 B2_part = b_part;
             } else if (s.species.type === "SW") {
                 const eps_T = s.species.eps / s.T;
@@ -441,7 +448,7 @@ function createMCSimulation(box) {
                 B2_part = b_part * (1 - eps_T); 
             }
 
-            const Z_virial = 1 + B2_part * rho;
+            Z_virial = 1 + B2_part * rho;
             P_virial = s.pid * Z_virial;
         }
 
@@ -454,6 +461,8 @@ function createMCSimulation(box) {
         inject(".out-avgP", avgP.toFixed(2));
         inject(".out-pid", s.pid.toFixed(2));
         inject(".out-z", zFactor.toFixed(3));
+        inject(".out-b2v-mc", s.species.type === "IG" ? "0.0000" : b2v_mc_molar.toFixed(4));
+        
         inject(".out-cv-real", cv_real.toFixed(2));
         inject(".out-cv-ideal", cv_ideal.toFixed(2));
         inject(".out-cv-total", cv_total.toFixed(2));
@@ -462,6 +471,7 @@ function createMCSimulation(box) {
         if (B2_part !== null) {
             const B2V_molar = B2_part * 0.000602214; 
             inject(".out-b2v", B2V_molar.toFixed(4));
+            inject(".out-z-model", Z_virial.toFixed(3));
             inject(".out-pvirial", P_virial.toFixed(2));
             if (virialRow) virialRow.style.display = "inline";
         } else {
@@ -486,7 +496,6 @@ function createMCSimulation(box) {
             }
 
             let numBins = 50; 
-
             const uniqueSet = new Set();
             const sampleStep = Math.max(1, Math.floor(s.hist.length / 1000));
             for (let i = 0; i < s.hist.length; i += sampleStep) {
@@ -576,7 +585,6 @@ function createMCSimulation(box) {
     }   
 
     function run(params) {
-
         state = initSimulation(params);
 
         energyChart.data.labels = [];
@@ -674,9 +682,7 @@ function createMCSimulation(box) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-
     document.querySelectorAll(".toolbox").forEach(box => {
-
         if (box.id !== "mc-tool") return;
 
         const sim = createMCSimulation(box);
@@ -743,7 +749,6 @@ document.addEventListener("DOMContentLoaded", () => {
         speciesSelect.dispatchEvent(new Event("change"));
 
         btn.addEventListener("click", () => {
-
             const speciesType = box.querySelector(".species").value;
             const base = speciesDB[speciesType];
             let species = { ...base };
@@ -775,9 +780,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 N: parseInt(box.querySelector(".npart").value),
                 boxSize: parseFloat(box.querySelector(".box").value),
                 T: parseFloat(box.querySelector(".temp").value),
-                dx: box.querySelector(".dx") 
-                    ? parseFloat(box.querySelector(".dx").value)
-                    : undefined,
+                dx: box.querySelector(".dx") ? parseFloat(box.querySelector(".dx").value) : undefined,
                 maxSteps: parseInt(box.querySelector(".steps").value),
                 species: species,
                 computeGr: doComputeGr 
