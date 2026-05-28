@@ -560,7 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // --- FIXED RANGES LOGIC ---
         // Adjust these 'max' values to match the logical extremes of your simulation
         const fixedRanges = {
-            "eta": { min: 0, max: 0.9 },     // Packing fraction (0 to ~0.9 max physically)
+            "eta": { min: 0, max: 0.7 },     // Packing fraction (0 to ~0.9 max physically)
             "sigma": { min: 0, max: 5 },     // Adjust to your max allowed input diameter
             "T": { min: 0, max: 1000 },      // Adjust to your max allowed input temperature
             "N": { min: 0, max: 2000 },      // Adjust to your max allowed particle count
