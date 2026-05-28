@@ -90,6 +90,62 @@ layout: base
         {{ content }}
       </div>
 
+      <div class="class-navigation d-flex justify-content-between mb-4">
+
+        {% if page.previous_class %}
+          {% assign prev_target = page.previous_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
+          {% assign prev_page = nil %}
+          {% for p in site.pages %}
+            {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
+            {% if p_url == prev_target %}
+              {% assign prev_page = p %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+
+          <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;
+            {% if prev_page %}
+              {% assign prev_slug = prev_page.url | remove: ".html" | split: "/" | last %}
+              {% unless prev_slug == "TC" %}
+                {{ prev_slug | remove: "A" }}. 
+              {% endunless %}
+              {{ prev_page.title }}
+            {% else %}
+              Aula Anterior
+            {% endif %}
+          </a>
+        {% else %}
+          <div></div>
+        {% endif %}
+
+        {% if page.next_class %}
+          {% assign next_target = page.next_class | remove: site.baseurl | remove: "/LSI" | remove: ".html" | append: "/" | replace: "//", "/" %}
+          {% assign next_page = nil %}
+          {% for p in site.pages %}
+            {% assign p_url = p.url | remove: ".html" | append: "/" | replace: "//", "/" %}
+            {% if p_url == next_target %}
+              {% assign next_page = p %}
+              {% break %}
+            {% endif %}
+          {% endfor %}
+
+          <a href="{{ page.next_class }}" class="btn btn-outline-primary">
+            {% if next_page %}
+              {% assign next_slug = next_page.url | remove: ".html" | split: "/" | last %}
+              {% unless next_slug == "TC" %}
+                {{ next_slug | remove: "A" }}. 
+              {% endunless %}
+              {{ next_page.title }}
+            {% else %}
+              Próxima Aula
+            {% endif %}&nbsp;&nbsp;<i class="fas fa-chevron-right" aria-hidden="true"></i>
+          </a>
+        {% else %}
+          <div></div>
+        {% endif %}
+      </div>
+
       {% if page.after-content %}
         <div class="after-content">
           {% for file in page.after-content %}
