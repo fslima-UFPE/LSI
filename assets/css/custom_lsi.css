@@ -3,16 +3,17 @@
 }
 
 .btn-classes {
-    border: 2px solid #2ecc71 !important; /* Changes border thickness and color (Green) */
-    color: #2ecc71 !important;            /* Changes text/icon color */
+    border: 2px solid #FA8072 !important; /* Changes border thickness and color (Green) */
+    color: #FA8072 !important;            /* Changes text/icon color */
     background-color: transparent;        /* Keeps the inside clear */
     padding: 8px 16px;                    /* Adjusts the button size/internal spacing */
     border-radius: 4px;                   /* Adjusts how round the corners are */
     transition: all 0.3s ease;            /* Makes the hover effect smooth */
+    font-family: 'Mulish', sans-serif;
+    font-weight: 600;    
 }
 
-/* What happens when you hover over the button */
 .btn-classes:hover {
-    background-color: #2ecc71 !important;
+    background-color: #FA8072 !important;
     color: #ffffff !important;            /* Turns text white on hover */
 }
