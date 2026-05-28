@@ -557,23 +557,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const chartData = simulationResults.map(d => ({ x: d[vX], y: d[vY] }));
 
-        // --- FIXED RANGES LOGIC ---
-        // Adjust these 'max' values to match the logical extremes of your simulation
-        const fixedRanges = {
-            "eta": { min: 0, max: 0.7 },     // Packing fraction (0 to ~0.9 max physically)
-            "sigma": { min: 0, max: 5 },     // Adjust to your max allowed input diameter
-            "T": { min: 0, max: 1000 },      // Adjust to your max allowed input temperature
-            "N": { min: 0, max: 2000 },      // Adjust to your max allowed particle count
-            "Z": { min: 0, max: 10 },        // Compressibility factor limits
-            "P": { min: 0, max: 2000 },      // Expected max 2D Pressure
-            "f": { min: 0, max: 200 }        // Expected max Collision Frequency (Hz)
+        // 1. Find the actual maximums currently in your data
+        const xVals = chartData.map(d => d.x);
+        const yVals = chartData.map(d => d.y);
+        const dataMaxX = xVals.length > 0 ? Math.max(...xVals) : 0;
+        const dataMaxY = yVals.length > 0 ? Math.max(...yVals) : 0;
+
+        // 2. Define the baseline "default" ranges to keep the chart stable
+        const defaultRanges = {
+            "eta": { min: 0, max: 0.8 },     
+            "sigma": { min: 0, max: 5 },     
+            "T": { min: 0, max: 1000 },      
+            "N": { min: 0, max: 2000 },      
+            "Z": { min: 0, max: 10 },        
+            "P": { min: 0, max: 2000 },      
+            "f": { min: 0, max: 200 }        
         };
 
-        // Strictly enforce the min/max limits based on the selected dropdown variable
-        const axisMinX = fixedRanges[vX] ? fixedRanges[vX].min : 0;
-        const axisMaxX = fixedRanges[vX] ? fixedRanges[vX].max : 100;
-        const axisMinY = fixedRanges[vY] ? fixedRanges[vY].min : 0;
-        const axisMaxY = fixedRanges[vY] ? fixedRanges[vY].max : 100;
+        const defX = defaultRanges[vX] || { min: 0, max: 100 };
+        const defY = defaultRanges[vY] || { min: 0, max: 100 };
+
+        // 3. HYBRID LOGIC: Use default max, UNLESS data exceeds it (add 5% padding if it does)
+        const axisMinX = defX.min; 
+        const axisMaxX = Math.max(defX.max, dataMaxX * 1.05);
+
+        const axisMinY = defY.min;
+        const axisMaxY = Math.max(defY.max, dataMaxY * 1.05);
 
         let datasets = [{
             label: 'Simulação (Empírico)',
@@ -597,7 +606,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             let theoreticalData = [];
             
-            // Draw the curve up to the fixed maximum X limit
+            // Draw the curve up to the dynamic maximum X limit
             for (let e = 0; e <= axisMaxX; e += 0.005) {
                 let z_val = 1 / (1 - 2 * e + coeff * e * e);
                 theoreticalData.push({ x: e, y: z_val });
@@ -621,7 +630,7 @@ document.addEventListener("DOMContentLoaded", () => {
             stateChart.options.scales.x.title.text = labels[vX];
             stateChart.options.scales.y.title.text = labels[vY];
             
-            // Force the STRICT fixed limits
+            // Apply the dynamically calculated limits
             stateChart.options.scales.x.min = axisMinX;
             stateChart.options.scales.x.max = axisMaxX;
             stateChart.options.scales.y.min = axisMinY;
