@@ -44,7 +44,7 @@ layout: base
           {% endfor %}
           
           <a href="{{ page.previous_class }}" class="btn btn-classes">
-            <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;
+            <i class="fas fa-angle-double-left" aria-hidden="true"></i>&nbsp;&nbsp;
             {% if prev_page %}
               {% assign prev_slug = prev_page.url | remove: ".html" | split: "/" | last %}
               {% unless prev_slug == "TC" %}
