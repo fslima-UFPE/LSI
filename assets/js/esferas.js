@@ -534,11 +534,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const canvasEl = getEl("plot-canvas"); 
         if (!canvasEl) return;
 
+        // --- FIX: Forcefully destroy any existing chart instance to clear cached options/scales ---
+        let chartInstance = Chart.getChart(canvasEl);
+        if (chartInstance) {
+            chartInstance.destroy();
+            stateChart = null;
+        }
+
         if (simulationResults.length === 0) {
-            if (stateChart) {
-                stateChart.destroy();
-                stateChart = null;
-            }
             return;
         }
 
@@ -557,15 +560,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const chartData = simulationResults.map(d => ({ x: d[vX], y: d[vY] }));
 
-        // 1. Find the actual maximums currently in your data
+        // 1. Gather the actual maximum values present in your simulated data
         const xVals = chartData.map(d => d.x);
         const yVals = chartData.map(d => d.y);
         const dataMaxX = xVals.length > 0 ? Math.max(...xVals) : 0;
         const dataMaxY = yVals.length > 0 ? Math.max(...yVals) : 0;
 
-        // 2. Define the baseline "default" ranges to keep the chart stable
+        // 2. Baseline default limits
         const defaultRanges = {
-            "eta": { min: 0, max: 0.8 },     
+            "eta": { min: 0, max: 0.7 },     
             "sigma": { min: 0, max: 5 },     
             "T": { min: 0, max: 1000 },      
             "N": { min: 0, max: 2000 },      
@@ -577,7 +580,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const defX = defaultRanges[vX] || { min: 0, max: 100 };
         const defY = defaultRanges[vY] || { min: 0, max: 100 };
 
-        // 3. HYBRID LOGIC: Use default max, UNLESS data exceeds it (add 5% padding if it does)
+        // 3. Hybrid bounds logic: lock to default max UNLESS data forces an expansion (+5% padding)
         const axisMinX = defX.min; 
         const axisMaxX = Math.max(defX.max, dataMaxX * 1.05);
 
@@ -606,10 +609,13 @@ document.addEventListener("DOMContentLoaded", () => {
             
             let theoreticalData = [];
             
-            // Draw the curve up to the dynamic maximum X limit
+            // Draw curve safely up to the runtime calculated maximum X axis limit
             for (let e = 0; e <= axisMaxX; e += 0.005) {
                 let z_val = 1 / (1 - 2 * e + coeff * e * e);
-                theoreticalData.push({ x: e, y: z_val });
+                // Safety check: Don't push infinite/negative values if e nears the close-packing limit (~0.9)
+                if (z_val > 0 && z_val < 100) {
+                    theoreticalData.push({ x: e, y: z_val });
+                }
             }
 
             datasets.push({
@@ -624,55 +630,40 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        if (stateChart) {
-            // Update existing chart
-            stateChart.data.datasets = datasets;
-            stateChart.options.scales.x.title.text = labels[vX];
-            stateChart.options.scales.y.title.text = labels[vY];
-            
-            // Apply the dynamically calculated limits
-            stateChart.options.scales.x.min = axisMinX;
-            stateChart.options.scales.x.max = axisMaxX;
-            stateChart.options.scales.y.min = axisMinY;
-            stateChart.options.scales.y.max = axisMaxY;
-            
-            stateChart.options.plugins.legend.display = showLegend;
-            stateChart.update();
-        } else {
-            // Create new chart
-            const ctxChart = canvasEl.getContext('2d');
-            stateChart = new Chart(ctxChart, {
-                data: {
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: 'linear', 
-                            position: 'bottom',
-                            min: axisMinX,
-                            max: axisMaxX,
-                            title: { display: true, text: labels[vX], font: { size: 14, weight: 'bold' } },
-                            grid: { color: '#e9ecef' }
-                        },
-                        y: {
-                            min: axisMinY,
-                            max: axisMaxY,
-                            title: { display: true, text: labels[vY], font: { size: 14, weight: 'bold' } },
-                            grid: { color: '#e9ecef' }
-                        }
+        // --- Always create a clean, new Chart instance to guarantee rendering changes take effect ---
+        const ctxChart = canvasEl.getContext('2d');
+        stateChart = new Chart(ctxChart, {
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear', 
+                        position: 'bottom',
+                        min: axisMinX,
+                        max: axisMaxX,
+                        title: { display: true, text: labels[vX], font: { size: 14, weight: 'bold' } },
+                        grid: { color: '#e9ecef' }
                     },
-                    plugins: { 
-                        legend: { 
-                            display: showLegend,
-                            position: 'top'
-                        } 
+                    y: {
+                        type: 'linear',
+                        min: axisMinY,
+                        max: axisMaxY,
+                        title: { display: true, text: labels[vY], font: { size: 14, weight: 'bold' } },
+                        grid: { color: '#e9ecef' }
                     }
+                },
+                plugins: { 
+                    legend: { 
+                        display: showLegend,
+                        position: 'top'
+                    } 
                 }
-            });
-        }
+            }
+        });
     }
 
     function drawVelocityDistribution() {
