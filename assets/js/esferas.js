@@ -1,763 +1,876 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const getEl = (id) => document.getElementById(id);
-    const btnRun = getEl("btn-run");
-    const btnPlay = getEl("btn-play");
-    const btnClear = getEl("btn-clear-history");
-    const scrubber = getEl("inp-scrubber");
-    const canvas = getEl("sim-canvas");
-    const historyBox = getEl("history-box-content");
-    const uiVisualization = getEl("ui-visualization");
-    const inputSigma = getEl("inp-sigma"); 
-    const elSelX = getEl("sel-x");
-    const elSelY = getEl("sel-y");
-    const selX = elSelX ? elSelX : false;
-    const selY = elSelY ? elSelY : false;
-    const hsSection = getEl("hs-analysis-section");
-    const igWarning = getEl("ig-warning"); // Warning element
+function createMCSimulation(box) {
 
-    if (!canvas || !btnRun) return;
-
-    const ctx = canvas.getContext("2d");
-    const isHardSphereMode = !!inputSigma; 
-
-    // Históricos de posições e velocidades
-    let historyX, historyY, historyR; 
-    let historyVX, historyVY; 
-    let totalSteps, numParticles, edgeLength, particleRadius, equilibriumStep;
-    let simulationResults = [];
-    let currentWallFreqData = []; 
-    
-    // Controles de Animação
-    let isPlaying = false, currentFrame = 0, animationId = null;
-    let playbackSpeed = 5; 
-    let stateChart = null; 
-
-    // Variáveis Globais para o Histograma (Maxwell-Boltzmann)
-    let histMedia = [];
-    let histAtual = [];
-    let histTeorico = [];
-    const numBins = 50;
-    let vMaxHist = 0;
-    let binWidth = 0;
-    let samplesCount = 0;
-
-    if (selX) selX.addEventListener("change", drawScatterPlot);
-    if (selY) selY.addEventListener("change", drawScatterPlot);
-    
-    if (btnClear) {
-        btnClear.addEventListener("click", () => {
-            simulationResults = [];
-            if (historyBox) historyBox.innerHTML = '<p style="color: #999; font-style: italic; font-size: 0.85em;">Nenhuma simulação realizada.</p>';
-            if (selX && selY) {
-                drawScatterPlot();
-            } else {
-                let chartInstance = Chart.getChart("plot-canvas");
-                if (chartInstance) chartInstance.destroy();
-                stateChart = null;
-            }
-        });
-    }
-
-    btnRun.addEventListener("click", () => {
-        numParticles = parseInt(getEl("inp-n1").value);
-        const T = parseFloat(getEl("inp-T").value);
-        const m = parseFloat(getEl("inp-m1").value);
-        edgeLength = parseFloat(getEl("inp-edge").value);
-        
-        // Calculando o multiplicador visual para a animação
-        const boost = Math.pow(T, 0.5) / 10;
-        playbackSpeed = Math.max(1, Math.round(5 * boost));
-
-        // 1 & 2. LOGIC FOR IDEAL GAS VS HARD SPHERE
-        let rawSigma = isHardSphereMode ? parseFloat(inputSigma.value) : 0;
-        const isIG = rawSigma < 0.1; 
-
-        // --- WARNING LOGIC ---
-        // Only trigger the warning if the input box exists AND its value is < 0.1
-        if (igWarning) {
-            if (inputSigma && parseFloat(inputSigma.value) < 0.1) {
-                igWarning.innerHTML = "⚠️ Você selecionou um diâmetro muito pequeno, as moléculas serão tratadas como ideais! Para esferas rígidas, selecione &sigma; > 0.1";
-                igWarning.style.display = "block";
-            } else {
-                igWarning.style.display = "none";
-            }
-        }
-
-        // Se for IG, o sigma físico é 0 (sem colisão). Caso contrário, usa o input.
-        const sigmaEffective = isIG ? 0 : rawSigma;
-        
-        // Se for IG, desenha com tamanho 1.0 para podermos ver as partículas.
-        const visualSigma = isIG ? 1.0 : rawSigma;
-
-        const dt = parseFloat(getEl("inp-dt")?.value || 0.002);
-        totalSteps = parseInt(getEl("inp-steps")?.value || 40000);
-        
-        particleRadius = visualSigma / 2;
-        
-        // Alocando memória para o filme da simulação
-        historyX = new Float32Array(numParticles * totalSteps);
-        historyY = new Float32Array(numParticles * totalSteps);
-        historyR = new Uint8Array(numParticles * totalSteps);
-        historyVX = new Float32Array(numParticles * totalSteps); 
-        historyVY = new Float32Array(numParticles * totalSteps); 
-
-        const R = 8.314; 
-
-        // Configuração dos Bins do Histograma de Velocidades
-        const sigmaV = Math.sqrt(R * T / m);
-        vMaxHist = 3.5 * sigmaV; 
-        binWidth = (2 * vMaxHist) / numBins;
-        histMedia = new Array(numBins).fill(0);
-        samplesCount = 0;
-
-        function randomGaussian() {
-            let u = 0, v = 0;
-            while(u === 0) u = Math.random();
-            while(v === 0) v = Math.random();
-            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-        }
-
-        // --- 1. INITIALIZATION ---
-        let particles = [];
-        for (let i = 0; i < numParticles; i++) {
-            let p;
-            let overlap = true;
-            let attempts = 0;
-            
-            while (overlap && attempts < 2000) {
-                p = {
-                    x: particleRadius + Math.random() * (edgeLength - visualSigma),
-                    y: particleRadius + Math.random() * (edgeLength - visualSigma),
-                    vx: randomGaussian(),
-                    vy: randomGaussian()
-                };
-                
-                overlap = false;
-                // 3. BYPASS INITIAL OVERLAP CHECK IF IDEAL GAS
-                if (!isIG) {
-                    for (let j = 0; j < particles.length; j++) {
-                        let dx = p.x - particles[j].x;
-                        let dy = p.y - particles[j].y;
-                        if (dx*dx + dy*dy < sigmaEffective * sigmaEffective) {
-                            overlap = true;
-                            break;
-                        }
-                    }
-                }
-                attempts++;
-            }
-            particles.push(p);
-        }
-
-        // --- 2. TEMPERATURE SCALING ---
-        let vCMx = 0, vCMy = 0;
-        for (let p of particles) { vCMx += p.vx; vCMy += p.vy; }
-        vCMx /= numParticles; vCMy /= numParticles;
-        for (let p of particles) { p.vx -= vCMx; p.vy -= vCMy; }
-
-        let currentKinetic = 0;
-        for (let p of particles) {
-            currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
-        }
-
-        let targetKinetic = numParticles * R * T;
-        let scaleFactor = Math.sqrt(targetKinetic / currentKinetic);
-
-        for (let p of particles) {
-            p.vx *= scaleFactor;
-            p.vy *= scaleFactor;
-        }
-
-        getEl("ui-progress").style.display = "block";
-        btnRun.disabled = true;
-
-        let step = 0;
-        let wallMomentumTransfer = 0;
-        let wallCollisionCount = 0;
-        
-        let intervalCollisions = 0;
-        const intervalSteps = 50; 
-        currentWallFreqData = [];
-
-        equilibriumStep = Math.floor(totalSteps * 0.20); 
-
-        // --- 3. SIMULATION LOOP (PURE PHYSICS) ---
-        function computeChunk() {
-            const chunkSize = 800;
-            const end = Math.min(step + chunkSize, totalSteps);
-            const maxExpectedV = 3.0 * sigmaV; 
-
-            for (; step < end; step++) {
-                let collisionsThisStep = 0;
-                let isEquilibrated = step >= equilibriumStep; 
-
-                if (step === equilibriumStep) {
-                    intervalCollisions = 0;
-                    currentWallFreqData = [];
-                }
-
-                for (let i = 0; i < numParticles; i++) {
-                    let p = particles[i];
-                    p.x += p.vx * dt; p.y += p.vy * dt;
-
-                    // Colisões Parede (X)
-                    if (p.x <= particleRadius) {
-                        p.x = particleRadius;
-                        p.vx = Math.abs(p.vx);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vx);
-                            wallCollisionCount++;
-                        }
-                    } else if (p.x >= edgeLength - particleRadius) {
-                        p.x = edgeLength - particleRadius;
-                        p.vx = -Math.abs(p.vx);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vx);
-                            wallCollisionCount++;
-                        }
-                    }
-
-                    // Colisões Parede (Y)
-                    if (p.y <= particleRadius) {
-                        p.y = particleRadius;
-                        p.vy = Math.abs(p.vy);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vy);
-                            wallCollisionCount++;
-                        }
-                    } else if (p.y >= edgeLength - particleRadius) {
-                        p.y = edgeLength - particleRadius;
-                        p.vy = -Math.abs(p.vy);
-                        if (isEquilibrated) { 
-                            collisionsThisStep++; 
-                            wallMomentumTransfer += 2 * m * Math.abs(p.vy);
-                            wallCollisionCount++;
-                        }
-                    }
-
-                    // Colisões entre Partículas
-                    // 3. BYPASS ACTUAL COLLISIONS IF IDEAL GAS
-                    if (!isIG) {
-                        for (let j = i + 1; j < numParticles; j++) {
-                            let p2 = particles[j];
-                            let dx = p.x - p2.x; 
-                            let dy = p.y - p2.y;
-                            let distSq = dx*dx + dy*dy;
-                            
-                            if (distSq < sigmaEffective * sigmaEffective) {
-                                let dvx = p.vx - p2.vx;
-                                let dvy = p.vy - p2.vy;
-                                
-                                if (dx * dvx + dy * dvy < 0) {
-                                    let dotProduct = (dx * dvx + dy * dvy) / distSq;
-                                    p.vx -= dotProduct * dx;
-                                    p.vy -= dotProduct * dy;
-                                    p2.vx += dotProduct * dx;
-                                    p2.vy += dotProduct * dy;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                if (isEquilibrated) {
-                    intervalCollisions += collisionsThisStep;
-                    let equilibratedStep = step - equilibriumStep;
-                    
-                    if ((equilibratedStep + 1) % intervalSteps === 0) {
-                        let freqHz = intervalCollisions / (intervalSteps * dt);
-                        currentWallFreqData.push(freqHz);
-                        intervalCollisions = 0;
-                    }
-
-                    // COLETA DE DADOS: Histograma da Média
-                    if (equilibratedStep % 10 === 0 && !selX) {
-                        samplesCount++;
-                        for (let i = 0; i < numParticles; i++) {
-                            let p = particles[i];
-                            let binX = Math.floor((p.vx + vMaxHist) / binWidth);
-                            let binY = Math.floor((p.vy + vMaxHist) / binWidth);
-                            if (binX >= 0 && binX < numBins) histMedia[binX]++;
-                            if (binY >= 0 && binY < numBins) histMedia[binY]++;
-                        }
-                    }
-                }
-                
-                // Gravação do Frame e Cores
-                let offset = step * numParticles;
-                for (let i = 0; i < numParticles; i++) {
-                    let p = particles[i];
-                    historyX[offset+i] = p.x;
-                    historyY[offset+i] = p.y;
-                    historyVX[offset+i] = p.vx; 
-                    historyVY[offset+i] = p.vy; 
-
-                    let vInstantanea = Math.sqrt(p.vx**2 + p.vy**2);
-                    let ratio = Math.min(1, vInstantanea / maxExpectedV);
-                    historyR[offset + i] = Math.round(ratio * 255);
-                }
-            }
-            
-            const pct = Math.floor((step/totalSteps)*100);
-            if (step < equilibriumStep) {
-                getEl("progress-text").innerText = `Termalizando o sistema: ${pct}%`;
-            } else {
-                getEl("progress-text").innerText = `Calculando médias: ${pct}%`;
-            }
-
-            if (step < totalSteps) {
-                setTimeout(computeChunk, 0);
-            } else {
-                // --- FECHAMENTO E CÁLCULO FINAL DAS CURVAS ---
-                if (!selX) {
-                    histAtual = new Array(numBins).fill(0);
-                    for (let i = 0; i < numParticles; i++) {
-                        let p = particles[i];
-                        let binX = Math.floor((p.vx + vMaxHist) / binWidth);
-                        let binY = Math.floor((p.vy + vMaxHist) / binWidth);
-                        if (binX >= 0 && binX < numBins) histAtual[binX]++;
-                        if (binY >= 0 && binY < numBins) histAtual[binY]++;
-                    }
-
-                    if (samplesCount > 0) {
-                        for (let i = 0; i < numBins; i++) {
-                            histMedia[i] /= samplesCount;
-                        }
-                    }
-
-                    histTeorico = new Array(numBins).fill(0);
-                    for (let i = 0; i < numBins; i++) {
-                        let vCenter = -vMaxHist + (i + 0.5) * binWidth;
-                        let probDensity = (1 / (sigmaV * Math.sqrt(2 * Math.PI))) * Math.exp(-(vCenter * vCenter) / (2 * sigmaV * sigmaV));
-                        histTeorico[i] = 2 * numParticles * probDensity * binWidth;
-                    }
-                }
-                
-                finishSimulation(T, dt, wallMomentumTransfer, wallCollisionCount, sigmaEffective, equilibriumStep, isIG);
-            }
-        }
-        computeChunk();
+    const energyChart = new Chart(box.querySelector("#energyChart"), {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Energia (kJ/mol)", data: [], borderWidth: 2, pointRadius: 0 }] },
+        options: { animation: false }
     });
-    
-    function finishSimulation(T, dt, totalMomentum, totalWallCollisions, sigmaEffective, equilibriumStep, isIG) {
 
-        getEl("ui-progress").style.display = "none";
-        btnRun.disabled = false;
-        uiVisualization.style.display = "flex";
-        if (scrubber) { scrubber.max = totalSteps - 1; scrubber.value = 0; }
-        
-        const activeTime = (totalSteps - equilibriumStep) * dt; 
-        const perimeter = 4 * edgeLength;
-        const area = edgeLength * edgeLength;
-        
-        const P_2D = totalMomentum / (activeTime * perimeter);
-        const avgWallFreq = totalWallCollisions / activeTime;
+    const pressureChart = new Chart(box.querySelector("#pressureChart"), {
+        type: "line",
+        data: { labels: [], datasets: [{ label: "Pressão (bar)", data: [], borderWidth: 2, pointRadius: 0 }] },
+        options: { animation: false }
+    });
 
-        if (historyBox) {
-            if (historyBox.innerHTML.includes("Nenhuma simulação realizada")) {
-                historyBox.innerHTML = "";
-            }
-            let entry = `<div style="border-bottom: 1px dashed #ccc; padding: 6px 0; font-size: 0.9em;">`;
-            entry += `<b>T:</b> ${T}K | <b>N:</b> ${numParticles} | <b>L:</b> ${edgeLength} <br/>`;
-            
-            if (!isIG) {
-                const Z = (P_2D * area) / (numParticles * 8.314 * T);
-                // Calcula eta usando o raio real, não o visual
-                const realRadius = sigmaEffective / 2;
-                const eta = (numParticles * Math.PI * (realRadius**2)) / area;
-                simulationResults.push({ T, N: numParticles, sigma: sigmaEffective, eta, P: P_2D, Z, f: avgWallFreq });
-                entry += `<b>Z:</b> ${Z.toFixed(3)} | <b>&eta;:</b> ${eta.toFixed(3)} | <b>P:</b> ${P_2D.toFixed(2)} | <b>Freq:</b> ${avgWallFreq.toFixed(1)} Hz`;
-            } else {
-                entry += `<b>Modo Gás Ideal</b> | <b>Freq. Parede:</b> ${avgWallFreq.toFixed(1)} Hz`;
-            }
-            entry += `</div>`;
-            historyBox.innerHTML += entry;
-            
-            if (!isIG && hsSection) hsSection.style.display = "block";
-        }
-
-        if (selX && selY) {
-            drawScatterPlot();
-        } else {
-            drawVelocityDistribution();
-        }
-
-        drawFrame(0);
-    }
-
-    function drawFrame(frame) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const scale = canvas.width / edgeLength;
-        const offset = frame * numParticles;
-        
-        for (let i = 0; i < numParticles; i++) {
-            let redVal = historyR[offset+i];
-            let blueVal = 255 - redVal; 
-            
-            // Vermelho = Rápido, Azul = Lento
-            ctx.fillStyle = `rgb(${redVal}, 0, ${blueVal})`; 
-            ctx.beginPath();
-            ctx.arc(historyX[offset+i]*scale, historyY[offset+i]*scale, particleRadius*scale, 0, Math.PI*2);
-            ctx.fill();
-        }
-        drawFreqLineGraph(frame / totalSteps);
-
-        // ATUALIZAR HISTOGRAMA DINAMICAMENTE
-        if (stateChart && stateChart.config.type === 'bar') {
-            let tempHist = new Array(numBins).fill(0);
-            
-            for (let i = 0; i < numParticles; i++) {
-                let binX = Math.floor((historyVX[offset + i] + vMaxHist) / binWidth);
-                let binY = Math.floor((historyVY[offset + i] + vMaxHist) / binWidth);
-                
-                if (binX >= 0 && binX < numBins) tempHist[binX]++;
-                if (binY >= 0 && binY < numBins) tempHist[binY]++;
-            }
-            
-            stateChart.data.datasets[0].data = tempHist;
-            stateChart.update('none'); 
-        }
-    }
-
-    function drawFreqLineGraph(progressRatio) {
-        const c = getEl("freq-canvas"); if (!c) return;
-        const g = c.getContext("2d");
-        g.clearRect(0,0,c.width,c.height);
-        
-        if (currentWallFreqData.length === 0) return;
-
-        const marginX = 60; 
-        const marginY = 50; 
-        const drawW = c.width - marginX - 20;
-        const drawH = c.height - marginY - 20;
-        
-        const avgFreq = currentWallFreqData.reduce((a,b)=>a+b,0) / currentWallFreqData.length;
-        const maxFreq = Math.max(...currentWallFreqData);
-        const minFreq = Math.min(...currentWallFreqData);
-        
-        const padding = 0.10 * (maxFreq - minFreq);
-        let yMax = maxFreq + padding;
-        let yMin = Math.max(0, minFreq - padding);
-
-        if (yMax === yMin) {
-            yMax += 5;
-            yMin = Math.max(0, yMin - 5);
-        }
-
-        g.strokeStyle = "#333"; 
-        g.lineWidth = 2.5;      
-        g.beginPath();
-        g.moveTo(marginX, 20); g.lineTo(marginX, c.height - marginY); 
-        g.lineTo(c.width - 20, c.height - marginY); 
-        g.stroke();
-
-        g.fillStyle = "#666"; 
-        g.font = "14px sans-serif";
-        g.textAlign = "center";
-        g.textBaseline = "middle";
-
-        g.fillText("Tempo (Passos da Simulação)", marginX + drawW / 2, c.height - 15);
-        
-        g.save();
-        g.translate(15, 20 + drawH / 2);
-        g.rotate(-Math.PI / 2);
-        g.fillText("Frequência de Colisão (Hz)", 0, 0);
-        g.restore();
-
-        g.font = "11px monospace";
-        const yMajorTicks = 5;
-        g.textAlign = "right";
-        for (let i = 0; i <= yMajorTicks; i++) {
-            let frac = i / yMajorTicks;
-            let yPos = (c.height - marginY) - frac * drawH;
-            let yVal = yMin + frac * (yMax - yMin);
-
-            g.lineWidth = 1.5;
-            g.beginPath(); g.moveTo(marginX - 6, yPos); g.lineTo(marginX, yPos); g.stroke();
-            g.fillText(yVal.toFixed(1), marginX - 10, yPos);
-
-            if (i < yMajorTicks) {
-                let yPosMinor = (c.height - marginY) - (frac + 0.5 / yMajorTicks) * drawH;
-                g.lineWidth = 1;
-                g.beginPath(); g.moveTo(marginX - 3, yPosMinor); g.lineTo(marginX, yPosMinor); g.stroke();
-            }
-        }
-
-        const xMajorTicks = 10;
-        g.textAlign = "center";
-        g.textBaseline = "top";
-        for (let i = 0; i <= xMajorTicks; i++) {
-            let frac = i / xMajorTicks;
-            let xPos = marginX + frac * drawW;
-            let xVal = Math.floor(equilibriumStep + frac * (totalSteps - equilibriumStep)); 
-
-            g.lineWidth = 1.5;
-            g.beginPath(); g.moveTo(xPos, c.height - marginY); g.lineTo(xPos, c.height - marginY + 6); g.stroke();
-            g.fillText(xVal, xPos, c.height - marginY + 10);
-
-            if (i < xMajorTicks) {
-                let xPosMinor = marginX + (frac + 0.5 / xMajorTicks) * drawW;
-                g.lineWidth = 1;
-                g.beginPath(); g.moveTo(xPosMinor, c.height - marginY); g.lineTo(xPosMinor, c.height - marginY + 3); g.stroke();
-            }
-        }
-
-        g.strokeStyle = "#d9534f"; 
-        g.lineWidth = 2.0; 
-        g.beginPath();
-        const points = Math.floor(currentWallFreqData.length * progressRatio);
-        const stepX = drawW / Math.max(1, currentWallFreqData.length - 1);
-        
-        for(let i=0; i<points; i++) {
-            let x = marginX + i * stepX; 
-            let y = (c.height - marginY) - ((currentWallFreqData[i] - yMin) / (yMax - yMin)) * drawH;
-            y = Math.max(20, Math.min(c.height - marginY, y));
-            if(i === 0) g.moveTo(x,y); else g.lineTo(x,y);
-        }
-        g.stroke();
-
-        g.strokeStyle = "rgba(0, 51, 102, 0.6)"; 
-        g.lineWidth = 1.5;
-        g.setLineDash([5, 5]); 
-        g.beginPath();
-        let yAvg = (c.height - marginY) - ((avgFreq - yMin) / (yMax - yMin)) * drawH;
-        yAvg = Math.max(20, Math.min(c.height - marginY, yAvg));
-        g.moveTo(marginX, yAvg); g.lineTo(marginX + drawW, yAvg);
-        g.stroke(); 
-        g.setLineDash([]);
-    }
-
-    function drawScatterPlot() {
-        const canvasEl = getEl("plot-canvas"); 
-        if (!canvasEl) return;
-
-        if (simulationResults.length === 0) {
-            if (stateChart) {
-                stateChart.destroy();
-                stateChart = null;
-            }
-            return;
-        }
-
-        const vX = selX.value;
-        const vY = selY.value;
-
-        const labels = {
-            "eta": "Fração de Empacotamento (η)",
-            "sigma": "Diâmetro da Partícula (σ)",
-            "T": "Temperatura (T)",
-            "N": "Número de Partículas (N)",
-            "Z": "Fator de Compressibilidade (Z)",
-            "P": "Pressão 2D (P)",
-            "f": "Frequência de Colisão (Hz)"
-        };
-
-        const chartData = simulationResults.map(d => ({ x: d[vX], y: d[vY] }));
-
-        // --- NEW: Calculate dynamic ranges based strictly on simulated data ---
-        const xVals = chartData.map(d => d.x);
-        const yVals = chartData.map(d => d.y);
-        const minX = Math.min(...xVals);
-        const maxX = Math.max(...xVals);
-        const minY = Math.min(...yVals);
-        const maxY = Math.max(...yVals);
-
-        // Add 5% padding so points don't sit exactly on the borders
-        const padX = (maxX - minX) === 0 ? (maxX * 0.05 || 0.1) : (maxX - minX) * 0.05;
-        const padY = (maxY - minY) === 0 ? (maxY * 0.05 || 0.1) : (maxY - minY) * 0.05;
-
-        // Ensure axes generally don't go below 0 for these physical properties
-        const axisMinX = Math.max(0, minX - padX); 
-        const axisMaxX = maxX + padX;
-        const axisMinY = Math.max(0, minY - padY);
-        const axisMaxY = maxY + padY;
-
-        let datasets = [{
-            label: 'Simulação (Empírico)',
-            data: chartData,
-            backgroundColor: '#d9534f',
-            borderColor: '#003366',
-            borderWidth: 1.5,
-            pointRadius: 6,
-            pointHoverRadius: 9,
-            type: 'scatter'
-        }];
-
-        let showLegend = false;
-        
-        // --- Add theoretical curve IF plotting eta vs Z ---
-        if (vX === "eta" && vY === "Z") {
-            showLegend = true; 
-            
-            const eta0 = (Math.sqrt(3) * Math.PI) / 6;
-            const coeff = (2 * eta0 - 1) / (eta0 * eta0);
-            
-            let theoreticalData = [];
-            
-            // Draw the curve only up to the dynamic maximum X limit of the graph
-            for (let e = 0; e <= axisMaxX; e += 0.005) {
-                let z_val = 1 / (1 - 2 * e + coeff * e * e);
-                theoreticalData.push({ x: e, y: z_val });
-            }
-
-            datasets.push({
-                label: 'Teórico (Santos et al., 1995)',
-                data: theoreticalData,
-                type: 'line',
-                borderColor: '#28a745', 
-                borderWidth: 2,
-                borderDash: [5, 5],
-                fill: false,
-                pointRadius: 0 
-            });
-        }
-
-        if (stateChart) {
-            // Update existing chart
-            stateChart.data.datasets = datasets;
-            stateChart.options.scales.x.title.text = labels[vX];
-            stateChart.options.scales.y.title.text = labels[vY];
-            
-            // Force the dynamic limits
-            stateChart.options.scales.x.min = axisMinX;
-            stateChart.options.scales.x.max = axisMaxX;
-            stateChart.options.scales.y.min = axisMinY;
-            stateChart.options.scales.y.max = axisMaxY;
-            
-            stateChart.options.plugins.legend.display = showLegend;
-            stateChart.update();
-        } else {
-            // Create new chart
-            const ctxChart = canvasEl.getContext('2d');
-            stateChart = new Chart(ctxChart, {
-                data: {
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: 'linear', 
-                            position: 'bottom',
-                            min: axisMinX,
-                            max: axisMaxX,
-                            title: { display: true, text: labels[vX], font: { size: 14, weight: 'bold' } },
-                            grid: { color: '#e9ecef' }
-                        },
-                        y: {
-                            min: axisMinY,
-                            max: axisMaxY,
-                            title: { display: true, text: labels[vY], font: { size: 14, weight: 'bold' } },
-                            grid: { color: '#e9ecef' }
-                        }
-                    },
-                    plugins: { 
-                        legend: { 
-                            display: showLegend,
-                            position: 'top'
-                        } 
+    const histChart = new Chart(box.querySelector("#histChart"), {
+        type: "bar",
+        data: { 
+            labels: [], 
+            datasets: [{ 
+                label: "Histograma de Energia (kJ/mol)", 
+                data: [],
+                barPercentage: 1.0, 
+                categoryPercentage: 1.0 
+            }] 
+        },
+        options: { 
+            animation: false,
+            scales: {
+                x: {
+                    ticks: {
+                        maxTicksLimit: 15, 
+                        maxRotation: 45
                     }
                 }
-            });
-        }
-    }
-
-    function drawVelocityDistribution() {
-        const canvasEl = getEl("plot-canvas");
-        if (!canvasEl) return;
-
-        let labels = [];
-        for (let i = 0; i < numBins; i++) {
-            labels.push((-vMaxHist + (i + 0.5) * binWidth).toFixed(1));
-        }
-
-        let chartInstance = Chart.getChart(canvasEl);
-        if (chartInstance) {
-            chartInstance.destroy();
-        }
-
-        const ctxChart = canvasEl.getContext('2d');
-        stateChart = new Chart(ctxChart, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Atual',
-                        data: histAtual,
-                        backgroundColor: 'rgba(0, 123, 255, 0.6)',
-                        borderColor: '#007bff',
-                        borderWidth: 1,
-                        barPercentage: 1.0,
-                        categoryPercentage: 1.0,
-                        order: 3
-                    },
-                    {
-                        label: 'Média Acumulada',
-                        data: histMedia,
-                        type: 'line',
-                        borderColor: '#dc3545',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        fill: false,
-                        pointRadius: 0,
-                        order: 2
-                    },
-                    {
-                        label: 'Teórico (Gauss)',
-                        data: histTeorico,
-                        type: 'line',
-                        borderColor: '#333333',
-                        borderWidth: 2,
-                        fill: false,
-                        pointRadius: 0,
-                        order: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { title: { display: true, text: 'Componentes de Velocidade (v_x, v_y) [m/s]' } },
-                    y: { title: { display: true, text: 'Contagem de Partículas' }, beginAtZero: true }
-                },
-                plugins: { legend: { display: false } } 
             }
+        }
+    });
+
+    const grCanvas = box.querySelector("#grChart");
+    let grChart = null;
+    if (grCanvas) {
+        grChart = new Chart(grCanvas, {
+            type: "line",
+            data: { 
+                labels: [], 
+                datasets: [
+                    { 
+                        label: "g(r)", 
+                        data: [], 
+                        borderColor: "blue", 
+                        borderWidth: 1,      
+                        pointRadius: 0 
+                    },
+                    { 
+                        label: "g(r) = exp(-βV(r))", 
+                        data: [], 
+                        borderColor: "red",  
+                        borderWidth: 2,      
+                        borderDash: [5, 5],  
+                        pointRadius: 0 
+                    }
+                ] 
+            },
+            options: { animation: false }
         });
     }
 
-    if (btnPlay) {
-        btnPlay.onclick = () => {
-            isPlaying = !isPlaying;
-            btnPlay.innerText = isPlaying ? "Pausar" : "Reproduzir";
-            if(isPlaying) animate();
+    // --- NEW: State Chart (Curva de Estado) Initialization ---
+    const plotCanvas = box.querySelector("#plot-canvas");
+    let stateChart = null;
+    const selX = box.querySelector("#sel-x");
+    const selY = box.querySelector("#sel-y");
+
+    if (plotCanvas) {
+        stateChart = new Chart(plotCanvas, {
+            type: "line", 
+            data: { 
+                datasets: [{ 
+                    label: "Estado Final", 
+                    data: [], 
+                    borderColor: "#003366",
+                    backgroundColor: "#003366",
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    showLine: true // Connects the points
+                }] 
+            },
+            options: { 
+                animation: false,
+                scales: {
+                    x: { type: 'linear', title: { display: true, text: "Empacotamento (η)" } },
+                    y: { type: 'linear', title: { display: true, text: "Fator Z" } }
+                }
+            }
+        });
+
+        // Dynamic Axis Updater
+        const updateStateChartScales = () => {
+            if (!stateChart) return;
+            
+            // X Axis configuration
+            if (selX && selX.value === "eta") {
+                stateChart.options.scales.x.min = 0;
+                stateChart.options.scales.x.suggestedMax = 0.7;
+            } else {
+                delete stateChart.options.scales.x.min;
+                delete stateChart.options.scales.x.suggestedMax;
+            }
+            if (selX) stateChart.options.scales.x.title.text = selX.options[selX.selectedIndex].text;
+
+            // Y Axis configuration
+            if (selY && selY.value === "Z") {
+                stateChart.options.scales.y.suggestedMin = 0.6;
+                stateChart.options.scales.y.suggestedMax = 9.0;
+            } else {
+                delete stateChart.options.scales.y.suggestedMin;
+                delete stateChart.options.scales.y.suggestedMax;
+            }
+            if (selY) stateChart.options.scales.y.title.text = selY.options[selY.selectedIndex].text;
+
+            stateChart.update();
+        };
+
+        if (selX) selX.addEventListener("change", updateStateChartScales);
+        if (selY) selY.addEventListener("change", updateStateChartScales);
+        updateStateChartScales(); // Initial call
+    }
+    // ---------------------------------------------------------
+
+    const R = 0.0083145;
+    const Rj = 8.3145;
+    const kB = 138.0649;
+
+    let state = null;
+
+    function LJ(dr, eps, sig) {
+        const s = sig / dr;
+        const s2 = s*s;
+        const s6 = s2*s2*s2;
+        const s12 = s6*s6;
+
+        return {
+            en: 4 * eps * (s12 - s6),
+            xi: eps * (2*s12 - s6)
         };
     }
 
-    function animate() {
-        if(!isPlaying) return;
+    function VDW(dr, eps, sig) {
+        if (dr <= sig) return { en: Infinity, xi: 0 }; 
         
-        // Pula frames com base na variável playbackSpeed gerada pelo 'boost'
-        currentFrame += playbackSpeed; 
+        const s = sig / dr;
+        const s2 = s*s;
+        const s6 = s2*s2*s2;
         
-        if(currentFrame >= totalSteps) { 
-            currentFrame = 0; 
-            isPlaying = false; 
-            btnPlay.innerText = "Reproduzir"; 
-            if(scrubber) scrubber.value = 0;
-            drawFrame(0);
+        return {
+            en: -4 * eps * s6, 
+            xi: -eps * s6      
+        };
+    }
+
+    function SW(dr, eps, sig, lambda) {
+        if (dr <= sig) return { en: Infinity, xi: 0 }; 
+        if (dr <= lambda * sig) return { en: -eps, xi: 0 }; 
+        return { en: 0, xi: 0 };
+    }
+
+    function dist(a, b, box) {
+        let dx = a[0]-b[0];
+        let dy = a[1]-b[1];
+        let dz = a[2]-b[2];
+
+        dx -= Math.round(dx/box)*box;
+        dy -= Math.round(dy/box)*box;
+        dz -= Math.round(dz/box)*box;
+
+        return Math.sqrt(dx*dx+dy*dy+dz*dz);
+    }
+
+    function computeB2_LJ(eps, sig, T) {
+        const rMin = 0.5 * sig; 
+        const rMax = 10.0 * sig; 
+        const nSteps = 1000;
+        const dr = (rMax - rMin) / nSteps;
+        
+        let integral = 0;
+        
+        for (let i = 0; i <= nSteps; i++) {
+            const r = rMin + i * dr;
+            const s = sig / r;
+            const s6 = Math.pow(s, 6);
+            const s12 = s6 * s6;
+            const v = 4 * eps * (s12 - s6);
+            
+            const f = (Math.exp(-v / T) - 1.0) * r * r;
+            let weight = (i === 0 || i === nSteps) ? 0.5 : 1.0;
+            integral += f * weight;
+        }
+        integral *= dr;
+        
+        const coreIntegral = -Math.pow(rMin, 3) / 3.0;
+        return -2.0 * Math.PI * (coreIntegral + integral);
+    }
+
+    function getG_of_bin(s, binIndex) {
+        if (s.grSamples === 0 || binIndex < 0 || binIndex >= s.numBins) return 0;
+        const r = (binIndex + 0.5) * s.drBin;
+        const vol = (4.0 / 3.0) * Math.PI * (Math.pow(r + s.drBin / 2.0, 3) - Math.pow(r - s.drBin / 2.0, 3));
+        const rho = s.N / s.V;
+        const ideal = rho * vol;
+        return s.grHistogram[binIndex] / (s.grSamples * s.N * ideal);
+    }
+
+    function initSimulation(p) {
+        const positions = [];
+        const ngrid = Math.ceil(Math.cbrt(p.N));
+        const spacing = p.boxSize / ngrid;
+
+        let count = 0;
+        for (let x=0;x<ngrid;x++){
+            for (let y=0;y<ngrid;y++){
+                for (let z=0;z<ngrid;z++){
+                    if (count >= p.N) break;
+
+                    positions.push([
+                        (x+0.5)*spacing,
+                        (y+0.5)*spacing,
+                        (z+0.5)*spacing
+                    ]);
+                    count++;
+                }
+            }
+        }
+
+        let energy = 0;
+        let xi = 0;
+
+        if (p.species.type === "LJ" || p.species.type === "VDW" || p.species.type === "SW") {
+            const rc = p.boxSize / 2.0; 
+            for (let i=0;i<p.N;i++){
+                for (let j=i+1;j<p.N;j++){
+                    const dr = dist(positions[i], positions[j], p.boxSize);
+                    if (dr > rc) continue; 
+
+                    let res = {en: 0, xi: 0};
+                    if (p.species.type === "LJ") res = LJ(dr, p.species.eps, p.species.sig);
+                    else if (p.species.type === "VDW") res = VDW(dr, p.species.eps, p.species.sig);
+                    else if (p.species.type === "SW") res = SW(dr, p.species.eps, p.species.sig, p.species.lambda);
+                    
+                    energy += res.en;
+                    xi += res.xi;
+                }
+            }
+        }
+
+        const drBin = p.species.sig ? (p.species.sig / 50.0) : 0.1;
+        const maxR = p.boxSize / 2.0;
+        const numBins = Math.floor(maxR / drBin);
+
+        return {
+            positions,
+            energy,
+            xi,
+            step: 0,
+            eqStart: Math.floor(0.4 * p.maxSteps), 
+            eta: 0,
+            Z: 1,        
+
+            meanE: 0,
+            M2E: 0,
+            meanP: 0,
+            count: 0,
+
+            hist: [],
+
+            ...p,
+
+            dx: (p.dx !== undefined) ? p.dx : 5,
+            accCount: 0, 
+            attCount: 0,
+
+            V: p.boxSize**3,
+            pid: p.N * kB * p.T / (p.boxSize**3),
+            pcoef: 8*kB/((p.boxSize**3)),
+
+            sampleEvery: Math.max(1, Math.floor(p.maxSteps / 2000)), 
+
+            computeGr: p.computeGr || false,
+            drBin: drBin,
+            maxR: maxR,
+            numBins: numBins,
+            grHistogram: new Array(numBins).fill(0),
+            grSamples: 0
+        };
+    }
+
+    function sampleGr(s) {
+        if (s.species.type === "IG") return; 
+
+        s.grSamples++;
+        for (let i = 0; i < s.N - 1; i++) {
+            for (let j = i + 1; j < s.N; j++) {
+                const r = dist(s.positions[i], s.positions[j], s.boxSize);
+                if (r < s.maxR) {
+                    const bin = Math.floor(r / s.drBin);
+                    if (bin < s.numBins) {
+                        s.grHistogram[bin] += 2; 
+                    }
+                }
+            }
+        }
+    }
+
+    function mcStep(s) {
+        const i = Math.floor(Math.random()*s.N);
+        const old = [...s.positions[i]];
+
+        let newPos = old.map(v => v + (Math.random()-0.5)*s.dx);
+        newPos = newPos.map(v => (v+s.boxSize)%s.boxSize);
+
+        let dE = 0;
+        let dXi = 0;
+
+        s.attCount++;
+        const rc = s.boxSize / 2.0;
+
+        for (let j=0;j<s.N;j++){
+            if (j===i) continue;
+
+            const drOld = dist(old, s.positions[j], s.boxSize);
+            const drNew = dist(newPos, s.positions[j], s.boxSize);
+
+            if (drOld > rc && drNew > rc) continue;
+
+            if (s.species.type === "HS" || s.species.type === "VDW" || s.species.type === "SW") {
+                if (drNew <= s.species.sig) return; 
+            }
+
+            if (s.species.type === "HS" || s.species.type === "IG") continue;
+
+            let oldRes = {en: 0, xi: 0};
+            let newRes = {en: 0, xi: 0};
+
+            if (s.species.type === "LJ") {
+                oldRes = (drOld <= rc) ? LJ(drOld, s.species.eps, s.species.sig) : {en: 0, xi: 0};
+                newRes = (drNew <= rc) ? LJ(drNew, s.species.eps, s.species.sig) : {en: 0, xi: 0};
+            } else if (s.species.type === "VDW") {
+                oldRes = (drOld <= rc) ? VDW(drOld, s.species.eps, s.species.sig) : {en: 0, xi: 0};
+                newRes = (drNew <= rc) ? VDW(drNew, s.species.eps, s.species.sig) : {en: 0, xi: 0};
+            } else if (s.species.type === "SW") {
+                oldRes = (drOld <= rc) ? SW(drOld, s.species.eps, s.species.sig, s.species.lambda) : {en: 0, xi: 0};
+                newRes = (drNew <= rc) ? SW(drNew, s.species.eps, s.species.sig, s.species.lambda) : {en: 0, xi: 0};
+            }
+
+            dE += newRes.en - oldRes.en;
+            dXi += newRes.xi - oldRes.xi;
+        }
+
+        if (dE < 0 || Math.random() < Math.exp(-dE/s.T)) {
+            s.positions[i] = newPos;
+            s.energy += dE;
+            s.xi += dXi;
+            s.accCount++;
+        }
+    }
+
+    function updateStats(s) {
+        const sampleStartStep = (s.species.type === "SW" || s.species.type === "VDW") ? Math.floor(s.eqStart / 2) : s.eqStart;
+
+        if (s.computeGr && s.step >= sampleStartStep && s.step % s.sampleEvery === 0) {
+            sampleGr(s);
+        }
+
+        if (s.step < s.eqStart) return;
+        
+        s.count++; 
+
+        let E = 0;
+        let P_sim = 0;
+
+        if (s.species.type === "IG") {
+            P_sim = s.pid;
+        } else if (s.species.type === "HS") {
+            const rho = s.N / s.V;
+            s.eta = (Math.PI / 6) * rho * s.species.sig**3;
+            s.Z = (1 + s.eta + s.eta**2 - s.eta**3) / (1 - s.eta)**3;
+            P_sim = s.pid * s.Z;
+        } else {
+            const E_dim = s.energy;
+            E = R * E_dim;
+
+            if (s.species.type === "LJ") {
+                P_sim = s.pid + (s.xi * s.pcoef);
+            } else if (s.species.type === "VDW") {
+                let Z_sim_core = 1.0;
+                if (s.computeGr && s.grSamples > 0) {
+                    const rho = s.N / s.V;
+                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
+                    const g1 = getG_of_bin(s, bin_sigma_plus);
+                    const g2 = getG_of_bin(s, bin_sigma_plus + 1);
+                    let g_sig_plus = g1 + (g1 - g2) / 2.0;
+                    if (g_sig_plus < 0) g_sig_plus = g1; 
+                    Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
+                } else {
+                    const rho = s.N / s.V;
+                    const eta = (Math.PI / 6) * rho * s.species.sig**3;
+                    Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+                }
+                P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
+            } else if (s.species.type === "SW") {
+                if (s.computeGr && s.grSamples > 0) {
+                    const rho = s.N / s.V;
+                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
+                    const bin_lambda_minus = Math.floor((s.species.sig * s.species.lambda) / s.drBin) - 1; 
+                    const bin_lambda_plus = Math.floor((s.species.sig * s.species.lambda) / s.drBin); 
+
+                    const g_sig_plus = getG_of_bin(s, bin_sigma_plus);
+                    const g_lam_minus = getG_of_bin(s, bin_lambda_minus);
+                    const g_lam_plus = getG_of_bin(s, bin_lambda_plus);
+
+                    const term1 = Math.pow(s.species.sig, 3) * g_sig_plus;
+                    const term2 = Math.pow(s.species.sig * s.species.lambda, 3) * (g_lam_plus - g_lam_minus);
+
+                    const Z_sim = 1 + (2 * Math.PI * rho / 3) * (term1 + term2);
+                    P_sim = s.pid * Z_sim;
+                } else {
+                    P_sim = s.pid; 
+                }
+            }
+
+            const delta = E_dim - s.meanE;
+            s.meanE += delta / s.count; 
+            s.M2E += delta * (E_dim - s.meanE);
+        }
+
+        s.meanP += (P_sim - s.meanP) / s.count;
+        s.hist.push(E);
+
+        const plotEvery = Math.max(1, Math.floor(s.maxSteps / 300));
+        if (s.step % plotEvery === 0) {
+            energyChart.data.labels.push(s.step);
+            energyChart.data.datasets[0].data.push(E);
+
+            pressureChart.data.labels.push(s.step);
+            pressureChart.data.datasets[0].data.push(P_sim);
+        }
+    }
+
+    function finalize(s) {
+        let e_lrc = 0;
+        let p_lrc = 0;
+        const rc = s.boxSize / 2.0;
+        const rho = s.N / s.V;
+
+        if (s.species.type === "LJ" || s.species.type === "VDW") {
+            const s_rc = s.species.sig / rc;
+            const s_rc3 = Math.pow(s_rc, 3);
+            const s_rc9 = Math.pow(s_rc3, 3);
+            const sig3 = Math.pow(s.species.sig, 3);
+            
+            if (s.species.type === "LJ") {
+                e_lrc = s.N * (8.0 / 3.0) * Math.PI * rho * s.species.eps * sig3 * ((1.0 / 3.0) * s_rc9 - s_rc3);
+                p_lrc = (16.0 / 3.0) * Math.PI * rho * rho * s.species.eps * kB * sig3 * ((2.0 / 3.0) * s_rc9 - s_rc3);
+            } else if (s.species.type === "VDW") {
+                e_lrc = -s.N * (8.0 / 3.0) * Math.PI * rho * s.species.eps * sig3 * s_rc3;
+                p_lrc = -(16.0 / 3.0) * Math.PI * rho * rho * s.species.eps * kB * sig3 * s_rc3;
+            }
+        } else if (s.species.type === "SW" && (s.species.lambda * s.species.sig > rc)) {
+            const r_end = s.species.lambda * s.species.sig;
+            e_lrc = -s.N * (2.0 / 3.0) * Math.PI * rho * s.species.eps * (Math.pow(r_end, 3) - Math.pow(rc, 3));
+        }
+
+        const hasEnergy = ["LJ", "VDW", "SW"].includes(s.species.type);
+        const avgE = hasEnergy ? R * (s.meanE + e_lrc) : 0;
+        const avgP = s.meanP + p_lrc;
+
+        const varianceE = (hasEnergy && s.count > 1) ? s.M2E / (s.count - 1) : 0;
+        const cv_real = (varianceE / (s.N * s.T * s.T)) * Rj;
+        const cv_ideal = 1.5 * Rj;
+        const cv_total = cv_ideal + cv_real;
+
+        let zFactor = 1.0; 
+        let eta_calculated = 0; // Declare this specifically for the State Chart logic below
+
+        if (s.species.type === "HS") {
+            eta_calculated = (Math.PI / 6) * rho * s.species.sig**3;
+            zFactor = (1 + eta_calculated + eta_calculated**2 - eta_calculated**3) / (1 - eta_calculated)**3;
+        } else if (s.species.type !== "IG") {
+            eta_calculated = (Math.PI / 6) * rho * Math.pow(s.species.sig || 0, 3);
+            zFactor = avgP / s.pid; 
+        }
+
+        const b2v_mc_part = (zFactor - 1) / rho;
+        const b2v_mc_molar = b2v_mc_part * 0.000602214;
+
+        let B2_part = null;
+        let P_virial = null;
+        let Z_virial = null;
+
+        if (["HS", "SW", "VDW", "LJ"].includes(s.species.type)) {
+            const sig = s.species.sig;
+            const b_part = (2 * Math.PI * Math.pow(sig, 3)) / 3; 
+            
+            if (s.species.type === "LJ") {
+                B2_part = computeB2_LJ(s.species.eps, s.species.sig, s.T);
+            } else if (s.species.type === "HS") {
+                B2_part = b_part;
+            } else if (s.species.type === "SW") {
+                const eps_T = s.species.eps / s.T;
+                const lambda = s.species.lambda;
+                B2_part = b_part * (1 + (Math.exp(eps_T) - 1) * (1 - Math.pow(lambda, 3)));
+            } else if (s.species.type === "VDW") {
+                const eps_T = s.species.eps / s.T;
+                B2_part = b_part * (1 - eps_T); 
+            }
+
+            Z_virial = 1 + B2_part * rho;
+            P_virial = s.pid * Z_virial;
+        }
+
+        const inject = (className, value) => {
+            const el = box.querySelector(className);
+            if (el) el.innerText = value;
+        };
+
+        inject(".out-avgE", avgE.toFixed(2));
+        inject(".out-avgP", avgP.toFixed(2));
+        inject(".out-pid", s.pid.toFixed(2));
+        inject(".out-z", zFactor.toFixed(3));
+        inject(".out-b2v-mc", s.species.type === "IG" ? "0.0000" : b2v_mc_molar.toFixed(4));
+        
+        inject(".out-cv-real", cv_real.toFixed(2));
+        inject(".out-cv-ideal", cv_ideal.toFixed(2));
+        inject(".out-cv-total", cv_total.toFixed(2));
+
+        const virialRow = box.querySelector(".virial-row");
+        if (B2_part !== null) {
+            const B2V_molar = B2_part * 0.000602214; 
+            inject(".out-b2v", B2V_molar.toFixed(4));
+            inject(".out-z-model", Z_virial.toFixed(3));
+            inject(".out-pvirial", P_virial.toFixed(2));
+            if (virialRow) virialRow.style.display = "inline";
+        } else {
+            if (virialRow) virialRow.style.display = "none";
+        }
+
+        const outputsData = box.querySelector(".sim-outputs-data");
+        if (outputsData) outputsData.style.display = "block";
+
+        const btnStatus = box.querySelector(".btn-status-msg");
+        if (btnStatus) {
+            btnStatus.innerText = "Simulação concluída!";
+            setTimeout(() => btnStatus.innerText = "", 3000);
+        }
+
+        if (s.hist.length > 0) {
+            let minE = Infinity;
+            let maxE = -Infinity;
+            for (let i = 0; i < s.hist.length; i++) {
+                if (s.hist[i] < minE) minE = s.hist[i];
+                if (s.hist[i] > maxE) maxE = s.hist[i];
+            }
+
+            let numBins = 50; 
+            const uniqueSet = new Set();
+            const sampleStep = Math.max(1, Math.floor(s.hist.length / 1000));
+            for (let i = 0; i < s.hist.length; i += sampleStep) {
+                uniqueSet.add(s.hist[i].toFixed(4));
+            }
+
+            if (uniqueSet.size < 100 && uniqueSet.size > 1) {
+                const sortedVals = Array.from(uniqueSet).map(Number).sort((a, b) => a - b);
+                let minGap = Infinity;
+                for (let i = 1; i < sortedVals.length; i++) {
+                    const gap = sortedVals[i] - sortedVals[i - 1];
+                    if (gap > 1e-5 && gap < minGap) minGap = gap;
+                }
+                if (minGap !== Infinity) {
+                    numBins = Math.round((maxE - minE) / minGap) + 1;
+                }
+            } else {
+                const stdDev = Math.sqrt(varianceE) * R; 
+                if (stdDev > 0) {
+                    const idealBinWidth = (3.49 * stdDev) / Math.cbrt(s.hist.length);
+                    numBins = Math.ceil((maxE - minE) / idealBinWidth);
+                }
+            }
+
+            numBins = Math.max(10, Math.min(numBins, 100));
+            const binSize = (maxE - minE) / numBins || 1; 
+            const counts = new Array(numBins).fill(0);
+            
+            for (let val of s.hist) {
+                const idx = Math.min(Math.floor((val - minE) / binSize), numBins - 1);
+                counts[idx]++;
+            }
+
+            histChart.data.labels = Array.from({length: numBins}, (_, i) => 
+                (minE + (i + 0.5) * binSize).toFixed(2)
+            );
+            histChart.data.datasets[0].data = counts;
+            histChart.update();
+        }
+
+        if (s.computeGr && grChart) {
+            const labels = [];
+            const data = [];
+            const dataExp = []; 
+
+            for (let i = 0; i < s.numBins; i++) {
+                const r = (i + 0.5) * s.drBin;
+                labels.push(r.toFixed(2));
+                
+                if (s.species.type === "IG") {
+                    data.push(1.0);
+                    dataExp.push(1.0);
+                    continue;
+                }
+
+                const vol = (4.0 / 3.0) * Math.PI * (Math.pow(r + s.drBin / 2.0, 3) - Math.pow(r - s.drBin / 2.0, 3));
+                const ideal = rho * vol;
+                let g = 0;
+                if (s.grSamples > 0) {
+                    g = s.grHistogram[i] / (s.grSamples * s.N * ideal);
+                }
+                data.push(g);
+
+                let vr = 0;
+                if (s.species.type === "HS") {
+                    vr = (r <= s.species.sig) ? Infinity : 0;
+                } else if (s.species.type === "LJ") {
+                    vr = LJ(r, s.species.eps, s.species.sig).en;
+                } else if (s.species.type === "VDW") {
+                    vr = VDW(r, s.species.eps, s.species.sig).en;
+                } else if (s.species.type === "SW") {
+                    vr = SW(r, s.species.eps, s.species.sig, s.species.lambda).en;
+                }
+
+                dataExp.push(Math.exp(-vr / s.T));
+            }
+            grChart.data.labels = labels;
+            grChart.data.datasets[0].data = data;
+            
+            if (grChart.data.datasets.length > 1) {
+                grChart.data.datasets[1].data = dataExp;
+            }
+            
+            grChart.update();
+        }
+
+        // --- NEW: Add point to State Chart ---
+        if (stateChart && selX && selY) {
+            let xVal = 0;
+            let yVal = 0;
+            
+            // X Value logic mapping
+            if (selX.value === "eta") xVal = eta_calculated;
+            else if (selX.value === "sigma") xVal = s.species.sig || 0;
+            else if (selX.value === "T") xVal = s.T;
+            else if (selX.value === "N") xVal = s.N;
+            
+            // Y Value logic mapping
+            if (selY.value === "Z") yVal = zFactor;
+            else if (selY.value === "P") yVal = avgP;
+            else if (selY.value === "f") yVal = s.accCount / s.attCount; // Proxy collision acceptance
+
+            // Push the coordinate pair directly to enable scatter/line mixing across multiple runs
+            stateChart.data.datasets[0].data.push({ x: xVal, y: yVal });
+            stateChart.update();
+        }
+        // -------------------------------------
+    }   
+
+    function run(params) {
+        state = initSimulation(params);
+
+        energyChart.data.labels = [];
+        energyChart.data.datasets[0].data = [];
+
+        pressureChart.data.labels = [];
+        pressureChart.data.datasets[0].data = [];
+
+        histChart.data.labels = [];
+        histChart.data.datasets[0].data = [];
+        histChart.update();
+
+        if (grChart) {
+            grChart.data.labels = [];
+            grChart.data.datasets[0].data = [];
+            if (grChart.data.datasets.length > 1) {
+                grChart.data.datasets[1].data = [];
+            }
+            grChart.update();
+        }
+
+        if (state.species.type === "IG" || (state.species.type === "HS" && !state.computeGr)) {
+            let P_sim = 0;
+
+            if (state.species.type === "IG") {
+                P_sim = state.pid;
+            } else { 
+                const rho = state.N / state.V;
+                const sigma = state.species.sig;
+                state.eta = (Math.PI / 6) * rho * sigma**3;
+                state.Z = (1 + state.eta + state.eta**2 - state.eta**3) / (1 - state.eta)**3;
+                P_sim = state.pid * state.Z;
+            }
+
+            energyChart.data.labels = [0, state.maxSteps];
+            energyChart.data.datasets[0].data = [0, 0];
+            
+            pressureChart.data.labels = [0, state.maxSteps];
+            pressureChart.data.datasets[0].data = [P_sim, P_sim];
+
+            energyChart.update();
+            pressureChart.update();
+
+            state.meanE = 0; 
+            state.meanP = P_sim;
+            state.count = state.maxSteps; 
+            state.M2E = 0;
+            state.hist = [0]; 
+
+            finalize(state);
             return; 
         }
-        
-        if(scrubber) scrubber.value = currentFrame;
-        drawFrame(currentFrame);
-        requestAnimationFrame(animate);
+
+        function loop() {
+            for (let i=0;i<200;i++) {
+                mcStep(state);
+                state.step++;
+                
+                if (state.step < state.eqStart && state.step % 1000 === 0) {
+                    const ratio = state.accCount / state.attCount;
+                    if (ratio > 0.5) state.dx *= 1.05;
+                    else if (ratio < 0.3) state.dx *= 0.95;
+                    
+                    if (state.dx > state.boxSize / 2) state.dx = state.boxSize / 2;
+                    
+                    state.accCount = 0;
+                    state.attCount = 0;
+                }
+
+                if (state.step === state.eqStart) {
+                    const btnStatus = box.querySelector(".btn-status-msg");
+                    if (btnStatus) {
+                        btnStatus.innerText = "Amostrando dados...";
+                    }
+                }
+
+                updateStats(state);
+
+                if (state.step >= state.maxSteps) {
+                    finalize(state);
+                    return;
+                }
+            }
+
+            energyChart.update();
+            pressureChart.update();
+
+            requestAnimationFrame(loop);
+        }
+
+        loop();
     }
 
-    if (scrubber) scrubber.oninput = () => { currentFrame = parseInt(scrubber.value); drawFrame(currentFrame); };
+    return { run };
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".toolbox").forEach(box => {
+        if (box.id !== "mc-tool") return;
+
+        const sim = createMCSimulation(box);
+
+        const speciesDB = {
+            Xe: { eps: 218.18, sig: 4.055, type: "LJ" },
+            Kr: { eps: 164.60, sig: 3.650, type: "LJ" },
+            Ar: { eps: 116.81, sig: 3.401, type: "LJ" },
+            Ne: { eps: 36.831, sig: 2.775, type: "LJ" },
+            He: { eps: 5.465, sig: 2.628, type: "LJ" },
+            HS: { sig: 8.0, type: "HS" },
+            SW: { eps: 120.0, sig: 4.0, lambda: 1.5, type: "SW" }, 
+            VDW: { eps: 120.0, sig: 4.0, type: "VDW" },            
+            IG: { type: "IG" }
+        };
+
+        const btn = box.querySelector(".jsbox-btn-primary");
+        const speciesSelect = box.querySelector(".species");
+        
+        const sigmaRow = box.querySelector("#sigma-row");
+        const epsRow = box.querySelector("#eps-row");
+        const lambdaRow = box.querySelector("#lambda-row");
+
+        let infoArea = box.querySelector(".species-info");
+        if (!infoArea) {
+            infoArea = document.createElement("div");
+            infoArea.className = "species-info";
+            infoArea.style.fontSize = "0.85em";
+            infoArea.style.margin = "5px 0 10px 0";
+            infoArea.style.color = "#555";
+            speciesSelect.parentNode.appendChild(infoArea);
+        }
+
+        let btnStatus = box.querySelector(".btn-status-msg");
+        if (!btnStatus) {
+            btnStatus = document.createElement("span");
+            btnStatus.className = "btn-status-msg";
+            btnStatus.style.marginLeft = "15px";
+            btnStatus.style.fontWeight = "bold";
+            btnStatus.style.color = "#007BFF";
+            btn.parentNode.insertBefore(btnStatus, btn.nextSibling);
+        }
+
+        const legacyStatusMsg = box.querySelector(".sim-status-msg");
+        if (legacyStatusMsg) legacyStatusMsg.style.display = "none";
+
+        speciesSelect.addEventListener("change", (e) => {
+            const val = e.target.value;
+            const spec = speciesDB[val];
+
+            sigmaRow.style.display = ["HS", "SW", "VDW"].includes(val) ? "flex" : "none";
+            epsRow.style.display = ["SW", "VDW"].includes(val) ? "flex" : "none";
+            lambdaRow.style.display = (val === "SW") ? "flex" : "none";
+
+            if (spec && spec.type === "LJ") {
+                infoArea.innerHTML = `Parâmetros fixos: σ = <b>${spec.sig}</b> Å, ε/k<sub>B</sub> = <b>${spec.eps}</b> K`;
+            } else if (["HS", "SW", "VDW"].includes(val)) {
+                infoArea.innerHTML = `Defina os parâmetros do modelo abaixo:`;
+            } else {
+                infoArea.innerHTML = ""; 
+            }
+        });
+
+        speciesSelect.dispatchEvent(new Event("change"));
+
+        btn.addEventListener("click", () => {
+            const speciesType = box.querySelector(".species").value;
+            const base = speciesDB[speciesType];
+            let species = { ...base };
+
+            if (["HS", "SW", "VDW"].includes(speciesType)) {
+                const sigVal = parseFloat(box.querySelector(".sigma").value);
+                if (!isNaN(sigVal)) species.sig = sigVal;
+            }
+            if (["SW", "VDW"].includes(speciesType)) {
+                const epsVal = parseFloat(box.querySelector(".eps").value);
+                if (!isNaN(epsVal)) species.eps = epsVal;
+            }
+            if (speciesType === "SW") {
+                const lamVal = parseFloat(box.querySelector(".lambda").value);
+                if (!isNaN(lamVal)) species.lambda = lamVal;
+            }
+
+            const outputsData = box.querySelector(".sim-outputs-data");
+            
+            if (btnStatus) {
+                btnStatus.innerText = "Equilibrando o sistema, aguarde...";
+            }
+            if (outputsData) outputsData.style.display = "none";
+
+            const grInput = box.querySelector(".compute-gr");
+            const doComputeGr = grInput ? (grInput.value === "true" || grInput.checked) : false;
+
+            sim.run({
+                N: parseInt(box.querySelector(".npart").value),
+                boxSize: parseFloat(box.querySelector(".box").value),
+                T: parseFloat(box.querySelector(".temp").value),
+                dx: box.querySelector(".dx") ? parseFloat(box.querySelector(".dx").value) : undefined,
+                maxSteps: parseInt(box.querySelector(".steps").value),
+                species: species,
+                computeGr: doComputeGr 
+            });
+        });
+    });
 });
