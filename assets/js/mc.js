@@ -305,7 +305,7 @@ function createMCSimulation(box) {
     function updateStats(s) {
         // 1. Determine when to start sampling the g(r) histogram.
         // For SW, we start at half of the equilibration period to pre-converge the bins.
-        const sampleStartStep = (s.species.type === "SW") ? Math.floor(s.eqStart / 2) : s.eqStart;
+        const sampleStartStep = (s.species.type === "SW" || s.species.type === "VDW") ? Math.floor(s.eqStart / 2) : s.eqStart;
 
         if (s.computeGr && s.step >= sampleStartStep && s.step % s.sampleEvery === 0) {
             sampleGr(s);
