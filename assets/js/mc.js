@@ -149,9 +149,13 @@ function createMCSimulation(box) {
         let xi = 0;
 
         if (p.species.type === "LJ" || p.species.type === "VDW" || p.species.type === "SW") {
+            const rc = p.boxSize / 2.0; // Spherical cutoff radius
             for (let i=0;i<p.N;i++){
                 for (let j=i+1;j<p.N;j++){
                     const dr = dist(positions[i], positions[j], p.boxSize);
+                    
+                    if (dr > rc) continue; // Apply spherical cutoff
+
                     let res = {en: 0, xi: 0};
                     
                     if (p.species.type === "LJ") res = LJ(dr, p.species.eps, p.species.sig);
@@ -238,11 +242,16 @@ function createMCSimulation(box) {
 
         s.attCount++;
 
+        const rc = s.boxSize / 2.0;
+
         for (let j=0;j<s.N;j++){
             if (j===i) continue;
 
             const drOld = dist(old, s.positions[j], s.boxSize);
             const drNew = dist(newPos, s.positions[j], s.boxSize);
+
+            // Skip interactions entirely outside the spherical cutoff
+            if (drOld > rc && drNew > rc) continue;
 
             if (s.species.type === "HS" || s.species.type === "VDW" || s.species.type === "SW") {
                 if (drNew <= s.species.sig) return; 
@@ -253,15 +262,16 @@ function createMCSimulation(box) {
             let oldRes = {en: 0, xi: 0};
             let newRes = {en: 0, xi: 0};
 
+            // Evaluate forces only if within cutoff, otherwise treat as 0
             if (s.species.type === "LJ") {
-                oldRes = LJ(drOld, s.species.eps, s.species.sig);
-                newRes = LJ(drNew, s.species.eps, s.species.sig);
+                oldRes = (drOld <= rc) ? LJ(drOld, s.species.eps, s.species.sig) : {en: 0, xi: 0};
+                newRes = (drNew <= rc) ? LJ(drNew, s.species.eps, s.species.sig) : {en: 0, xi: 0};
             } else if (s.species.type === "VDW") {
-                oldRes = VDW(drOld, s.species.eps, s.species.sig);
-                newRes = VDW(drNew, s.species.eps, s.species.sig);
+                oldRes = (drOld <= rc) ? VDW(drOld, s.species.eps, s.species.sig) : {en: 0, xi: 0};
+                newRes = (drNew <= rc) ? VDW(drNew, s.species.eps, s.species.sig) : {en: 0, xi: 0};
             } else if (s.species.type === "SW") {
-                oldRes = SW(drOld, s.species.eps, s.species.sig, s.species.lambda);
-                newRes = SW(drNew, s.species.eps, s.species.sig, s.species.lambda);
+                oldRes = (drOld <= rc) ? SW(drOld, s.species.eps, s.species.sig, s.species.lambda) : {en: 0, xi: 0};
+                newRes = (drNew <= rc) ? SW(drNew, s.species.eps, s.species.sig, s.species.lambda) : {en: 0, xi: 0};
             }
 
             dE += newRes.en - oldRes.en;
@@ -369,9 +379,33 @@ function createMCSimulation(box) {
 
     function finalize(s) {
 
+        let e_lrc = 0;
+        let p_lrc = 0;
+        const rc = s.boxSize / 2.0;
+        const rho = s.N / s.V;
+
+        if (s.species.type === "LJ" || s.species.type === "VDW") {
+            const s_rc = s.species.sig / rc;
+            const s_rc3 = Math.pow(s_rc, 3);
+            const s_rc9 = Math.pow(s_rc3, 3);
+            const sig3 = Math.pow(s.species.sig, 3);
+            
+            if (s.species.type === "LJ") {
+                e_lrc = s.N * (8.0 / 3.0) * Math.PI * rho * s.species.eps * sig3 * ((1.0 / 3.0) * s_rc9 - s_rc3);
+                p_lrc = (16.0 / 3.0) * Math.PI * rho * rho * s.species.eps * kB * sig3 * ((2.0 / 3.0) * s_rc9 - s_rc3);
+            } else if (s.species.type === "VDW") {
+                e_lrc = -s.N * (8.0 / 3.0) * Math.PI * rho * s.species.eps * sig3 * s_rc3;
+                p_lrc = -(16.0 / 3.0) * Math.PI * rho * rho * s.species.eps * kB * sig3 * s_rc3;
+            }
+        } else if (s.species.type === "SW" && (s.species.lambda * s.species.sig > rc)) {
+            // Safety measure in case users make lambda excessively large relative to box
+            const r_end = s.species.lambda * s.species.sig;
+            e_lrc = -s.N * (2.0 / 3.0) * Math.PI * rho * s.species.eps * (Math.pow(r_end, 3) - Math.pow(rc, 3));
+        }
+
         const hasEnergy = ["LJ", "VDW", "SW"].includes(s.species.type);
-        const avgE = hasEnergy ? R * s.meanE : 0;
-        const avgP = s.meanP;
+        const avgE = hasEnergy ? R * (s.meanE + e_lrc) : 0;
+        const avgP = s.meanP + p_lrc;
 
         const varianceE = (hasEnergy && s.count > 1)
             ? s.M2E / (s.count - 1)
@@ -383,7 +417,6 @@ function createMCSimulation(box) {
 
         let zFactor = 1.0; 
         if (s.species.type === "HS") {
-            const rho = s.N / s.V;
             const eta = (Math.PI / 6) * rho * s.species.sig**3;
             zFactor = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
         } else if (s.species.type !== "IG") {
@@ -408,7 +441,6 @@ function createMCSimulation(box) {
                 B2_part = b_part * (1 - eps_T); 
             }
 
-            const rho = s.N / s.V; 
             const Z_virial = 1 + B2_part * rho;
             P_virial = s.pid * Z_virial;
         }
@@ -499,7 +531,7 @@ function createMCSimulation(box) {
             const rho = s.N / s.V;
             const labels = [];
             const data = [];
-            const dataExp = []; // For g(r) = exp(-beta * V(r))
+            const dataExp = []; 
 
             for (let i = 0; i < s.numBins; i++) {
                 const r = (i + 0.5) * s.drBin;
@@ -519,7 +551,6 @@ function createMCSimulation(box) {
                 }
                 data.push(g);
 
-                // Calculate the theoretical g(r) = exp(-V(r) / T)
                 let vr = 0;
                 if (s.species.type === "HS") {
                     vr = (r <= s.species.sig) ? Infinity : 0;
@@ -531,13 +562,11 @@ function createMCSimulation(box) {
                     vr = SW(r, s.species.eps, s.species.sig, s.species.lambda).en;
                 }
 
-                // Math.exp(-Infinity) evaluates nicely to 0 for repulsive hard cores
                 dataExp.push(Math.exp(-vr / s.T));
             }
             grChart.data.labels = labels;
             grChart.data.datasets[0].data = data;
             
-            // Push theoretical data to the second dataset
             if (grChart.data.datasets.length > 1) {
                 grChart.data.datasets[1].data = dataExp;
             }
@@ -681,18 +710,16 @@ document.addEventListener("DOMContentLoaded", () => {
             speciesSelect.parentNode.appendChild(infoArea);
         }
 
-        // Set up the dynamic UI message next to the button
         let btnStatus = box.querySelector(".btn-status-msg");
         if (!btnStatus) {
             btnStatus = document.createElement("span");
             btnStatus.className = "btn-status-msg";
             btnStatus.style.marginLeft = "15px";
             btnStatus.style.fontWeight = "bold";
-            btnStatus.style.color = "#007BFF"; // A nice highlight color
+            btnStatus.style.color = "#007BFF";
             btn.parentNode.insertBefore(btnStatus, btn.nextSibling);
         }
 
-        // Hide legacy UI element if it still exists
         const legacyStatusMsg = box.querySelector(".sim-status-msg");
         if (legacyStatusMsg) legacyStatusMsg.style.display = "none";
 
