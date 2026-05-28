@@ -1,10 +1,6 @@
 /* ========================= */
 /* Boxed formulas “formula card” style */
 
-:target{
-  scroll-margin-top: 150px;
-}
-
 /* Wrapper for mathbox + equation number */
 .mathbox-wrapper {
   display: flex;
