@@ -325,40 +325,52 @@ function createMCSimulation(box) {
             E = R * E_dim;
 
             if (s.species.type === "LJ") {
-                P_sim = s.pid + (s.xi * s.pcoef);
+                P_sim = s.pid + (s.xi * s.pcoef);            
             } else if (s.species.type === "VDW") {
-                let Z_sim_core = 1.0;
-                if (s.computeGr && s.grSamples > 0) {
-                    const rho = s.N / s.V;
-                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
-                    const g1 = getG_of_bin(s, bin_sigma_plus);
-                    const g2 = getG_of_bin(s, bin_sigma_plus + 1);
-                    let g_sig_plus = g1 + (g1 - g2) / 2.0;
-                    if (g_sig_plus < 0) g_sig_plus = g1; 
-                    Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
-                } else {
-                    const rho = s.N / s.V;
-                    const eta = (Math.PI / 6) * rho * s.species.sig**3;
-                    Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
-                }
+                // ALWAYS use Carnahan-Starling for the Hard Core part of VDW
+                const rho = s.N / s.V;
+                const eta = (Math.PI / 6) * rho * s.species.sig**3;
+                const Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+                
+                // Add the instantaneous continuous tail virial (s.xi) 
                 P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
+
             } else if (s.species.type === "SW") {
                 if (s.computeGr && s.grSamples > 0) {
                     const rho = s.N / s.V;
-                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
-                    const bin_lambda_minus = Math.floor((s.species.sig * s.species.lambda) / s.drBin) - 1; 
-                    const bin_lambda_plus = Math.floor((s.species.sig * s.species.lambda) / s.drBin); 
 
-                    const g_sig_plus = getG_of_bin(s, bin_sigma_plus);
-                    const g_lam_minus = getG_of_bin(s, bin_lambda_minus);
-                    const g_lam_plus = getG_of_bin(s, bin_lambda_plus);
+                    // Helper function to linearly extrapolate g(r) to the exact contact boundaries
+                    const extrapolateG = (targetR, bin1, bin2) => {
+                        const r1 = (bin1 + 0.5) * s.drBin;
+                        const r2 = (bin2 + 0.5) * s.drBin;
+                        const g1 = getG_of_bin(s, bin1);
+                        const g2 = getG_of_bin(s, bin2);
+                        const slope = (g2 - g1) / (r2 - r1);
+                        return Math.max(0, g1 + slope * (targetR - r1));
+                    };
 
-                    const term1 = Math.pow(s.species.sig, 3) * g_sig_plus;
-                    const term2 = Math.pow(s.species.sig * s.species.lambda, 3) * (g_lam_plus - g_lam_minus);
+                    const sig = s.species.sig;
+                    const lam = s.species.lambda;
+
+                    // Extrapolate g(sigma+)
+                    const bin_sig_plus = Math.floor(sig / s.drBin);
+                    const g_sig_plus = extrapolateG(sig, bin_sig_plus, bin_sig_plus + 1);
+
+                    // Extrapolate g(lambda-) [approaching from the inside]
+                    const bin_lam_minus = Math.floor((sig * lam) / s.drBin) - 1;
+                    const g_lam_minus = extrapolateG(sig * lam, bin_lam_minus, bin_lam_minus - 1);
+
+                    // Extrapolate g(lambda+) [approaching from the outside]
+                    const bin_lam_plus = Math.floor((sig * lam) / s.drBin);
+                    const g_lam_plus = extrapolateG(sig * lam, bin_lam_plus, bin_lam_plus + 1);
+
+                    const term1 = Math.pow(sig, 3) * g_sig_plus;
+                    const term2 = Math.pow(sig * lam, 3) * (g_lam_plus - g_lam_minus);
 
                     const Z_sim = 1 + (2 * Math.PI * rho / 3) * (term1 + term2);
                     P_sim = s.pid * Z_sim;
                 } else {
+                    // Fallback if g(r) is turned off
                     P_sim = s.pid; 
                 }
             }
