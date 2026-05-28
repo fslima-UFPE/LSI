@@ -43,7 +43,7 @@ layout: base
             {% endif %}
           {% endfor %}
           
-          <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
+          <a href="{{ page.previous_class }}" class="btn btn-classes">
             <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;
             {% if prev_page %}
               {% assign prev_slug = prev_page.url | remove: ".html" | split: "/" | last %}
@@ -70,7 +70,7 @@ layout: base
             {% endif %}
           {% endfor %}
           
-          <a href="{{ page.next_class }}" class="btn btn-outline-primary">
+          <a href="{{ page.next_class }}" class="btn btn-classes">
             {% if next_page %}
               {% assign next_slug = next_page.url | remove: ".html" | split: "/" | last %}
               {% unless next_slug == "TC" %}
@@ -103,7 +103,7 @@ layout: base
             {% endif %}
           {% endfor %}
 
-          <a href="{{ page.previous_class }}" class="btn btn-outline-primary">
+          <a href="{{ page.previous_class }}" class="btn btn-classes">
             <i class="fas fa-chevron-left" aria-hidden="true"></i>&nbsp;&nbsp;
             {% if prev_page %}
               {% assign prev_slug = prev_page.url | remove: ".html" | split: "/" | last %}
@@ -130,7 +130,7 @@ layout: base
             {% endif %}
           {% endfor %}
 
-          <a href="{{ page.next_class }}" class="btn btn-outline-primary">
+          <a href="{{ page.next_class }}" class="btn btn-classes">
             {% if next_page %}
               {% assign next_slug = next_page.url | remove: ".html" | split: "/" | last %}
               {% unless next_slug == "TC" %}
