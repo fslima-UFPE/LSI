@@ -334,22 +334,49 @@ function createMCSimulation(box) {
             if (s.species.type === "LJ") {
                 P_sim = s.pid + (s.xi * s.pcoef);
             } else if (s.species.type === "VDW") {
-                let Z_sim_core = 1.0;
                 if (s.computeGr && s.grSamples > 0) {
                     const rho = s.N / s.V;
-                    const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
+                    const sig = s.species.sig;
+                    const eps = s.species.eps;
+
+                    // 1. Hard-sphere core contribution at contact r = sigma^+ (via linear extrapolation)
+                    const bin_sigma_plus = Math.floor(sig / s.drBin); 
                     const g1 = getG_of_bin(s, bin_sigma_plus);
                     const g2 = getG_of_bin(s, bin_sigma_plus + 1);
                     let g_sig_plus = g1 + (g1 - g2) / 2.0;
                     if (g_sig_plus < 0) g_sig_plus = g1; 
-                    Z_sim_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(s.species.sig, 3) * g_sig_plus;
+                    
+                    const Z_core = 1 + (2 * Math.PI * rho / 3) * Math.pow(sig, 3) * g_sig_plus;
+
+                    // 2. Continuous attractive tail numerical integration from g(r)
+                    let tailIntegral = 0;
+                    for (let i = bin_sigma_plus; i < s.numBins; i++) {
+                        const r = (i + 0.5) * s.drBin;
+                        if (r <= sig) continue; // Safety guard inside the hard-core radius
+                        
+                        const g_r = getG_of_bin(s, i);
+                        
+                        // Integrand: r^3 * (dV/dr) * g(r) * dr
+                        // where dV/dr = 24 * eps * sig^6 * r^-7
+                        // Combined simplified term: r^-4 * g(r) * dr
+                        tailIntegral += Math.pow(r, -4) * g_r * s.drBin;
+                    }
+
+                    // Combined tail scaling prefix: - (16 * pi * rho * eps * sig^6) / T
+                    const Z_tail = - (16 * Math.PI * rho * eps * Math.pow(sig, 6) / s.T) * tailIntegral;
+                    
+                    // Total Compressibility Factor and Simulated Pressure
+                    const Z_sim = Z_core + Z_tail;
+                    P_sim = s.pid * Z_sim;
                 } else {
+                    // Fallback to Carnahan-Starling / instantaneous virial if g(r) isn't tracked
                     const rho = s.N / s.V;
                     const eta = (Math.PI / 6) * rho * s.species.sig**3;
-                    Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
-                }
-                P_sim = (s.pid * Z_sim_core) + (s.xi * s.pcoef); 
-            } else if (s.species.type === "SW") {
+                    const Z_sim_core = (1 + eta + eta**2 - eta**3) / (1 - eta)**3;
+                    
+                    // Fixed the factor of 8 error if running on purely historical configurations
+                    P_sim = (s.pid * Z_sim_core) + (s.xi * 8 * s.pcoef); 
+                } else if (s.species.type === "SW") {
                 if (s.computeGr && s.grSamples > 0) {
                     const rho = s.N / s.V;
                     const bin_sigma_plus = Math.floor(s.species.sig / s.drBin); 
