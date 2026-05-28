@@ -549,13 +549,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const vY = selY.value;
 
         const labels = {
-            "eta": "Fração de Empacotamento (η)",
-            "sigma": "Diâmetro da Partícula (σ)",
+            "eta": "Fração de empacotamento (η)",
+            "sigma": "Diâmetro da partícula (σ)",
             "T": "Temperatura (T)",
-            "N": "Número de Partículas (N)",
-            "Z": "Fator de Compressibilidade (Z)",
-            "P": "Pressão 2D (P)",
-            "f": "Frequência de Colisão (Hz)"
+            "N": "Número de partículas (N)",
+            "Z": "Fator de compressibilidade (Z)",
+            "P": "Pressão 2D (p)",
+            "f": "Frequência de colisão (f)"
         };
 
         const chartData = simulationResults.map(d => ({ x: d[vX], y: d[vY] }));
