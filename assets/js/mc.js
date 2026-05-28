@@ -303,12 +303,19 @@ function createMCSimulation(box) {
     }
 
     function updateStats(s) {
-        if (s.step < s.eqStart) return;
-        s.count++; 
+        // 1. Determine when to start sampling the g(r) histogram.
+        // For SW, we start at half of the equilibration period to pre-converge the bins.
+        const sampleStartStep = (s.species.type === "SW") ? Math.floor(s.eqStart / 2) : s.eqStart;
 
-        if (s.computeGr && s.step % s.sampleEvery === 0) {
+        if (s.computeGr && s.step >= sampleStartStep && s.step % s.sampleEvery === 0) {
             sampleGr(s);
         }
+
+        // 2. STRICT GUARD: Do not plot or calculate running averages until full equilibration is reached.
+        if (s.step < s.eqStart) return;
+        
+        // 3. Counting and averaging strictly begin here (after eqStart)
+        s.count++; 
 
         let E = 0;
         let P_sim = 0;
@@ -368,6 +375,7 @@ function createMCSimulation(box) {
             s.M2E += delta * (E_dim - s.meanE);
         }
 
+        // Average pressure accumulation calculation
         s.meanP += (P_sim - s.meanP) / s.count;
         s.hist.push(E);
 
