@@ -572,7 +572,7 @@ document.addEventListener("DOMContentLoaded", () => {
             "sigma": { min: 0, max: 5 },     
             "T": { min: 0, max: 1000 },      
             "N": { min: 0, max: 2000 },      
-            "Z": { min: 0, max: 10 },        
+            "Z": { min: 0, max: 12 },        
             "P": { min: 0, max: 2000 },      
             "f": { min: 0, max: 200 }        
         };
