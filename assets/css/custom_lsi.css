@@ -1,1 +1,14 @@
+.btn-classes {
+    border: 2px solid #2ecc71 !important; /* Changes border thickness and color (Green) */
+    color: #2ecc71 !important;            /* Changes text/icon color */
+    background-color: transparent;        /* Keeps the inside clear */
+    padding: 8px 16px;                    /* Adjusts the button size/internal spacing */
+    border-radius: 4px;                   /* Adjusts how round the corners are */
+    transition: all 0.3s ease;            /* Makes the hover effect smooth */
+}
 
+/* What happens when you hover over the button */
+.btn-classes:hover {
+    background-color: #2ecc71 !important;
+    color: #ffffff !important;            /* Turns text white on hover */
+}
