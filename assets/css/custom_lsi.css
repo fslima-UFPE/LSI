@@ -3,14 +3,14 @@
 }
 
 .btn-classes {
-    border: 4px solid #FA8072 !important; /* Changes border thickness and color (Green) */
+    border: 2px solid #FA8072 !important; /* Changes border thickness and color (Green) */
     color: #FA8072 !important;            /* Changes text/icon color */
     background-color: transparent;        /* Keeps the inside clear */
     padding: 8px 16px;                    /* Adjusts the button size/internal spacing */
     border-radius: 8px;                   /* Adjusts how round the corners are */
     transition: all 0.3s ease;            /* Makes the hover effect smooth */
     font-family: 'Mulish', sans-serif;
-    font-weight: 800;    
+    font-weight: 700;    
 }
 
 .btn-classes:hover {
