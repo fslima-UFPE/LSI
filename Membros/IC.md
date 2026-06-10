@@ -18,7 +18,7 @@ subtitle: Adriane Brito
 subtitle: Breno Rennan
 --- 
 
-![AB](AB.png){: .mx-auto.d-block :}
+![BR](BR.png){: .mx-auto.d-block :}
 
 <p class="jt">
 
