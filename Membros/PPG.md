@@ -1,8 +1,9 @@
 ---
 layout: page
 title: Iniciação Científica
-subtitle: Gabriel Montenegro
 ---
+
+## Gabriel Montenegro
 
 ![GM](GM.png){: .mx-auto.d-block :}
 
@@ -14,9 +15,7 @@ Sou Licenciado em Química pela UFRPE (2021) e Mestre em Química pela UFPE (202
 Atualmente, sou Doutorando no Programa de Pós-Graduação em Química da UFPE, onde estudo a influência de íons hidrotópicos nas estruturas de micelas reversas, utilizando Dinâmica Molecular.
 </p>
 
----
-subtitle: José Moura
---- 
+## José Moura
 
 ![JM](JM.png){: .mx-auto.d-block :}
 
