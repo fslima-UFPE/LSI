@@ -18,9 +18,6 @@ title: Iniciação Científica
 ![BR](BR.png){: .mx-auto.d-block :}
 
 <p class="jt">
-
+Sou graduando em Engenharia Química pela (UFPE). Atualmente, realizo iniciação científica no (DQF), estudando a autoagregação de surfactantes em sistemas Water-in-Salt Electrolytes por meio de simulações de Dinâmica Molecular.
 </p>
 
-<p class="jt">  
-
-</p>
