@@ -6,11 +6,7 @@ title: Iniciação Científica
 ![AB](AB.png){: .mx-auto.d-block :}
 
 <p class="jt">
-
-</p>
-
-<p class="jt">  
-
+Sou graduanda do Bacharelado em Química (UFPE) e possuo experiência em simulações computacionais de biomoléculas por Dinâmica Molecular. No momento, investigo propriedades de bicamadas cataniônicas e o processo de formação de vesículas nesses sistemas. 
 </p>
 
 ## Breno Rennan
