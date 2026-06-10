@@ -1,9 +1,8 @@
 ---
 layout: page
 title: Iniciação Científica
-subtitle: Adriane Brito
 ---
-
+## Adriane Brito
 ![AB](AB.png){: .mx-auto.d-block :}
 
 <p class="jt">
@@ -14,9 +13,7 @@ subtitle: Adriane Brito
 
 </p>
 
----
-subtitle: Breno Rennan
---- 
+## Breno Rennan
 
 ![BR](BR.png){: .mx-auto.d-block :}
 
