@@ -4,7 +4,7 @@ title: Iniciação Científica
 subtitle: Adriane Brito
 ---
 
-![AB](AB.jpeg){: .mx-auto.d-block :}
+![AB](AB.png){: .mx-auto.d-block :}
 
 <p class="jt">
 
