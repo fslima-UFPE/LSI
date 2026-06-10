@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Iniciação Científica
+title: Pós-Graduação
 ---
 
 ## Gabriel Montenegro
