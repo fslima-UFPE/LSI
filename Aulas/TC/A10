@@ -6,9 +6,9 @@ previous_class: "/LSI/Aulas/TC/A9"
 next_class: "/LSI/Aulas/TC/A11"
 ---
 
-## O diferencial total da energia interna
+## Os significados físicos de U
 <p class="jt">
-  Finalmente, poderemos conectar a 1ᵃ. Lei da Termodinâmica, equação <a href="../A7/#TC7.5" style="color: blue; font-style: italic;">TC7.5</a>, na sua forma diferencial, com a 2ᵃ. Lei da Termodinâmica, equação <a href="../A8/#TC8.5" style="color: blue; font-style: italic;">TC8.5</a>, e escrever o <b>diferencial total</b> de U em função de suas <b>variáveis naturais</b>, $S$ e $V$:
+  A
 </p>
 
 <div id="TC9.1" class="mathbox-wrapper">
