@@ -1,0 +1,117 @@
+---
+layout: TCclass
+title: Novas funções termodinâmicas
+subtitle: A transformada de Legendre
+previous_class: "/LSI/Aulas/TC/A9"
+next_class: "/LSI/Aulas/TC/A11"
+---
+
+## Os significados físicos de U
+<p class="jt">
+  É possível interpretarmos o significado físico da energia interna (ou a variação dela) de algumas formas. Inicialmente, a variação de energia interna foi definida como o trabalho adiabático realizado em um determinado processo. Tal interpretação está de acordo com a equaḉão da 1ᵃ. Lei da Termodinâmica (<a href="../A7/#TC7.5" style="color: blue; font-style: italic;">TC7.5</a>). Caso não haja calor, então a variação da energia interna será o trabalho realizado no processo, que é adiabático. Contudo, podemos pensar em outro caminho, um pelo qual não há trabalho realizado (a volume constante, por exemplo). Neste caso, a variação de energia interna será igual ao calor trocado no processo, como mostrado pela equação <a href="../A7/#TC7.10" style="color: blue; font-style: italic;">TC7.10</a>. Essa definição é de grande utilidade em sistemas a volume constante pois o calor, que é uma função de caminho, será igual a variação de energia interna, que é uma função de caminho! Contudo, em química, boa parte dos processos realizados em laboratório não ocorrem a volume constante, mas sim a <b>pressão</b> constante. Neste caso, como o calor é função de caminho, o seu valor será diferente daquele obtido por um caminho a volume constante. Neste caso, podemos imaginar que seria de grande utilidade termos outra função de estado que fosse igual ao calor trocado em um processo, assim com a energia interna, mas a <b>pressão constante</b>.
+</p>
+
+## O calor trocado em processos a pressão constante: a entalpia, $H$
+
+<p class="jt">
+  Em processos a pressão constante, o calor não será exatamente igual à variação de energia interna, pois parte da energia fornecida através de calor não será convertida em energia interna, mas sim em trabalho de expansão. Se não podemos usar a energia interna como forma de determinar o calor total que foi fornecido (ou liberado) para o sistema, qual função pode ser utilizada? A partir da 1ᵃ. Lei da Termodinâmica, podemos escrever, para um processo a pressão constante e com $p_{ext} \ne p$:
+</p>
+
+<div id="TC10.1" class="mathbox-wrapper">
+  <div class="mathbox">
+    $$ đq = dU - đw \\
+    đq = dU +p_{ext} dV \\
+    đq = d(U + pV)\\
+    \color{red}{\boldsymbol{đq = dH = d(U + pV)}}\\
+    \color{blue}{\boldsymbol{H = U + pV}}$$
+  </div>
+  <div class="eq-numbers">    
+    <span style="font-weight: bold; color: red;">TC10.1a</span>
+    <span style="font-weight: bold; color: blue;">TC10.1b</span>
+  </div>
+</div>
+
+<p class="jt">
+e definimos uma nova função, a <b>entalpia</b>, <b>$H$</b>. Essa nova função também é uma função de estado, como U: ela é a soma de uma função de estado ($U$) com o produto de outras duas funções de estado ($p$ e $V$). Assim como no caso de $U$, podemos escrever o diferencial total para esta função:
+</p>
+
+<div id="TC10.2" class="mathbox-wrapper">
+  <div class="mathbox">
+    $$ dH = d(U + pV) = dU + d(pV) \\
+    dH = dU + pdV + Vdp \\
+    dH = TdS - pdV + pdV + Vdp\\
+    \color{red}{\boldsymbol{dH = TdS + Vdp}}\\
+    \color{blue}{\boldsymbol{\left(\frac{\partial H}{\partial S} \right)_p = T \: ; \: \left(\frac{\partial H}{\partial p} \right)_S = V}}$$
+  </div>
+  <div class="eq-numbers">    
+    <span style="font-weight: bold; color: red;">TC10.2a</span>
+    <span style="font-weight: bold; color: blue;">TC10.2b</span>
+  </div>
+</div>
+
+<p class="jt">
+e escrevemos o <b>diferencial total</b> de $H$ em função de $S$ e $p$, suas variáveis naturais, além de termos definido as derivadas parciais de $H$ com relação a essas variáveis. Ainda, seria possível fazer uma análise de convexidade/concavidade de $H$ de maneira semelhante à feita para $U$. O resultado de tal análise seria que $H$ é convexa com relação à entropia (assim como $U$), mas côncava com relação a $p$ - ou seja, no ponto de equilíbrio de um sistema a $S$ e $p$ constantes, $H$ é um <b>ponto de cela</b>. A definição de $H$ na equação <a href="#TC10.1" style="color: blue; font-style: italic;">TC10.1b</a> é conhecida na ciência e engenharia desde meados do século $\mathrm{XIX}$, pois a equação <a href="#TC10.1" style="color: red; font-style: italic;">TC10.1a</a> deixa claro que, a pressão constante, $dH = TdS = đq_{rev,p}$. De forma mais geral, $\Delta H = q_p$, ou seja, a variação de entalpia é igual ao calor trocado em um processo realizado a pressão constante - a grandeza que estávamos em busca. Apesar de já ser conhecida, as bases teóricas para definí-la de forma rigorosa foram dadas mais tarde por J. W. Gibbs.
+</p>
+
+<p class="jt">
+  Para a criação desta variável, $H$, Gibbs utilizou um método matemático conhecido como <b>transformada de Legendre</b>. Esse método permite a criação de uma nova função, a partir de uma primeira, trocando as variáveis da função. Como vimos, $U=U(S,V)$, enquanto $H=H(S,p)$. Ao analisarmos a função $U$, podemos dizer que as variáveis $V$ e $-p$ são <b>variáveis conjugadas</b>, ou seja, uma variável multiplica o diferencial da outra na equação diferencial de $U$ (<a href="../A9/#TC9.1" style="color: blue; font-style: italic;">TC9.1</a>). Para criar a nova função ($H$), basta subtrairmos da função original ($U$) o produto das variáveis conjugadas que desejamos trocar ($V$ e $-p$), ou seja, $H = U - (-pV) = U + pV$. O resultado de tal processo é a equação <a href="#TC10.1" style="color: blue; font-style: italic;">TC10.1b</a>! (Nota: essa definição é, na realidade, o <b>negativo</b> da transformada de Legendre). Ou seja, a entalpia é a transformada de Legendre de $U$, passando de $V$ para $-p$.
+</p>
+
+<p class="jt">
+  Assim, a próxima pergunta a nos fazermos é: e se, ao invés de trocarmos $V$ e $-p$ de U, nós trocarmos $S$ e $T$, as outras duas variáveis conjugadas? Essa idéia é promissora, já que ter a entropia como variável faz com que a função seja mais difícil de se trabalhar - o controle da entropia é relativamente difícil. A temperatura, por outro lado, pode ser variada e controlada facilmente. Então, utilizando a trasnformada de Legendre, podemos definir uma nova função a partir de $U$, trocando $S$ por $T$. Essa nova energia será chamada de energia de <b>Helmholtz</b>, cujos símbolos são ou <b>A</b> (do alemão, <i>arbeit</i>, trabalho), ou <b>F</b> (do alemão, <i>frei</i>, livre). Os livros de Física, no geral, utilizam o símbolo <b>F</b>, enquanto os de Química, <b>A</b> - utilizaremos este último, aqui. Pela nossa definição:
+</p>
+
+<div id="TC10.3" class="mathbox-wrapper">
+  <div class="mathbox">    
+    $$\color{blue}{\boldsymbol{A = U - TS}}$$
+  </div>
+  <div class="eq-numbers">    
+    <span style="font-weight: bold; color: blue;">TC10.3</span>
+  </div>
+</div>
+
+<p class="jt">
+e obtivemos uma das equações fundamentais da Termodinâmica. O diferencial total dessa nova função será:
+</p>
+
+<div id="TC10.4" class="mathbox-wrapper">
+  <div class="mathbox">    
+    $$ dA = d(U-TS) = dU - d(TS)\\
+    dA = TdS - pdV - TdS - SdT \\
+    \color{red}{\boldsymbol{dA = - SdT - pdV}} \\
+    \color{blue}{\left(\frac{\partial A}{\partial T} \right)_V = -S \: ; \: \left(\frac{\partial A}{\partial V} \right)_T = -p}}$$
+  </div>
+  <div class="eq-numbers">    
+    <span style="font-weight: bold; color: red;">TC10.4a</span>
+    <span style="font-weight: bold; color: blue;">TC10.4b</span>
+
+  </div>
+</div>
+
+<p class="jt">
+e vemos que, de fato, $A$ é função de $T$ e $V$. Ao trocarmos a variável de $S$ para $T$, não mudamos a concavidade com relação a $V$ ($A$ é convexa em $V$, assim como $U$), mas mudamos a concavidade com relação à nova variável ($A$ é côncava em $T$). A essa altura, o aluno pode estar se perguntando: qual o motivo do nome da variável estar relacionado ao <i>trabalho livre</i>, e qual o seu significado? Vamos escrever o diferencial total de <b>A</b>, novamente:
+</p>
+
+<div id="TC10.5" class="mathbox-wrapper">
+  <div class="mathbox">    
+    $$ dA = dU - d(TS)\\
+    dA = đq_{rev} + đw_{rev} - TdS - SdT \\
+    dA = đw_{rev} - SdT \\
+    \color{blue}{\boldsymbol{dA = đw_{rev} (a \: T=cte)}}$$
+  </div>
+  <div class="eq-numbers">    
+    <span style="font-weight: bold; color: blue;">TC10.5</span>
+  </div>
+</div>
+
+<p class="jt">
+  Essa última forma de escrever o diferencial de $A$ deixa claro que, em um processo a temperatura constante, o diferencial da energia de Helmholtz está relacionado com o trabalho reversível do processo. Contudo, vimos anteriormente que o caminho reversível é o caminho pelo qual extraímos a maior quantidade de trabalho possível de um processo, ou o caminho pelo qual realizamos a menor quantidade de trabalho possível para a transformação. Assim, podemos enunciar que a energia de Helmholtz é <b>o trabalho máximo/mínimo reversível</b> que pode ser extraído/inserido em um sistema quando este passa por uma transformação. Mas qual é a origem do termo <b>livre</b>, aqui?
+</p>
+
+<p class="jt">
+  Esse termo, "livre", foi cunhado pelo próprio Helmholtz, na derivação da quantidade $A$. Esse termo se refere ao trabalho que estaria disponível para ser extraído de um sistema quando o processo é conduzido de forma isotérmica. A idéia é que a conversão de $U$ em trabalho, a uma temperatura fixa, não pode ser completa. Isto significa que uma parte da energia interna é utilizada para a manutenção da temperatura, deixando apenas uma parte da energia interna se transformar em trabalho. Este trabalho que sobra é a parte "livre", a parte disponível para ser utilizada. Desta forma, vemos que o trabalho não é livre no sentido de ser "grátis", mas sim o trabalho disponível para ser utilizado. Por uma questão de clareza de nomenclatura, não utilizaremos o termo "livre" aqui ao nos referirmos a $A$ (ou à energia de Gibbs, como veremos agora), mas ele pode ser encontrado em diversos livros antigos de Físico-Química.
+</p>
+
+<p class="jt">
+  Agora, podemos definir a última energia fundamental que falta em Termodinâmica: <b>a energia de Gibbs</b>. Vimos que a energia de Helmholtz é a energia obtida a partir da transformada de Legendre de $U$, passando de $S$ para $T$. Contudo, a outra variável de $A$ ainda é $V$ e, como discutido anteriormente, diversos processos em Química ocorrem a pressão constante. Logo, seria desejável criar uma nova variável, análoga a $A$, mas que seja função de $T$ e de $p$.
+</p>
