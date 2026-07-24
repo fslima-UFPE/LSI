@@ -10,9 +10,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRunning = false;
     let animationId = null;
     
-    // Estruturas dos sistemas com vetores de histórico para os gráficos
+    // System objects with history tracking arrays for real-time charting
     let sysV = { particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, historyT: [], historyP: [] };
-    let sysP = { particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, initialHeight: 0, historyT: [], historyP: [] };
+    let sysP = { 
+        particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, 
+        initialHeight: 0, vCap: 0, mCap: 0, fExt: 0, historyT: [], historyP: [] 
+    };
     
     let numParticles, particleRadius, m;
     const dt = 0.02; 
@@ -34,22 +37,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         numParticles = parseInt(getEl("inp-n1")?.value || 55);
-        const T0 = parseFloat(getEl("inp-T")?.value || 300); // Base de 300K
+        const T0 = parseFloat(getEl("inp-T")?.value || 300); // Ambient 300 K base
         m = parseFloat(getEl("inp-m1")?.value || 4);
         const sigma = parseFloat(getEl("inp-sigma")?.value || 1.6);
         particleRadius = sigma / 2;
 
-        // Dimensões otimizadas para os pistões verticais
+        // Optimized dimensions for vertical cylinders
         boxWidth = 160; 
         initialBoxHeight = 180; 
         
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
 
-        maxHeatToAdd = numParticles * R * 250; 
-        heatingRate = maxHeatToAdd / 350; // Aquecimento distribuído em 350 frames
+        // Inject enough thermal energy to theoretically double the temperature of the fixed volume
+        maxHeatToAdd = numParticles * R * 350; 
+        heatingRate = maxHeatToAdd / 400; 
 
-        // Inicialização limpa dos estados e históricos
+        // Compute required external atmospheric force to maintain initial equilibrium
+        const calculatedFExt = (numParticles * R * T0) / initialBoxHeight;
+
+        // Initialize constant volume environment
         sysV = {
             particles: initParticles(numParticles, boxWidth, initialBoxHeight, T0),
             width: boxWidth,
@@ -62,6 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
             historyP: [1.0]
         };
 
+        // Initialize dynamic, collision-driven isobaric environment
         sysP = {
             particles: initParticles(numParticles, boxWidth, initialBoxHeight, T0),
             width: boxWidth,
@@ -70,6 +78,9 @@ document.addEventListener("DOMContentLoaded", () => {
             T: T0,
             T0: T0,
             P: 1.0,
+            vCap: 0,
+            mCap: m * 150, // Piston cap is 150x heavier than a single gas molecule
+            fExt: calculatedFExt,
             historyT: [T0],
             historyP: [1.0]
         };
@@ -115,24 +126,61 @@ document.addEventListener("DOMContentLoaded", () => {
         return arr;
     }
 
-    function updatePhysics(sys, isConstantP) {
+    function updatePhysics(sys, isIsobaric) {
         const N = sys.particles.length;
+
+        if (isIsobaric) {
+            // Apply constant downward atmospheric force to the piston cap
+            let aCap = -sys.fExt / sys.mCap;
+            sys.vCap += aCap * dt;
+            
+            // Subtle viscous damping to simulate a realistic macroscopic piston dashboard
+            sys.vCap *= 0.92; 
+            sys.height += sys.vCap * dt;
+
+            // Structural safety bounds to prevent the cap from leaving the chamber frame
+            if (sys.height < 50) { sys.height = 50; sys.vCap = 0; }
+            if (sys.height > 330) { sys.height = 330; sys.vCap = 0; }
+        }
         
+        // Update particle kinematics and wall boundary impacts
         for (let i = 0; i < N; i++) {
             let p = sys.particles[i];
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
+            // Lateral walls
             if (p.x <= particleRadius) { p.x = particleRadius; p.vx = Math.abs(p.vx); }
             else if (p.x >= sys.width - particleRadius) { p.x = sys.width - particleRadius; p.vx = -Math.abs(p.vx); }
 
+            // Chamber floor
             if (p.y <= particleRadius) { p.y = particleRadius; p.vy = Math.abs(p.vy); }
+            
+            // Chamber ceiling (Piston Cap Boundary)
             else if (p.y >= sys.height - particleRadius) { 
                 p.y = sys.height - particleRadius; 
-                p.vy = -Math.abs(p.vy); 
+                
+                if (p.vy > 0) {
+                    if (isIsobaric) {
+                        // Physically accurate elastic collision with a moving piston wall
+                        let v1 = p.vy;
+                        let v2 = sys.vCap;
+                        let M = sys.mCap;
+
+                        let v1New = ((m - M) * v1 + 2 * M * v2) / (m + M);
+                        let v2New = ((M - m) * v2 + 2 * m * v1) / (m + M);
+
+                        p.vy = v1New; // Rebound velocity drops if piston moves upward (Work done)
+                        sys.vCap = v2New; // Kinetic momentum transferred to the piston cap
+                    } else {
+                        // Static rigid ceiling impact
+                        p.vy = -Math.abs(p.vy);
+                    }
+                }
             }
         }
 
+        // Inter-particle elastic hard-sphere collisions
         for (let i = 0; i < N; i++) {
             for (let j = i + 1; j < N; j++) {
                 let p1 = sys.particles[i];
@@ -156,14 +204,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
+        // Calculate current thermodynamic temperature from root-mean-square velocities
         let totalKinetic = 0;
         for (let p of sys.particles) {
             totalKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
         }
         sys.T = totalKinetic / (N * R);
 
-        // Cálculo da Pressão Termodinâmica P = (N*R*T)/V. 
-        // Normalizado para iniciar estritamente em 1.0 atm para fins didáticos.
+        // State equation pressure tracking: P = (T / T0) * (V0 / V)
         const currentVolume = sys.width * sys.height;
         const initialVolume = sys.width * sys.initialHeight;
         sys.P = (sys.T / sys.T0) * (initialVolume / currentVolume);
@@ -184,8 +232,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title) {
         ctx.save();
-        // Base dos cilindros fixada em Y = 400
-        ctx.translate(offsetX, 400);
+        ctx.translate(offsetX, 400); // Main chambers anchored vertically at Y = 400
         ctx.scale(1, -1); 
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.02)";
@@ -213,7 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.fill();
         }
 
-        // Piston móvel (vermelho)
+        // Heavy red piston cap line
         ctx.strokeStyle = "#d9534f";
         ctx.lineWidth = 8;
         ctx.beginPath();
@@ -223,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.restore();
 
-        // Dados textuais acima das caixas
+        // Overlay text data
         ctx.fillStyle = "#222";
         ctx.font = "bold 14px sans-serif";
         ctx.textAlign = "center";
@@ -233,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#d9534f";
         ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 108);
         ctx.fillStyle = "#28a745";
-        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} atm`, offsetX + sys.width / 2, 126);
+        ctx.fillText(`Pressure (p): ${sys.P.toFixed(2)} atm`, offsetX + sys.width / 2, 126);
         ctx.fillStyle = "#333";
         ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 144);
     }
@@ -242,20 +289,17 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.save();
         ctx.translate(x, y);
 
-        // Fundo do gráfico
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, w, h);
         ctx.strokeStyle = "#ccc";
         ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, w, h);
 
-        // Título do Gráfico
         ctx.fillStyle = "#333";
         ctx.font = "bold 12px sans-serif";
         ctx.textAlign = "left";
         ctx.fillText(title, 10, -10);
 
-        // Linhas de grade e eixos
         ctx.strokeStyle = "#eee";
         ctx.beginPath();
         for(let i = 1; i < 4; i++) {
@@ -265,7 +309,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         ctx.stroke();
 
-        // Rótulos do eixo Y
         ctx.fillStyle = "#777";
         ctx.font = "10px monospace";
         ctx.textAlign = "right";
@@ -273,7 +316,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText(((yMax + yMin)/2).toFixed(0) + unit, -5, h/2 + 4);
         ctx.fillText(yMin.toFixed(0) + unit, -5, h - 2);
 
-        // Função interna para traçar as linhas
         const drawLine = (history, color) => {
             if (history.length < 2) return;
             ctx.strokeStyle = color;
@@ -281,9 +323,8 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.beginPath();
             
             for (let i = 0; i < history.length; i++) {
-                // Mapeamento horizontal baseado no tamanho máximo estimado (3500px fictícios de buffer de pontos)
-                let px = (i / 360) * w; 
-                if (px > w) px = w; // Trava no limite lateral direito
+                let px = (i / 400) * w; 
+                if (px > w) px = w;
 
                 let val = history[i];
                 let py = h - ((val - yMin) / (yMax - yMin)) * h;
@@ -294,9 +335,8 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.stroke();
         };
 
-        // Plota ambas as curvas comparativas sobre a mesma malha gráfica
-        drawLine(historyV, "#e67e22"); // Volume Constante (Laranja/Vermelho)
-        drawLine(historyP, "#3498db"); // Pressão Constante (Azul)
+        drawLine(historyV, "#e67e22"); // Constant Volume curve (Orange)
+        drawLine(historyP, "#3498db"); // Constant Pressure curve (Blue)
 
         ctx.restore();
     }
@@ -307,18 +347,16 @@ document.addEventListener("DOMContentLoaded", () => {
         if (heatAddedTotal < maxHeatToAdd) {
             heatAddedTotal += heatingRate;
 
-            // Transformações físicas de injeção de energia
+            // Raw structural heat injection: 100% added directly to BOTH sets of gas particles
             injectHeat(sysV, heatingRate);
-            injectHeat(sysP, heatingRate * 0.5);
-
-            sysP.height = sysP.initialHeight * (sysP.T / sysP.T0);
+            injectHeat(sysP, heatingRate);
         }
 
-        updatePhysics(sysV);
-        updatePhysics(sysP);
+        updatePhysics(sysV, false);
+        updatePhysics(sysP, true);
 
-        // Salva os dados atuais nos vetores de amostragem gráfica
-        if (animationId % 2 === 0) { // Registra a cada 2 frames para suavizar o gráfico
+        // Chart data downsampling (Capture every second physics tick)
+        if (animationId % 2 === 0) { 
             sysV.historyT.push(sysV.T);
             sysV.historyP.push(sysV.P);
             sysP.historyT.push(sysP.T);
@@ -327,32 +365,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Renderiza os cilindros principais superiores
-        drawSystem(sysV, leftBoxOffset, "Volume Constante (Isocórica)");
-        drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárica)");
+        drawSystem(sysV, leftBoxOffset, "Constant Volume (Isochoric)");
+        drawSystem(sysP, rightBoxOffset, "Constant Pressure (Isobaric)");
 
-        // Renderiza os dois gráficos em tempo real lado a lado na base (Y = 490)
-        // Parâmetros: X, Y, Largura, Altura, Título, Ymin, Ymax, Unidade, DadosV, DadosP
-        drawGraph(70, 490, 310, 110, "Evolução da Temperatura (T)", 300, 560, "K", sysV.historyT, sysP.historyT);
-        drawGraph(490, 490, 310, 110, "Evolução da Pressão (p)", 1.0, 2.0, "atm", sysV.historyP, sysP.historyP);
+        // Render multi-line analytical charts
+        drawGraph(70, 490, 310, 110, "Temperature Evolution (T)", 300, 650, "K", sysV.historyT, sysP.historyT);
+        drawGraph(490, 490, 310, 110, "Pressure Evolution (p)", 1.0, 2.2, "atm", sysV.historyP, sysP.historyP);
 
-        // Legenda de Cores dos Gráficos (Centro Inferior)
+        // Color coding legends
+        ctx.fillStyle = "#e67e22";
+        ctx.fillRect(305, 620, 12, 12);
         ctx.fillStyle = "#333";
         ctx.font = "12px sans-serif";
-        ctx.textAlign = "center";
-        
-        ctx.fillStyle = "#e67e22";
-        ctx.fillRect(320, 620, 12, 12);
-        ctx.fillStyle = "#333";
         ctx.textAlign = "left";
-        ctx.fillText("Sistema (V Constante)", 338, 631);
+        ctx.fillText("Fixed Chamber (ΔV=0)", 323, 631);
 
         ctx.fillStyle = "#3498db";
-        ctx.fillRect(485, 620, 12, 12);
+        ctx.fillRect(495, 620, 12, 12);
         ctx.fillStyle = "#333";
-        ctx.fillText("Sistema (p Constante)", 503, 631);
+        ctx.fillText("Piston Chamber (Δp=0)", 513, 631);
 
-        // Barra global de aquecimento no topo do frame
+        // Heat tracking master progress bar
         const pct = Math.min(100, (heatAddedTotal / maxHeatToAdd) * 100);
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
@@ -362,7 +395,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#333";
         ctx.font = "bold 11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`Calor Injetado no Sistema (Q): ${pct.toFixed(0)}%`, canvas.width / 2, 32);
+        ctx.fillText(`Heat Energy Injected (Q): ${pct.toFixed(0)}%`, canvas.width / 2, 32);
 
         animationId = requestAnimationFrame(animate);
     }
