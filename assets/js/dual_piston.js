@@ -1,27 +1,30 @@
 document.addEventListener("DOMContentLoaded", () => {
     const getEl = (id) => document.getElementById(id);
     
-    // Using unique element IDs to prevent any interference with your original script
     const btnRun = getEl("btn-run-dual");
     const canvas = getEl("sim-canvas-dual");
 
     if (!canvas || !btnRun) return;
     const ctx = canvas.getContext("2d");
 
-    // Simulation states
     let isRunning = false;
     let animationId = null;
     
+    // Independent system data structures
     let sysV = { particles: [], width: 0, height: 0, T: 0, T0: 0 };
     let sysP = { particles: [], width: 0, height: 0, T: 0, T0: 0, initialHeight: 0 };
     
-    // Shared physics parameters
+    // Physics constants
     let numParticles, particleRadius, m;
     const dt = 0.02; 
-    let heatAddedTotal = 0;
-    const maxHeatToAdd = 3000; 
-    let heatingRate = 8; 
+    const R = 8.314;
     
+    // Dynamic heating controls
+    let heatAddedTotal = 0;
+    let maxHeatToAdd = 0; 
+    let heatingRate = 0; 
+    
+    // Geometric offsets
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
 
     btnRun.addEventListener("click", () => {
@@ -29,25 +32,31 @@ document.addEventListener("DOMContentLoaded", () => {
             cancelAnimationFrame(animationId);
             isRunning = false;
             btnRun.innerText = "Simular Aquecimento (Dual)";
+            btnRun.style.backgroundColor = "#007bff";
             return;
         }
 
-        // Reads values from your existing UI inputs safely
-        numParticles = parseInt(getEl("inp-n1")?.value || 60);
-        const T0 = parseFloat(getEl("inp-T")?.value || 150);
+        // 1. Inputs fallback safely onto ambient target baselines
+        numParticles = parseInt(getEl("inp-n1")?.value || 55);
+        const T0 = parseFloat(getEl("inp-T")?.value || 300); // Fixed to Ambient 300K
         m = parseFloat(getEl("inp-m1")?.value || 4);
-        const sigma = parseFloat(getEl("inp-sigma")?.value || 1.2);
+        const sigma = parseFloat(getEl("inp-sigma")?.value || 1.6);
         particleRadius = sigma / 2;
 
-        // Setup Canvas Geometry (Side-by-Side)
-        const padding = 40;
-        boxWidth = (canvas.width / 2) - (padding * 1.5);
-        initialBoxHeight = canvas.height - (padding * 2);
+        // 2. Geometry Overhaul: Re-engineered to look like tall, narrow pistons
+        boxWidth = 160; 
+        initialBoxHeight = 220; 
         
-        leftBoxOffset = padding;
-        rightBoxOffset = (canvas.width / 2) + (padding / 2);
+        // Center the narrow cylinders inside their respective halves of the canvas
+        leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
+        rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
 
-        // Initialize both systems with identical states
+        // 3. Calibrate dynamic energy injection parameters
+        // We inject enough total heat to raise the Constant V system by 250 Kelvin
+        maxHeatToAdd = numParticles * R * 250; 
+        heatingRate = maxHeatToAdd / 350; // Distributed smoothly across 350 frames
+
+        // 4. Initialize both environments with matching physical profiles
         sysV = {
             particles: initParticles(numParticles, boxWidth, initialBoxHeight, T0),
             width: boxWidth,
@@ -69,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
         heatAddedTotal = 0;
         isRunning = true;
         btnRun.innerText = "Parar Simulação";
+        btnRun.style.backgroundColor = "#d9534f";
 
         animate();
     });
@@ -82,7 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function initParticles(N, w, h, T) {
         let arr = [];
-        const R = 8.314;
         const targetKinetic = N * R * T;
         let currentKinetic = 0;
 
@@ -95,13 +104,13 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Remove net velocity drift
+        // Eliminate linear momentum bias
         let vCMx = 0, vCMy = 0;
         for (let p of arr) { vCMx += p.vx; vCMy += p.vy; }
         vCMx /= N; vCMy /= N;
         for (let p of arr) { p.vx -= vCMx; p.vy -= vCMy; }
 
-        // Scale to target temperature
+        // Scale initial velocities to exactly hit T0
         for (let p of arr) { currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy); }
         let scale = Math.sqrt(targetKinetic / currentKinetic);
         for (let p of arr) { p.vx *= scale; p.vy *= scale; }
@@ -112,20 +121,23 @@ document.addEventListener("DOMContentLoaded", () => {
     function updatePhysics(sys) {
         const N = sys.particles.length;
         
-        // Move particles & resolve wall boundaries
         for (let i = 0; i < N; i++) {
             let p = sys.particles[i];
             p.x += p.vx * dt;
-            p.y += p.vy * dt; // Fixed: properly updates vertical position
+            p.y += p.vy * dt;
 
+            // Handle rigid wall bounds
             if (p.x <= particleRadius) { p.x = particleRadius; p.vx = Math.abs(p.vx); }
             else if (p.x >= sys.width - particleRadius) { p.x = sys.width - particleRadius; p.vx = -Math.abs(p.vx); }
 
             if (p.y <= particleRadius) { p.y = particleRadius; p.vy = Math.abs(p.vy); }
-            else if (p.y >= sys.height - particleRadius) { p.y = sys.height - particleRadius; p.vy = -Math.abs(p.vy); }
+            else if (p.y >= sys.height - particleRadius) { 
+                p.y = sys.height - particleRadius; 
+                p.vy = -Math.abs(p.vy); 
+            }
         }
 
-        // Handle perfectly elastic inter-particle collisions
+        // Inter-particle elastic hard collisions
         for (let i = 0; i < N; i++) {
             for (let j = i + 1; j < N; j++) {
                 let p1 = sys.particles[i];
@@ -149,12 +161,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Recalculate temperature based on new kinetic energy state
+        // Sync temperature tracking variable to current root mean square speeds
         let totalKinetic = 0;
         for (let p of sys.particles) {
             totalKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
         }
-        const R = 8.314;
         sys.T = totalKinetic / (N * R);
     }
 
@@ -174,53 +185,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title) {
         ctx.save();
-        ctx.translate(offsetX, canvas.height - 40);
-        ctx.scale(1, -1); // Flips Y-axis so floor is at the bottom
+        // Shift baseline anchor downward to give plenty of upward headroom
+        ctx.translate(offsetX, canvas.height - 60);
+        ctx.scale(1, -1); 
 
-        // Container outlines
-        ctx.strokeStyle = "#333";
+        // Draw structural cylinder background fill
+        ctx.fillStyle = "rgba(0, 0, 0, 0.02)";
+        ctx.fillRect(0, 0, sys.width, canvas.height - 100);
+
+        // Draw chamber frames
+        ctx.strokeStyle = "#444";
         ctx.lineWidth = 4;
+        ctx.lineCap = "round";
         ctx.beginPath();
-        ctx.moveTo(0, sys.height);
+        ctx.moveTo(0, canvas.height - 100);
         ctx.lineTo(0, 0);
         ctx.lineTo(sys.width, 0);
-        ctx.lineTo(sys.width, sys.height);
+        ctx.lineTo(sys.width, canvas.height - 100);
         ctx.stroke();
 
-        // Piston cap line
-        ctx.strokeStyle = "#d9534f";
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.moveTo(-2, sys.height);
-        ctx.lineTo(sys.width + 2, sys.height);
-        ctx.stroke();
-
-        // Color shifts from Blue (Cold) to Red (Hot) based on temperature delta
+        // Color mapped dynamically to temperature change
         const tDiff = Math.min(1.0, (sys.T - sys.T0) / 250);
-        const rVal = Math.floor(50 + tDiff * 205);
-        const bVal = Math.floor(220 - tDiff * 180);
-        const gVal = Math.floor(80 - tDiff * 40);
+        const rVal = Math.floor(40 + tDiff * 215);
+        const bVal = Math.floor(230 - tDiff * 190);
+        const gVal = Math.floor(100 - tDiff * 60);
 
+        // Draw gas particles
         ctx.fillStyle = `rgb(${rVal}, ${gVal}, ${bVal})`;
         for (let p of sys.particles) {
             ctx.beginPath();
             ctx.arc(p.x, p.y, particleRadius, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = "rgba(0,0,0,0.15)";
-            ctx.stroke();
         }
+
+        // Draw the moving piston head cap
+        ctx.strokeStyle = "#d9534f";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(-4, sys.height);
+        ctx.lineTo(sys.width + 4, sys.height);
+        ctx.stroke();
 
         ctx.restore();
 
-        // Canvas UI text info indicators
+        // System information metrics blocks
         ctx.fillStyle = "#222";
         ctx.font = "bold 14px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(title, offsetX + sys.width / 2, 25);
+        ctx.fillText(title, offsetX + sys.width / 2, canvas.height - 25);
         
         ctx.font = "13px monospace";
-        ctx.fillText(`Temp (T): ${sys.T.toFixed(1)} K`, offsetX + sys.width / 2, canvas.height - 22);
-        ctx.fillText(`Vol  (V): ${(sys.width * sys.height / 100).toFixed(1)} L`, offsetX + sys.width / 2, canvas.height - 5);
+        ctx.fillStyle = `rgb(${Math.min(200, rVal)}, 40, 40)`;
+        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, canvas.height - 410);
+        ctx.fillStyle = "#333";
+        ctx.fillText(`Vol  (V): ${(sys.width * sys.height / 1000).toFixed(2)} L`, offsetX + sys.width / 2, canvas.height - 390);
     }
 
     function animate() {
@@ -229,13 +247,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (heatAddedTotal < maxHeatToAdd) {
             heatAddedTotal += heatingRate;
 
-            // Isochoric Box (V Constant): Receives full heat injection
+            // Isochoric: Injects 100% heat directly into particle speeds
             injectHeat(sysV, heatingRate);
             
-            // Isobaric Box (P Constant): Exactly 50% turns to temperature, 50% turns to work expansion
+            // Isobaric: Injects 50% into speeds, 50% absorbed as work expansion
             injectHeat(sysP, heatingRate * 0.5);
 
-            // Expand the boundary of the isobaric cylinder proportional to temperature growth
+            // Dynamically stretch volume height according to Charles's Law
             sysP.height = sysP.initialHeight * (sysP.T / sysP.T0);
         }
 
@@ -244,15 +262,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        drawSystem(sysV, leftBoxOffset, "Volume Constante (Isoeletro/Isocórica)");
-        drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárica)");
+        drawSystem(sysV, leftBoxOffset, "Volume Constante (ΔV = 0)");
+        drawSystem(sysP, rightBoxOffset, "Pressão Constante (W = P·ΔV)");
 
-        // Global Progress Heat Bar 
-        ctx.fillStyle = "#666";
-        ctx.font = "bold 13px sans-serif";
-        ctx.textAlign = "center";
+        // Progress bar rendering at the very top frame
         const pct = Math.min(100, (heatAddedTotal / maxHeatToAdd) * 100);
-        ctx.fillText(`Energia Térmica Adicionada (Q): ${pct.toFixed(0)}%`, canvas.width / 2, 50);
+        ctx.fillStyle = "#e9ecef";
+        ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
+        ctx.fillStyle = "#28a745";
+        ctx.fillRect(canvas.width / 2 - 150, 20, 3 * pct, 16);
+        
+        ctx.fillStyle = "#333";
+        ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(`Calor Injetado (Q): ${pct.toFixed(0)}%`, canvas.width / 2, 52);
 
         animationId = requestAnimationFrame(animate);
     }
