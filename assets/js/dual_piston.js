@@ -206,30 +206,37 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function initParticles(N, w, h, T) {
-        let arr = [];
-        const targetKinetic = N * R * T;
-        let currentKinetic = 0;
+    let arr = [];
+    const targetKinetic = N * R * T;
+    let currentKinetic = 0;
 
-        for (let i = 0; i < N; i++) {
-            arr.push({
-                x: particleRadius + Math.random() * (w - 2 * particleRadius),
-                y: particleRadius + Math.random() * (h - 2 * particleRadius),
-                vx: randomGaussian(),
-                vy: randomGaussian()
-            });
-        }
-
-        let vCMx = 0, vCMy = 0;
-        for (let p of arr) { vCMx += p.vx; vCMy += p.vy; }
-        vCMx /= N; vCMy /= N;
-        for (let p of arr) { p.vx -= vCMx; p.vy -= vCMy; }
-
-        for (let p of arr) { currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy); }
-        let scale = Math.sqrt(targetKinetic / currentKinetic);
-        for (let p of arr) { p.vx *= s; p.vy *= s; }
-
-        return arr;
+    for (let i = 0; i < N; i++) {
+        arr.push({
+            x: particleRadius + Math.random() * (w - 2 * particleRadius),
+            y: particleRadius + Math.random() * (h - 2 * particleRadius),
+            vx: randomGaussian(),
+            vy: randomGaussian()
+        });
     }
+
+    // Remove center-of-mass momentum drift
+    let vCMx = 0, vCMy = 0;
+    for (let p of arr) { vCMx += p.vx; vCMy += p.vy; }
+    vCMx /= N; vCMy /= N;
+    for (let p of arr) { p.vx -= vCMx; p.vy -= vCMy; }
+
+    // Calculate current kinetic energy
+    for (let p of arr) { currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy); }
+    
+    // FIXED: Using 'scale' consistently here
+    let scale = Math.sqrt(targetKinetic / currentKinetic);
+    for (let p of arr) { 
+        p.vx *= scale; 
+        p.vy *= scale; 
+    }
+
+    return arr;
+}
 
     function updatePhysics(sys, isIsobaric, targetP, targetTheoreticalT) {
         const N = sys.particles.length;
