@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // GRID MATRIX REPAIR: Lock descriptions left, range info bottom-left, inputs right, and force mobile stack
-    const styleBlock = document.createElement("style");
-    styleBlock.innerHTML = `
+    // Keep ONLY the canvas structural fixes in JS to safeguard aspect-ratio processing
+    const canvasStyle = document.createElement("style");
+    canvasStyle.innerHTML = `
         #sim-canvas-dual {
             max-width: 100% !important;
             height: auto !important;
@@ -9,90 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
             display: block !important;
             margin: 0 auto !important;
         }
-        /* Convert input rows into an un-wrappable 2-column grid layout */
-        .sim-input-group, div:has(> input[type="number"]), div:has(> select) {
-            display: grid !important;
-            grid-template-columns: 1fr auto !important;
-            grid-template-rows: auto auto !important;
-            align-items: center !important;
-            row-gap: 2px !important;
-            column-gap: 16px !important;
-            width: 100% !important;
-            margin-bottom: 14px !important;
-            box-sizing: border-box !important;
-        }
-        /* Row 1, Column 1: Main parameter description text */
-        .sim-input-group > label, div:has(> input[type="number"]) > label, div:has(> select) > label {
-            grid-column: 1 !important;
-            grid-row: 1 !important;
-            justify-self: start !important;
-            text-align: left !important;
-            white-space: nowrap !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        /* Row 1 & 2, Column 2: Inputs anchored cleanly to the right side */
-        input[type="number"] { 
-            grid-column: 2 !important;
-            grid-row: 1 / span 2 !important;
-            width: 70px !important; 
-            max-width: 70px !important;
-            min-width: 70px !important;
-            padding: 4px 6px !important;
-            font-size: 13px !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 4px !important;
-            text-align: right !important;
-            align-self: center !important;
-        }
-        select {
-            grid-column: 2 !important;
-            grid-row: 1 / span 2 !important;
-            width: 120px !important;
-            max-width: 120px !important;
-            min-width: 120px !important;
-            padding: 4px 6px !important;
-            font-size: 13px !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 4px !important;
-            align-self: center !important;
-        }
-        /* Row 2, Column 1: Force range limits directly below the description text */
-        #q-range-label, .sim-input-group small, .sim-input-group span, 
-        div:has(> input[type="number"]) small, div:has(> input[type="number"]) span {
-            grid-column: 1 !important;
-            grid-row: 2 !important;
-            justify-self: start !important;
-            display: block !important;
-            font-size: 11px !important;
-            color: #64748b !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            text-align: left !important;
-            font-weight: normal !important;
-        }
-        /* Aggressive Mobile Column Collapsing Wrapper */
-        @media (max-width: 992px) {
-            .row, .d-flex, form, fieldset, div:has(> .control-panel) {
-                display: flex !important;
-                flex-direction: column !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                box-sizing: border-box !important;
-            }
-            [class*="col-"], .control-panel, .calculation-panel, 
-            div:has(> #pDisplayBox), div:has(> #btn-run-dual) {
-                width: 100% !important;
-                max-width: 100% !important;
-                flex: none !important;
-                display: block !important;
-                box-sizing: border-box !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-            }
-        }
     `;
-    document.head.appendChild(styleBlock);
+    document.head.appendChild(canvasStyle);
 
     const getEl = (id) => document.getElementById(id);
     const btnRun = getEl("btn-run-dual");
