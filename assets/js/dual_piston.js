@@ -10,11 +10,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRunning = false;
     let animationId = null;
     
-    // System data stores with vector metrics arrays
+    // Core systems configuration with metric vectors
     let sysV = { particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, historyT: [], historyP: [] };
     let sysP = { 
         particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, 
-        initialHeight: 0, vCap: 0, mCap: 0, fExt: 0, historyT: [], historyP: [] 
+        initialHeight: 0, vCap: 0, historyT: [], historyP: [] 
     };
     
     let numParticles, particleRadius, m;
@@ -36,31 +36,25 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // 1. Process statistical upgrades (3x Particle Count)
         const baseParticles = parseInt(getEl("inp-n1")?.value || 55);
-        numParticles = baseParticles * 3; // Tripled for clean statistical averages
+        numParticles = baseParticles * 3; 
         
         const T0 = parseFloat(getEl("inp-T")?.value || 300); 
         m = parseFloat(getEl("inp-m1")?.value || 4);
         
-        // 2. Process radius upgrades (5x Radius increase)
         const baseSigma = parseFloat(getEl("inp-sigma")?.value || 1.6);
-        const upgradedSigma = baseSigma * 5; 
-        particleRadius = upgradedSigma / 2; // Noticeable, bold molecular spheres
+        particleRadius = (baseSigma * 5) / 2; 
 
-        // 3. Desktop layout tracking adapted for 700px maximum width bounds
+        // Geometric sizing optimized for 700px mobile constraints
         boxWidth = 130; 
-        initialBoxHeight = 180; 
+        initialBoxHeight = 160; 
         
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
 
-        // 4. Boost energy ceiling to maximize visible displacement height
-        maxHeatToAdd = numParticles * R * 950; 
+        // Substantial thermal energy injection to showcase clear expansion work
+        maxHeatToAdd = numParticles * R * 850; 
         heatingRate = maxHeatToAdd / 450; 
-
-        // Compute balance force parameters
-        const calculatedFExt = (numParticles * R * T0) / initialBoxHeight;
 
         sysV = {
             particles: initParticles(numParticles, boxWidth, initialBoxHeight, T0),
@@ -69,9 +63,9 @@ document.addEventListener("DOMContentLoaded", () => {
             initialHeight: initialBoxHeight,
             T: T0,
             T0: T0,
-            P: 1.0,
+            P: 1.00,
             historyT: [T0],
-            historyP: [1.0]
+            historyP: [1.00]
         };
 
         sysP = {
@@ -81,12 +75,10 @@ document.addEventListener("DOMContentLoaded", () => {
             initialHeight: initialBoxHeight,
             T: T0,
             T0: T0,
-            P: 1.0,
+            P: 1.00,
             vCap: 0,
-            mCap: m * 35, // Lighter mass scale makes the cap highly reactive to collisions
-            fExt: calculatedFExt,
             historyT: [T0],
-            historyP: [1.0]
+            historyP: [1.00]
         };
 
         heatAddedTotal = 0;
@@ -134,14 +126,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const N = sys.particles.length;
 
         if (isIsobaric) {
-            let aCap = -sys.fExt / sys.mCap;
-            sys.vCap += aCap * dt;
-            sys.vCap *= 0.94; // Smooth out macroscopic jittering
+            // Acceleration driven by the bulk pressure differential relative to 1.00 bar
+            let fNet = (sys.P - 1.00) * 60; 
+            sys.vCap += fNet * dt;
+            sys.vCap *= 0.85; // Macroscopic atmosphere damping (leaves micro thermal energy intact)
             sys.height += sys.vCap * dt;
 
-            // Containment ceiling parameters
-            if (sys.height < 50) { sys.height = 50; sys.vCap = 0; }
-            if (sys.height > 330) { sys.height = 330; sys.vCap = 0; }
+            // Safety structural safety bounds
+            if (sys.height < 40) { sys.height = 40; sys.vCap = 0; }
+            if (sys.height > 290) { sys.height = 290; sys.vCap = 0; }
         }
         
         for (let i = 0; i < N; i++) {
@@ -158,16 +151,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 if (p.vy > 0) {
                     if (isIsobaric) {
-                        // True dynamic momentum transfer to moving piston cap
-                        let v1 = p.vy;
-                        let v2 = sys.vCap;
-                        let M = sys.mCap;
-
-                        let v1New = ((m - M) * v1 + 2 * M * v2) / (m + M);
-                        let v2New = ((M - m) * v2 + 2 * m * v1) / (m + M);
-
-                        p.vy = v1New; 
-                        sys.vCap = v2New; 
+                        // Elastic interaction against the macroscopically managed moving piston boundary
+                        p.vy = -p.vy + 2 * sys.vCap;
                     } else {
                         p.vy = -Math.abs(p.vy);
                     }
@@ -175,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Hard-sphere elastic intermolecular collisions
+        // Hard-sphere elastic inter-particle collisions
         for (let i = 0; i < N; i++) {
             for (let j = i + 1; j < N; j++) {
                 let p1 = sys.particles[i];
@@ -205,9 +190,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         sys.T = totalKinetic / (N * R);
 
+        // Perfectly mapped Equation of State in bar units: P = (T / T0) * (V0 / V) * 1.00 bar
         const currentVolume = sys.width * sys.height;
         const initialVolume = sys.width * sys.initialHeight;
-        sys.P = (sys.T / sys.T0) * (initialVolume / currentVolume);
+        sys.P = (sys.T / sys.T0) * (initialVolume / currentVolume) * 1.00;
     }
 
     function injectHeat(sys, deltaQ) {
@@ -225,23 +211,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title) {
         ctx.save();
-        ctx.translate(offsetX, 400); 
+        ctx.translate(offsetX, 450); // Cylinders shifted down to Y=450 to clear text headers
         ctx.scale(1, -1); 
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.02)";
-        ctx.fillRect(0, 0, sys.width, 340);
+        ctx.fillRect(0, 0, sys.width, 300);
 
         ctx.strokeStyle = "#444";
         ctx.lineWidth = 4;
         ctx.lineCap = "round";
         ctx.beginPath();
-        ctx.moveTo(0, 340);
+        ctx.moveTo(0, 300);
         ctx.lineTo(0, 0);
         ctx.lineTo(sys.width, 0);
-        ctx.lineTo(sys.width, 340);
+        ctx.lineTo(sys.width, 300);
         ctx.stroke();
 
-        const tDiff = Math.min(1.0, (sys.T - sys.T0) / 400);
+        const tDiff = Math.min(1.0, (sys.T - sys.T0) / 500);
         const rVal = Math.floor(40 + tDiff * 215);
         const bVal = Math.floor(230 - tDiff * 190);
         const gVal = Math.floor(100 - tDiff * 60);
@@ -262,21 +248,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.restore();
 
+        // Informational overlay placed entirely clear of maximum possible expansion bounds
         ctx.fillStyle = "#222";
         ctx.font = "bold 13px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(title, offsetX + sys.width / 2, 85);
+        ctx.fillText(title, offsetX + sys.width / 2, 75);
         
         ctx.font = "12px monospace";
         ctx.fillStyle = "#d9534f";
-        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 108);
+        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 95);
         ctx.fillStyle = "#28a745";
-        ctx.fillText(`Pressure (p): ${sys.P.toFixed(2)} atm`, offsetX + sys.width / 2, 126);
+        ctx.fillText(`Pressure (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 113);
         ctx.fillStyle = "#333";
-        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 144);
+        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 131);
     }
 
-    function drawGraph(x, y, w, h, title, yMin, yMax, unit, historyV, historyP) {
+    function drawGraph(x, y, w, h, title, historyV, historyP, unit, defMin, defMax) {
         ctx.save();
         ctx.translate(x, y);
 
@@ -291,6 +278,14 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "left";
         ctx.fillText(title, 5, -10);
 
+        // Compute completely dynamic ranges with 10% headroom padded padding
+        let yMin = Math.min(...historyV, ...historyP, defMin);
+        let yMax = Math.max(...historyV, ...historyP, defMax);
+        let delta = yMax - yMin;
+        yMax += delta * 0.12;
+        yMin -= delta * 0.05;
+        if (yMin < 0 && defMin >= 0) yMin = 0;
+
         ctx.strokeStyle = "#eee";
         ctx.beginPath();
         for(let i = 1; i < 4; i++) {
@@ -303,9 +298,9 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#777";
         ctx.font = "9px monospace";
         ctx.textAlign = "right";
-        ctx.fillText(yMax.toFixed(0) + unit, -5, 10);
-        ctx.fillText(((yMax + yMin)/2).toFixed(0) + unit, -5, h/2 + 4);
-        ctx.fillText(yMin.toFixed(0) + unit, -5, h - 2);
+        ctx.fillText(yMax.toFixed(2) + unit, -5, 10);
+        ctx.fillText(((yMax + yMin)/2).toFixed(2) + unit, -5, h/2 + 4);
+        ctx.fillText(yMin.toFixed(2) + unit, -5, h - 2);
 
         const drawLine = (history, color) => {
             if (history.length < 2) return;
@@ -338,7 +333,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (heatAddedTotal < maxHeatToAdd) {
             heatAddedTotal += heatingRate;
 
-            // Heat added directly to particle kinetic distributions
             injectHeat(sysV, heatingRate);
             injectHeat(sysP, heatingRate);
         }
@@ -358,11 +352,11 @@ document.addEventListener("DOMContentLoaded", () => {
         drawSystem(sysV, leftBoxOffset, "Constant Volume (Isochoric)");
         drawSystem(sysP, rightBoxOffset, "Constant Pressure (Isobaric)");
 
-        // Render charts adjusted within 700px limits
-        drawGraph(50, 490, 270, 110, "Temperature Evolution (T)", 300, 950, "K", sysV.historyT, sysP.historyT);
-        drawGraph(380, 490, 270, 110, "Pressure Evolution (p)", 1.0, 3.2, "atm", sysV.historyP, sysP.historyP);
+        // Dynamic multi-line visual graphing engines
+        drawGraph(50, 490, 270, 110, "Temperature Evolution (T)", sysV.historyT, sysP.historyT, " K", 300, 350);
+        drawGraph(380, 490, 270, 110, "Pressure Evolution (p)", sysV.historyP, sysP.historyP, " bar", 1.0, 1.2);
 
-        // Chart color coding keys
+        // Chart line indicators
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
         ctx.fillStyle = "#333";
@@ -375,7 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#333";
         ctx.fillText("Piston Chamber (Δp=0)", 418, 631);
 
-        // Master progress thermal energy bar
+        // Thermal progress indicator
         const pct = Math.min(100, (heatAddedTotal / maxHeatToAdd) * 100);
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
