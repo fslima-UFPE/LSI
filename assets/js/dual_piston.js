@@ -20,12 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const dt = 0.02; 
     const R = 8.314;
     
-    // Trajectory Tracking Variables
     let heatingFramesRemaining = 0;
     let isCooling = false;
     
     let equilibriumFramesCounter = 0;
-    const REQUIRED_EQUILIBRIUM_FRAMES = 200; // ~4 seconds of stability at dt=0.02
+    const REQUIRED_EQUILIBRIUM_FRAMES = 200; 
 
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
     let Cv_m, Cp_m;
@@ -55,7 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const nMolesProportional = numParticles / 180;
         
-        // Safety bounds to restrict outcomes between 60K and 1200K
         let qMinAllowed = (nMolesProportional * Cv_m * (60 - t0)) / 1000;
         let qMaxAllowed = (nMolesProportional * Cv_m * (1200 - t0)) / 1000;
         
@@ -72,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
         m = 4;
         particleRadius = 3.5; 
         boxWidth = 140; 
-        initialBoxHeight = 90; // Decreased to provide ample expansion headroom
+        initialBoxHeight = 90; 
         
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
@@ -85,8 +83,9 @@ document.addEventListener("DOMContentLoaded", () => {
         T_theo_P = t0 + (systemEnergyJoules / (nMolesProportional * Cp_m));
         P_theo_P = p0; 
 
+        // Set limits dynamically to cleanly frame the dynamic overshoot peaks on the canvas graphs
         tMinGlobal = Math.min(t0, T_theo_V, T_theo_P);
-        tMaxGlobal = Math.max(t0, T_theo_V, T_theo_P);
+        tMaxGlobal = Math.max(t0, T_theo_V, T_theo_P) * 1.15; 
 
         if (getEl("t-v-teo")) getEl("t-v-teo").innerText = `${T_theo_V.toFixed(0)} K`;
         if (getEl("p-v-teo")) getEl("p-v-teo").innerText = `${P_theo_V.toFixed(2)} bar`;
@@ -150,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
         drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
-        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V);
+        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V * 1.05);
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
@@ -206,55 +205,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function initParticles(N, w, h, T) {
-    let arr = [];
-    const targetKinetic = N * R * T;
-    let currentKinetic = 0;
+        let arr = [];
+        const targetKinetic = N * R * T;
+        let currentKinetic = 0;
 
-    for (let i = 0; i < N; i++) {
-        arr.push({
-            x: particleRadius + Math.random() * (w - 2 * particleRadius),
-            y: particleRadius + Math.random() * (h - 2 * particleRadius),
-            vx: randomGaussian(),
-            vy: randomGaussian()
-        });
-    }
-
-    // Remove center-of-mass momentum drift
-    let vCMx = 0, vCMy = 0;
-    for (let p of arr) { vCMx += p.vx; vCMy += p.vy; }
-    vCMx /= N; vCMy /= N;
-    for (let p of arr) { p.vx -= vCMx; p.vy -= vCMy; }
-
-    // Calculate current kinetic energy
-    for (let p of arr) { currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy); }
-    
-    // FIXED: Using 'scale' consistently here
-    let scale = Math.sqrt(targetKinetic / currentKinetic);
-    for (let p of arr) { 
-        p.vx *= scale; 
-        p.vy *= scale; 
-    }
-
-    return arr;
-}
-
-    function updatePhysics(sys, isIsobaric, targetP, targetTheoreticalT) {
-        const N = sys.particles.length;
-
-        // Clean Thermodynamic Trajectory Rescaling
-        let currentStep = 350 - heatingFramesRemaining;
-        let frameTargetT = sys.T0;
-        
-        if (heatingFramesRemaining > 0) {
-            frameTargetT = sys.T0 + (targetTheoreticalT - sys.T0) * (currentStep / 350);
-        } else {
-            frameTargetT = targetTheoreticalT; 
+        for (let i = 0; i < N; i++) {
+            arr.push({
+                x: particleRadius + Math.random() * (w - 2 * particleRadius),
+                y: particleRadius + Math.random() * (h - 2 * particleRadius),
+                vx: randomGaussian(),
+                vy: randomGaussian()
+            });
         }
 
+        let vCMx = 0, vCMy = 0;
+        for (let p of arr) { vCMx += p.vx; vCMy += p.vy; }
+        vCMx /= N; vCMy /= N;
+        for (let p of arr) { p.vx -= vCMx; p.vy -= vCMy; }
+
+        for (let p of arr) { currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy); }
+        let scale = Math.sqrt(targetKinetic / currentKinetic);
+        for (let p of arr) { p.vx *= scale; p.vy *= scale; }
+
+        return arr;
+    }
+
+    function updatePhysics(sys, isIsobaric, targetP, frameTargetT) {
+        const N = sys.particles.length;
+
         if (isIsobaric) {
+            // Piston dynamics accelerating freely based on internal vs atmospheric pressure
             let fNet = (sys.P - targetP) * 45; 
             sys.vCap += fNet * dt;
-            sys.vCap *= 0.85; // Mechanical stability dampening
+            sys.vCap *= 0.85; 
             sys.height += sys.vCap * dt;
 
             if (sys.height < 30) { sys.height = 30; sys.vCap = 0; }
@@ -307,13 +290,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Apply temperature tracking thermostat directly to neutralize lossy friction sinks
+        // Apply energetic thermostat derived cleanly from First-Law energy conservation
         let totalKinetic = 0;
         for (let p of sys.particles) totalKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
         sys.T = totalKinetic / (N * R);
 
-        let s = Math.sqrt(frameTargetT / (sys.T || 1));
-        for (let p of sys.particles) { p.vx *= s; p.vy *= s; }
+        let scale = Math.sqrt(frameTargetT / (sys.T || 1));
+        for (let p of sys.particles) { p.vx *= scale; p.vy *= scale; }
         sys.T = frameTargetT;
 
         const currentVolume = sys.width * sys.height;
@@ -323,11 +306,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
-        ctx.translate(offsetX, 430); // Shifted up to give the taller container space
+        ctx.translate(offsetX, 430); 
         ctx.scale(1, -1); 
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.02)";
-        ctx.fillRect(0, 0, sys.width, 360); // Extended container box size
+        ctx.fillRect(0, 0, sys.width, 360); 
 
         ctx.strokeStyle = "#444";
         ctx.lineWidth = 4;
@@ -448,9 +431,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!isRunning) return;
 
         let targetP0 = parseFloat(getEl("p0Input")?.value || 1.0);
+        let t0 = parseFloat(getEl("t0Input")?.value || 300);
 
-        updatePhysics(sysV, false, targetP0, T_theo_V);
-        updatePhysics(sysP, true, targetP0, T_theo_P);
+        let currentStep = 350 - heatingFramesRemaining;
+        let totalQInputJoules = parseFloat(getEl("qInput")?.value || 0) * 1000;
+        
+        // Linear heat input ramp across the 350 frames
+        let qInjectedJoules = totalQInputJoules * (Math.min(350, currentStep) / 350);
+        let nMolesProportional = numParticles / 180;
+
+        // 1. Constant Volume Target (Straight line growth)
+        let frameTargetT_V = t0 + qInjectedJoules / (nMolesProportional * Cv_m);
+        
+        // 2. Constant Pressure Target (Dynamic overshoot based on work done)
+        let workDoneJoules = nMolesProportional * R * t0 * ((sysP.height - sysP.initialHeight) / sysP.initialHeight);
+        let frameTargetT_P = t0 + (qInjectedJoules - workDoneJoules) / (nMolesProportional * Cv_m);
+        if (frameTargetT_P < 40) frameTargetT_P = 40; // Safe low boundary clamp
+
+        updatePhysics(sysV, false, targetP0, frameTargetT_V);
+        updatePhysics(sysP, true, targetP0, frameTargetT_P);
 
         if (heatingFramesRemaining > 0) {
             heatingFramesRemaining--;
@@ -474,7 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
         drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
-        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V);
+        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V * 1.05);
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
@@ -499,7 +498,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "center";
         ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, canvas.width / 2, 32);
 
-        // Advanced multi-variable verification window check for fast stabilization
         if (heatingFramesRemaining <= 0) {
             const pressureSettled = Math.abs(sysP.P - targetP0) <= 0.015;
             const mechanicalFrictionGrounded = Math.abs(sysP.vCap) < 0.4;
