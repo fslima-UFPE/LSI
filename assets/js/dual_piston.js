@@ -7,6 +7,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!canvas || !btnRun) return;
     const ctx = canvas.getContext("2d");
 
+    // CRISP RESOLUTION FIX: Read device pixel ratio and upscale backing coordinates
+    const dpr = window.devicePixelRatio || 1;
+    const logicalWidth = canvas.width || 700;
+    const logicalHeight = canvas.height || 650;
+    
+    canvas.style.width = logicalWidth + "px";
+    canvas.style.height = logicalHeight + "px";
+    canvas.width = logicalWidth * dpr;
+    canvas.height = logicalHeight * dpr;
+    ctx.scale(dpr, dpr);
+
     let isRunning = false;
     let animationId = null;
     
@@ -31,7 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let T_theo_V, P_theo_V, T_theo_P, P_theo_P;
     let tMinGlobal, tMaxGlobal;
 
-    // Fixed: Added forceRewrite toggle to prevent layout from breaking active keyboard typing
     function validateAndLoadInputs(forceRewrite = false) {
         let p0 = Math.max(0.5, Math.min(3.0, parseFloat(getEl("p0Input")?.value || 1.0)));
         let t0 = Math.max(200, Math.min(600, parseFloat(getEl("t0Input")?.value || 300)));
@@ -75,13 +85,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         m = 4;
         particleRadius = 3.5; 
-        
-        // FIXED: Width scaled 1.5x (from 140 to 210) to optimize layout spatial profile
         boxWidth = 210; 
         initialBoxHeight = 90; 
         
-        leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
-        rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
+        leftBoxOffset = (logicalWidth / 4) - (boxWidth / 2);
+        rightBoxOffset = (3 * logicalWidth / 4) - (boxWidth / 2);
 
         const systemEnergyJoules = qInput * 1000; 
         
@@ -150,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderStaticFrame() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
         
         drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
@@ -160,25 +168,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
-        ctx.fillStyle = "#333";
-        ctx.font = "12px sans-serif";
+        ctx.fillStyle = "#2c3e50";
+        ctx.font = "12px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
         ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
-        ctx.fillStyle = "#333";
+        ctx.fillStyle = "#2c3e50";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
         ctx.fillStyle = "#e9ecef";
-        ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
-        ctx.fillStyle = "#333";
-        ctx.font = "bold 11px sans-serif";
+        ctx.fillRect(logicalWidth / 2 - 150, 20, 300, 16);
+        ctx.fillStyle = "#2c3e50";
+        ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Calor Transferido (Q): 0%", canvas.width / 2, 32);
+        ctx.fillText("Calor Transferido (Q): 0%", logicalWidth / 2, 32);
     }
 
-    // FIXED: Split events into 'input' for background simulation prep and 'change' for formal input formatting
     ["p0Input", "t0Input", "nInput", "qInput", "geomSelect"].forEach(id => {
         const element = getEl(id);
         if (!element) return;
@@ -260,9 +267,9 @@ document.addEventListener("DOMContentLoaded", () => {
             sys.vCap *= 0.85; 
             sys.height += sys.vCap * dt;
 
-            // FIXED: Maximum height ceiling lowered down to 240 to prevent any overlap with text arrays at the top
+            // FIXED: Ceiling cap extended safely to 300 to eliminate thermodynamic path lockouts
             if (sys.height < 30) { sys.height = 30; sys.vCap = 0; }
-            if (sys.height > 240) { sys.height = 240; sys.vCap = 0; }
+            if (sys.height > 300) { sys.height = 300; sys.vCap = 0; }
         }
         
         const wallBuffer = particleRadius + 1.5; 
@@ -326,14 +333,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
-        ctx.translate(offsetX, 430); 
+        // Shifted baseline down to 445 to accommodate high vertical expansion crisply
+        ctx.translate(offsetX, 445); 
         ctx.scale(1, -1); 
 
-        ctx.fillStyle = "rgba(0, 0, 0, 0.02)";
+        // Premium glass chamber visual design
+        ctx.fillStyle = "rgba(245, 247, 250, 0.8)";
         ctx.fillRect(0, 0, sys.width, 360); 
 
-        ctx.strokeStyle = "#444";
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#2c3e50";
+        ctx.lineWidth = 3;
         ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(0, 360);
@@ -345,10 +354,11 @@ document.addEventListener("DOMContentLoaded", () => {
         let fColor = (sys.T - tMinGlobal) / (tMaxGlobal - tMinGlobal || 1);
         fColor = Math.max(0, Math.min(1, fColor)); 
         
-        let rVal = Math.floor(40 + fColor * 215);
-        let gVal = 35;
-        let bVal = Math.floor(255 - fColor * 215);
+        let rVal = Math.floor(46 + fColor * 209);
+        let gVal = Math.floor(62 - fColor * 20);
+        let bVal = Math.floor(243 - fColor * 180);
 
+        // Render sleek anti-aliased energetic gaseous atoms
         ctx.fillStyle = `rgb(${rVal}, ${gVal}, ${bVal})`;
         for (let p of sys.particles) {
             ctx.beginPath();
@@ -356,33 +366,35 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.fill();
         }
 
-        ctx.strokeStyle = "#d9534f";
-        ctx.lineWidth = 8;
+        // Heavy steel engine piston profile
+        ctx.strokeStyle = "#34495e";
+        ctx.lineWidth = 7;
         ctx.beginPath();
         ctx.moveTo(0, sys.height);
         ctx.lineTo(sys.width, sys.height);
         ctx.stroke();
 
         if (!isIsobaric) {
-            ctx.fillStyle = "#555";
-            ctx.fillRect(-6, sys.height + 4, 10, 6);           
-            ctx.fillRect(sys.width - 4, sys.height + 4, 10, 6); 
+            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(-5, sys.height + 3, 8, 5);           
+            ctx.fillRect(sys.width - 3, sys.height + 3, 8, 5); 
         }
 
         ctx.restore();
 
-        ctx.fillStyle = "#222";
-        ctx.font = "bold 13px sans-serif";
+        // High resolution system telemetry displays using standard system UI typography stack
+        ctx.fillStyle = "#2c3e50";
+        ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(title, offsetX + sys.width / 2, 65);
+        ctx.fillText(title, offsetX + sys.width / 2, 45);
         
-        ctx.font = "12px monospace";
+        ctx.font = "bold 12px monospace";
         ctx.fillStyle = `rgb(${Math.min(210, rVal)}, 40, ${Math.min(210, bVal)})`;
-        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 85);
-        ctx.fillStyle = "#28a745";
-        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 103);
-        ctx.fillStyle = "#333";
-        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 121);
+        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 65);
+        ctx.fillStyle = "#27ae60";
+        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 83);
+        ctx.fillStyle = "#7f8c8d";
+        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 101);
     }
 
     function drawGraph(x, y, w, h, title, historyV, historyP, unit, defMin, defMax) {
@@ -391,14 +403,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = "#ccc";
+        ctx.strokeStyle = "#e2e8f0";
         ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, w, h);
 
-        ctx.fillStyle = "#333";
-        ctx.font = "bold 11px sans-serif";
+        ctx.fillStyle = "#2c3e50";
+        ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText(title, 5, -10);
+        ctx.fillText(title, 0, -10);
 
         let allValues = historyV.concat(historyP).concat([defMin, defMax]);
         let yMin = Math.min(...allValues);
@@ -408,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
         yMin -= delta * 0.05;
         if (yMax === yMin) yMax += 1.0; 
 
-        ctx.strokeStyle = "#eee";
+        ctx.strokeStyle = "#f1f5f9";
         ctx.beginPath();
         for(let i = 1; i < 4; i++) {
             let ly = h - (i * h / 4);
@@ -417,19 +429,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         ctx.stroke();
 
-        ctx.fillStyle = "#777";
+        ctx.fillStyle = "#94a3b8";
         ctx.font = "9px monospace";
         ctx.textAlign = "right";
-        ctx.fillText(yMax.toFixed(1) + unit, -5, 10);
-        ctx.fillText(((yMax + yMin)/2).toFixed(1) + unit, -5, h/2 + 4);
-        ctx.fillText(yMin.toFixed(1) + unit, -5, h - 2);
+        ctx.fillText(yMax.toFixed(1) + unit, -6, 10);
+        ctx.fillText(((yMax + yMin)/2).toFixed(1) + unit, -6, h/2 + 4);
+        ctx.fillText(yMin.toFixed(1) + unit, -6, h - 2);
 
         const maxPoints = Math.max(600, historyV.length);
 
         const drawLine = (history, color) => {
             if (history.length < 2) return;
             ctx.strokeStyle = color;
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 2;
             ctx.beginPath();
             for (let i = 0; i < history.length; i++) {
                 let px = (i / maxPoints) * w; 
@@ -484,7 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (getEl("t-p-sim")) getEl("t-p-sim").innerText = `${sysP.T.toFixed(0)} K`;
         if (getEl("p-p-sim")) getEl("p-p-sim").innerText = `${sysP.P.toFixed(2)} bar`;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
         
         drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
@@ -494,26 +506,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
-        ctx.fillStyle = "#333";
-        ctx.font = "12px sans-serif";
+        ctx.fillStyle = "#2c3e50";
+        ctx.font = "12px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
         ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
-        ctx.fillStyle = "#333";
+        ctx.fillStyle = "#2c3e50";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
         const pct = Math.min(100, ((350 - heatingFramesRemaining) / 350) * 100);
-        ctx.fillStyle = "#e9ecef";
-        ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillRect(logicalWidth / 2 - 150, 20, 300, 16);
         ctx.fillStyle = isCooling ? "#3498db" : "#28a745";
-        ctx.fillRect(canvas.width / 2 - 150, 20, 3 * pct, 16);
+        ctx.fillRect(logicalWidth / 2 - 150, 20, 3 * pct, 16);
         
-        ctx.fillStyle = "#333";
-        ctx.font = "bold 11px sans-serif";
+        ctx.fillStyle = "#2c3e50";
+        ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, canvas.width / 2, 32);
+        ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, logicalWidth / 2, 32);
 
         if (heatingFramesRemaining <= 0) {
             const pressureSettled = Math.abs(sysP.P - targetP0) <= 0.015;
