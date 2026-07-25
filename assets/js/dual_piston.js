@@ -31,14 +31,17 @@ document.addEventListener("DOMContentLoaded", () => {
     let T_theo_V, P_theo_V, T_theo_P, P_theo_P;
     let tMinGlobal, tMaxGlobal;
 
-    function validateAndLoadInputs() {
+    // Fixed: Added forceRewrite toggle to prevent layout from breaking active keyboard typing
+    function validateAndLoadInputs(forceRewrite = false) {
         let p0 = Math.max(0.5, Math.min(3.0, parseFloat(getEl("p0Input")?.value || 1.0)));
         let t0 = Math.max(200, Math.min(600, parseFloat(getEl("t0Input")?.value || 300)));
         numParticles = Math.max(100, Math.min(300, parseInt(getEl("nInput")?.value || 180)));
         
-        if (getEl("p0Input")) getEl("p0Input").value = p0.toFixed(2);
-        if (getEl("t0Input")) getEl("t0Input").value = t0.toFixed(0);
-        if (getEl("nInput")) getEl("nInput").value = numParticles.toFixed(0);
+        if (forceRewrite) {
+            if (getEl("p0Input")) getEl("p0Input").value = p0.toFixed(2);
+            if (getEl("t0Input")) getEl("t0Input").value = t0.toFixed(0);
+            if (getEl("nInput")) getEl("nInput").value = numParticles.toFixed(0);
+        }
 
         const geometry = getEl("geomSelect")?.value || "mono";
         if (geometry === "mono") {
@@ -65,11 +68,16 @@ document.addEventListener("DOMContentLoaded", () => {
         let qInput = parseFloat(getEl("qInput")?.value || 11.2);
         if (qInput < qMinAllowed) qInput = qMinAllowed;
         if (qInput > qMaxAllowed) qInput = qMaxAllowed;
-        if (getEl("qInput")) getEl("qInput").value = qInput.toFixed(1);
+        
+        if (forceRewrite && getEl("qInput")) {
+            getEl("qInput").value = qInput.toFixed(1);
+        }
 
         m = 4;
         particleRadius = 3.5; 
-        boxWidth = 140; 
+        
+        // FIXED: Width scaled 1.5x (from 140 to 210) to optimize layout spatial profile
+        boxWidth = 210; 
         initialBoxHeight = 90; 
         
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
@@ -83,7 +91,6 @@ document.addEventListener("DOMContentLoaded", () => {
         T_theo_P = t0 + (systemEnergyJoules / (nMolesProportional * Cp_m));
         P_theo_P = p0; 
 
-        // Set limits dynamically to cleanly frame the dynamic overshoot peaks on the canvas graphs
         tMinGlobal = Math.min(t0, T_theo_V, T_theo_P);
         tMaxGlobal = Math.max(t0, T_theo_V, T_theo_P) * 1.15; 
 
@@ -124,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function initSimulationState() {
-        validateAndLoadInputs();
+        validateAndLoadInputs(true);
         
         const pBox = getEl("pDisplayBox");
         if (pBox) {
@@ -171,9 +178,23 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText("Calor Transferido (Q): 0%", canvas.width / 2, 32);
     }
 
+    // FIXED: Split events into 'input' for background simulation prep and 'change' for formal input formatting
     ["p0Input", "t0Input", "nInput", "qInput", "geomSelect"].forEach(id => {
-        getEl(id)?.addEventListener("input", () => {
-            if (!isRunning) { validateAndLoadInputs(); renderStaticFrame(); }
+        const element = getEl(id);
+        if (!element) return;
+
+        element.addEventListener("input", () => {
+            if (!isRunning) { 
+                validateAndLoadInputs(false); 
+                renderStaticFrame(); 
+            }
+        });
+
+        element.addEventListener("change", () => {
+            if (!isRunning) {
+                validateAndLoadInputs(true); 
+                renderStaticFrame();
+            }
         });
     });
 
@@ -186,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        validateAndLoadInputs();
+        validateAndLoadInputs(true);
         isRunning = true;
         btnRun.innerText = "Parar Simulação";
         btnRun.style.backgroundColor = "#d9534f";
@@ -234,14 +255,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const N = sys.particles.length;
 
         if (isIsobaric) {
-            // Piston dynamics accelerating freely based on internal vs atmospheric pressure
             let fNet = (sys.P - targetP) * 45; 
             sys.vCap += fNet * dt;
             sys.vCap *= 0.85; 
             sys.height += sys.vCap * dt;
 
+            // FIXED: Maximum height ceiling lowered down to 240 to prevent any overlap with text arrays at the top
             if (sys.height < 30) { sys.height = 30; sys.vCap = 0; }
-            if (sys.height > 350) { sys.height = 350; sys.vCap = 0; }
+            if (sys.height > 240) { sys.height = 240; sys.vCap = 0; }
         }
         
         const wallBuffer = particleRadius + 1.5; 
@@ -290,7 +311,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Apply energetic thermostat derived cleanly from First-Law energy conservation
         let totalKinetic = 0;
         for (let p of sys.particles) totalKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
         sys.T = totalKinetic / (N * R);
@@ -436,17 +456,14 @@ document.addEventListener("DOMContentLoaded", () => {
         let currentStep = 350 - heatingFramesRemaining;
         let totalQInputJoules = parseFloat(getEl("qInput")?.value || 0) * 1000;
         
-        // Linear heat input ramp across the 350 frames
         let qInjectedJoules = totalQInputJoules * (Math.min(350, currentStep) / 350);
         let nMolesProportional = numParticles / 180;
 
-        // 1. Constant Volume Target (Straight line growth)
         let frameTargetT_V = t0 + qInjectedJoules / (nMolesProportional * Cv_m);
         
-        // 2. Constant Pressure Target (Dynamic overshoot based on work done)
         let workDoneJoules = nMolesProportional * R * t0 * ((sysP.height - sysP.initialHeight) / sysP.initialHeight);
         let frameTargetT_P = t0 + (qInjectedJoules - workDoneJoules) / (nMolesProportional * Cv_m);
-        if (frameTargetT_P < 40) frameTargetT_P = 40; // Safe low boundary clamp
+        if (frameTargetT_P < 40) frameTargetT_P = 40; 
 
         updatePhysics(sysV, false, targetP0, frameTargetT_V);
         updatePhysics(sysP, true, targetP0, frameTargetT_P);
