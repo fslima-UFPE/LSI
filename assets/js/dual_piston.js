@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRunning = false;
     let animationId = null;
     
-    // Core systems configuration with metric vectors
+    // System data states
     let sysV = { particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, historyT: [], historyP: [] };
     let sysP = { 
         particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, 
@@ -27,89 +27,140 @@ document.addEventListener("DOMContentLoaded", () => {
     
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
 
-    // Separate setup logic so the initial frame can be built automatically on load
-    function initSimulationState() {
-        const baseParticles = parseInt(getEl("inp-n1")?.value || 55);
-        numParticles = baseParticles * 3; 
-        
-        const T0 = parseFloat(getEl("inp-T")?.value || 300); 
-        m = parseFloat(getEl("inp-m1")?.value || 4);
-        
-        const baseSigma = parseFloat(getEl("inp-sigma")?.value || 1.6);
-        particleRadius = (baseSigma * 5) / 2; 
+    // Thermodynamic Heat Capacity Configuration Values based on selection
+    let Cv_m, Cp_m;
+    let T_theo_V, P_theo_V, T_theo_P, P_theo_P;
 
-        // Geometric sizing optimized for 700px mobile constraints
+    // Read and enforce safety bounds on input metrics
+    function validateAndLoadInputs() {
+        // Enforce user entry constraints safely
+        let p0 = Math.max(0.5, Math.min(3.0, parseFloat(getEl("p0Input")?.value || 1.0)));
+        let t0 = Math.max(200, Math.min(600, parseFloat(getEl("t0Input")?.value || 300)));
+        numParticles = Math.max(50, Math.min(250, parseInt(getEl("nInput")?.value || 150)));
+        let qInput = Math.max(1.0, Math.min(25.0, parseFloat(getEl("qInput")?.value || 8.0)));
+        
+        getEl("p0Input").value = p0.toFixed(2);
+        getEl("t0Input").value = t0.toFixed(0);
+        getEl("nInput").value = numParticles.toFixed(0);
+        getEl("qInput").value = qInput.toFixed(1);
+
+        const geometry = getEl("geomSelect")?.value || "mono";
+        if (geometry === "mono") {
+            Cv_m = 1.5 * R;
+            Cp_m = 2.5 * R;
+        } else if (geometry === "linear") {
+            Cv_m = 2.5 * R;
+            Cp_m = 3.5 * R;
+        } else { // non-linear
+            Cv_m = 3.0 * R;
+            Cp_m = 4.0 * R;
+        }
+
+        m = 4;
+        particleRadius = 4; 
         boxWidth = 130; 
         initialBoxHeight = 160; 
         
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
 
-        // Substantial thermal energy injection to showcase clear expansion work
-        maxHeatToAdd = numParticles * R * 850; 
-        heatingRate = maxHeatToAdd / 450; 
+        // Convert the input kJ scale directly to energy coordinates inside the simulation engine
+        maxHeatToAdd = qInput * 800; 
+        heatingRate = maxHeatToAdd / 400; 
 
+        // Theoretical Classical Thermodynamic Computations
+        // Delta Energy Conversion scaled to align calculations with particle ensemble sizes
+        const theoreticalQ = maxHeatToAdd / numParticles; 
+        
+        T_theo_V = t0 + (theoreticalQ / Cv_m);
+        P_theo_V = p0 * (T_theo_V / t0);
+        
+        T_theo_P = t0 + (theoreticalQ / Cp_m);
+        P_theo_P = p0; // Isobaric tracking criteria baseline
+
+        // Update Classical Previsions fields inside the scorecard GUI
+        getEl("t-v-teo").innerText = `${T_theo_V.toFixed(0)} K`;
+        getEl("p-v-teo").innerText = `${P_theo_V.toFixed(2)} bar`;
+        getEl("t-p-teo").innerText = `${T_theo_P.toFixed(0)} K`;
+        getEl("p-p-teo").innerText = `${P_theo_P.toFixed(2)} bar`;
+
+        // Initialize state arrays
         sysV = {
-            particles: initParticles(numParticles, boxWidth, initialBoxHeight, T0),
+            particles: initParticles(numParticles, boxWidth, initialBoxHeight, t0),
             width: boxWidth,
             height: initialBoxHeight,
             initialHeight: initialBoxHeight,
-            T: T0,
-            T0: T0,
-            P: 1.00,
-            historyT: [T0],
-            historyP: [1.00]
+            T: t0,
+            T0: t0,
+            P: p0,
+            historyT: [t0],
+            historyP: [p0]
         };
 
         sysP = {
-            particles: initParticles(numParticles, boxWidth, initialBoxHeight, T0),
+            particles: initParticles(numParticles, boxWidth, initialBoxHeight, t0),
             width: boxWidth,
             height: initialBoxHeight,
             initialHeight: initialBoxHeight,
-            T: T0,
-            T0: T0,
-            P: 1.00,
+            T: t0,
+            T0: t0,
+            P: p0,
             vCap: 0,
-            historyT: [T0],
-            historyP: [1.00]
+            historyT: [t0],
+            historyP: [p0]
         };
 
         heatAddedTotal = 0;
     }
 
-    // Render static framework to view immediately on page load
+    function initSimulationState() {
+        validateAndLoadInputs();
+        
+        // Reset scoreboard indicators to active baseline tracking
+        getEl("pDisplayBox").className = "jsbox-alert";
+        getEl("pDisplayBox").style.background = "#fff3cd";
+        getEl("pDisplayBox").style.color = "#856404";
+        getEl("pDisplayBox").style.borderColor = "#ffeeba";
+        getEl("status-val").innerText = "Pronto para iniciar";
+        
+        getEl("t-v-sim").innerText = "-";
+        getEl("p-v-sim").innerText = "-";
+        getEl("t-p-sim").innerText = "-";
+        getEl("p-p-sim").innerText = "-";
+    }
+
     function renderStaticFrame() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        drawSystem(sysV, leftBoxOffset, "Constant Volume (Isochoric)", false);
-        drawSystem(sysP, rightBoxOffset, "Constant Pressure (Isobaric)", true);
+        drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofcórico)", false);
+        drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
-        drawGraph(50, 490, 270, 110, "Temperature Evolution (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, 350);
-        drawGraph(380, 490, 270, 110, "Pressure Evolution (p)", sysV.historyP, sysP.historyP, " bar", 1.0, 1.2);
+        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, T_theo_V);
+        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V);
 
-        // Chart line indicators
+        // Chart labels
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
         ctx.fillStyle = "#333";
         ctx.font = "12px sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("Fixed Chamber (ΔV=0)", 238, 631);
+        ctx.fillText("Chamber Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
         ctx.fillStyle = "#333";
-        ctx.fillText("Piston Chamber (Δp=0)", 418, 631);
+        ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
-        // Thermal progress background bar
+        // Progress bar container
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
         ctx.fillStyle = "#333";
         ctx.font = "bold 11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Heat Energy Injected (Q): 0%", canvas.width / 2, 32);
+        ctx.fillText("Calor Injetado (Q): 0%", canvas.width / 2, 32);
     }
 
-    // Run baseline setup immediately on load
+    // Trigger base initialization automatically upon script loading execution
     initSimulationState();
     renderStaticFrame();
 
@@ -122,11 +173,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Re-initialize state parameters to allow clean restarts on click
         initSimulationState();
         isRunning = true;
         btnRun.innerText = "Parar Simulação";
         btnRun.style.backgroundColor = "#d9534f";
+        getEl("status-val").innerText = "Aquecendo o sistema...";
 
         animate();
     });
@@ -164,22 +215,20 @@ document.addEventListener("DOMContentLoaded", () => {
         return arr;
     }
 
-    function updatePhysics(sys, isIsobaric) {
+    function updatePhysics(sys, isIsobaric, targetP) {
         const N = sys.particles.length;
 
         if (isIsobaric) {
-            // Acceleration driven by the bulk pressure differential relative to 1.00 bar
-            let fNet = (sys.P - 1.00) * 60; 
+            // Acceleration driven relative to user-specified initial external baseline parameters
+            let fNet = (sys.P - targetP) * 60; 
             sys.vCap += fNet * dt;
-            sys.vCap *= 0.85; // Macroscopic atmosphere damping (leaves micro thermal energy intact)
+            sys.vCap *= 0.85; 
             sys.height += sys.vCap * dt;
 
-            // Safety structural safety bounds
             if (sys.height < 40) { sys.height = 40; sys.vCap = 0; }
             if (sys.height > 290) { sys.height = 290; sys.vCap = 0; }
         }
         
-        // Wall offset cushion compensating for container stroke footprint
         const wallBuffer = particleRadius + 2; 
 
         for (let i = 0; i < N; i++) {
@@ -187,20 +236,14 @@ document.addEventListener("DOMContentLoaded", () => {
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
-            // Lateral boundaries containment with buffer
             if (p.x <= wallBuffer) { p.x = wallBuffer; p.vx = Math.abs(p.vx); }
             else if (p.x >= sys.width - wallBuffer) { p.x = sys.width - wallBuffer; p.vx = -Math.abs(p.vx); }
 
-            // Base boundary containment with buffer
             if (p.y <= wallBuffer) { p.y = wallBuffer; p.vy = Math.abs(p.vy); }
-            
-            // Upper moving boundary containment (piston surface interface)
             else if (p.y >= sys.height - particleRadius) { 
                 p.y = sys.height - particleRadius; 
-                
                 if (p.vy > 0) {
                     if (isIsobaric) {
-                        // Elastic interaction against the macroscopically managed moving piston boundary
                         p.vy = -p.vy + 2 * sys.vCap;
                     } else {
                         p.vy = -Math.abs(p.vy);
@@ -209,7 +252,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Hard-sphere elastic inter-particle collisions
         for (let i = 0; i < N; i++) {
             for (let j = i + 1; j < N; j++) {
                 let p1 = sys.particles[i];
@@ -239,10 +281,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         sys.T = totalKinetic / (N * R);
 
-        // Perfectly mapped Equation of State in bar units: P = (T / T0) * (V0 / V) * 1.00 bar
         const currentVolume = sys.width * sys.height;
         const initialVolume = sys.width * sys.initialHeight;
-        sys.P = (sys.T / sys.T0) * (initialVolume / currentVolume) * 1.00;
+        sys.P = (sys.T / sys.T0) * (initialVolume / currentVolume) * targetP;
     }
 
     function injectHeat(sys, deltaQ) {
@@ -260,7 +301,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
-        ctx.translate(offsetX, 450); // Cylinders shifted down to Y=450 to clear text headers
+        ctx.translate(offsetX, 450); 
         ctx.scale(1, -1); 
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.02)";
@@ -288,7 +329,6 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.fill();
         }
 
-        // Fixed Cap Stroke Boundaries perfectly nested inside the wall profiles
         ctx.strokeStyle = "#d9534f";
         ctx.lineWidth = 8;
         ctx.beginPath();
@@ -296,16 +336,14 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.lineTo(sys.width, sys.height);
         ctx.stroke();
 
-        // Mechanical blocker tags rendered explicitly for Constant-Volume framework visuals
         if (!isIsobaric) {
             ctx.fillStyle = "#555";
-            ctx.fillRect(-6, sys.height + 4, 10, 6);           // Left anchor pin
-            ctx.fillRect(sys.width - 4, sys.height + 4, 10, 6); // Right anchor pin
+            ctx.fillRect(-6, sys.height + 4, 10, 6);           
+            ctx.fillRect(sys.width - 4, sys.height + 4, 10, 6); 
         }
 
         ctx.restore();
 
-        // Optimized descriptive overlays completely separate from maximum expansion limits
         ctx.fillStyle = "#222";
         ctx.font = "bold 13px sans-serif";
         ctx.textAlign = "center";
@@ -335,7 +373,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "left";
         ctx.fillText(title, 5, -10);
 
-        // Anchor baseline yMin directly to environmental startup inputs
         let yMin = defMin; 
         let yMax = Math.max(...historyV, ...historyP, defMax);
         let delta = yMax - yMin;
@@ -358,7 +395,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText(((yMax + yMin)/2).toFixed(2) + unit, -5, h/2 + 4);
         ctx.fillText(yMin.toFixed(2) + unit, -5, h - 2);
 
-        // Completely dynamic compression factor handles extended runtime plots perfectly
         const maxPoints = Math.max(450, historyV.length);
 
         const drawLine = (history, color) => {
@@ -369,7 +405,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             for (let i = 0; i < history.length; i++) {
                 let px = (i / maxPoints) * w; 
-
                 let val = history[i];
                 let py = h - ((val - yMin) / (yMax - yMin)) * h;
                 
@@ -388,15 +423,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function animate() {
         if (!isRunning) return;
 
+        // Fetch target pressure criteria context dynamically from inputs
+        let targetP0 = parseFloat(getEl("p0Input")?.value || 1.0);
+
         if (heatAddedTotal < maxHeatToAdd) {
             heatAddedTotal += heatingRate;
-
             injectHeat(sysV, heatingRate);
             injectHeat(sysP, heatingRate);
         }
 
-        updatePhysics(sysV, false);
-        updatePhysics(sysP, true);
+        updatePhysics(sysV, false, targetP0);
+        updatePhysics(sysP, true, targetP0);
 
         if (animationId % 2 === 0) { 
             sysV.historyT.push(sysV.T);
@@ -405,29 +442,34 @@ document.addEventListener("DOMContentLoaded", () => {
             sysP.historyP.push(sysP.P);
         }
 
+        // Live scorecard readout population updates
+        getEl("t-v-sim").innerText = `${sysV.T.toFixed(0)} K`;
+        getEl("p-v-sim").innerText = `${sysV.P.toFixed(2)} bar`;
+        getEl("t-p-sim").innerText = `${sysP.T.toFixed(0)} K`;
+        getEl("p-p-sim").innerText = `${sysP.P.toFixed(2)} bar`;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        drawSystem(sysV, leftBoxOffset, "Constant Volume (Isochoric)", false);
-        drawSystem(sysP, rightBoxOffset, "Constant Pressure (Isobaric)", true);
+        drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
+        drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
-        // Dynamic multi-line visual graphing engines anchored cleanly to starting baselines
-        drawGraph(50, 490, 270, 110, "Temperature Evolution (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, 350);
-        drawGraph(380, 490, 270, 110, "Pressure Evolution (p)", sysV.historyP, sysP.historyP, " bar", 1.0, 1.2);
+        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, T_theo_V);
+        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V);
 
-        // Chart line indicators
+        // Chart indicators
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
         ctx.fillStyle = "#333";
         ctx.font = "12px sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("Fixed Chamber (ΔV=0)", 238, 631);
+        ctx.fillText("Chamber Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
         ctx.fillStyle = "#333";
-        ctx.fillText("Piston Chamber (Δp=0)", 418, 631);
+        ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
-        // Thermal progress indicator
+        // Thermal progression bar updates
         const pct = Math.min(100, (heatAddedTotal / maxHeatToAdd) * 100);
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
@@ -437,7 +479,23 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#333";
         ctx.font = "bold 11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`Heat Energy Injected (Q): ${pct.toFixed(0)}%`, canvas.width / 2, 32);
+        ctx.fillText(`Calor Injetado (Q): ${pct.toFixed(0)}%`, canvas.width / 2, 32);
+
+        // Automated Equilibrium Exit Criteria Evaluation Check
+        // Evaluates if heating injection concluded and moving piston mechanical oscillation stabilized
+        if (heatAddedTotal >= maxHeatToAdd && Math.abs(sysP.vCap) < 0.04 && Math.abs(sysP.P - targetP0) < 0.02) {
+            cancelAnimationFrame(animationId);
+            isRunning = false;
+            
+            btnRun.innerText = "Simular Aquecimento (Dual)";
+            btnRun.style.backgroundColor = "#007bff";
+            
+            // Switch alert class banner style seamlessly using template criteria layout hooks
+            let pBox = getEl("pDisplayBox");
+            pBox.className = "jsbox-alert snapped";
+            getEl("status-val").innerText = "Equilíbrio Atingido!";
+            return;
+        }
 
         animationId = requestAnimationFrame(animate);
     }
