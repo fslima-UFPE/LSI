@@ -1,23 +1,61 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // LAYOUT FIX: Target input widths cleanly without altering form container alignments
+    // LAYOUT REPAIR: Fix mobile stacking, justify labels, and lock canvas aspect ratio
     const styleBlock = document.createElement("style");
     styleBlock.innerHTML = `
+        #sim-canvas-dual {
+            max-width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 700 / 650 !important;
+            display: block !important;
+            margin: 0 auto !important;
+        }
+        .sim-input-group, div:has(> input[type="number"]), div:has(> select) {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            gap: 16px !important;
+            margin-bottom: 10px !important;
+            box-sizing: border-box !important;
+        }
+        label {
+            white-space: nowrap !important;
+            text-align: left !important;
+            flex: 1 !important;
+        }
         input[type="number"] { 
             width: 70px !important; 
             max-width: 70px !important;
-            padding: 3px 6px !important;
+            min-width: 70px !important;
+            padding: 4px 6px !important;
             font-size: 13px !important;
             border: 1px solid #cbd5e1 !important;
             border-radius: 4px !important;
             text-align: right !important;
+            flex-shrink: 0 !important;
         }
         select {
-            width: auto !important;
-            max-width: 160px !important;
-            padding: 3px 6px !important;
+            width: 120px !important;
+            max-width: 120px !important;
+            min-width: 120px !important;
+            padding: 4px 6px !important;
             font-size: 13px !important;
             border: 1px solid #cbd5e1 !important;
             border-radius: 4px !important;
+            flex-shrink: 0 !important;
+        }
+        @media (max-width: 768px) {
+            div:has(> #pDisplayBox), .row, form, fieldset {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                gap: 16px !important;
+            }
+            [class*="col-"], .control-panel, .calculation-panel, div:has(> #btn-run-dual) {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: none !important;
+            }
         }
     `;
     document.head.appendChild(styleBlock);
@@ -29,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!canvas || !btnRun) return;
     const ctx = canvas.getContext("2d");
 
-    // HIGH-DPI CALIBRATION: Upscale bitmap coordinates to clear up canvas blurriness
+    // HIGH-DPI SCALER: Crisp desktop vector processing
     const dpr = window.devicePixelRatio || 1;
     const logicalWidth = 700;
     const logicalHeight = 650;
@@ -357,7 +395,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
-        // Shifted workspace baseline down to 460 to separate it from the progress header cleanly
         ctx.translate(offsetX, 460); 
         ctx.scale(1, -1); 
 
@@ -403,7 +440,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.restore();
 
-        // High-DPI text placement adjustments to eliminate overlapping bugs
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
@@ -493,11 +529,11 @@ document.addEventListener("DOMContentLoaded", () => {
         let qInjectedJoules = totalQInputJoules * (Math.min(350, currentStep) / 350);
         let nMolesProportional = numParticles / 180;
 
-        // Isochoric path remains tied to Cv
         let frameTargetT_V = t0 + qInjectedJoules / (nMolesProportional * Cv_m);
         
-        // FIXED: Isobaric path calculated purely via Cp to completely remove the mechanical inertia lag bump
-        let frameTargetT_P = t0 + qInjectedJoules / (nMolesProportional * Cp_m);
+        // REVERTED ENGINE: Restored explicit mechanical work monitoring to bring back the dynamic lag transient
+        let workDoneJoules = nMolesProportional * R * t0 * ((sysP.height - sysP.initialHeight) / sysP.initialHeight);
+        let frameTargetT_P = t0 + (qInjectedJoules - workDoneJoules) / (nMolesProportional * Cv_m);
         if (frameTargetT_P < 40) frameTargetT_P = 40; 
 
         updatePhysics(sysV, false, targetP0, frameTargetT_V);
