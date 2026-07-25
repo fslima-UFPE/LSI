@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRunning = false;
     let animationId = null;
     
-    // System data states
+    // Configurações e vetores dos sistemas
     let sysV = { particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, historyT: [], historyP: [] };
     let sysP = { 
         particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, 
@@ -18,26 +18,28 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     let numParticles, particleRadius, m;
-    const dt = 0.02; 
+    const dt = 0.02; // Cada frame físico equivale a 0.02 segundos
     const R = 8.314;
     
     let heatAddedTotal = 0;
     let maxHeatToAdd = 0; 
     let heatingRate = 0; 
+    let isCooling = false;
     
-    let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
+    // Contador para validação do critério de equilíbrio estável (20 segundos / dt = 1000 frames)
+    let equilibriumFramesCounter = 0;
+    const REQUIRED_EQUILIBRIUM_FRAMES = 1000; 
 
-    // Thermodynamic Heat Capacity Configuration Values based on selection
+    let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
     let Cv_m, Cp_m;
     let T_theo_V, P_theo_V, T_theo_P, P_theo_P;
 
-    // Read and enforce safety bounds on input metrics
     function validateAndLoadInputs() {
-        // Enforce user entry constraints safely
+        // Definição de limites seguros (N entre 100 e 300 evita ruído estatístico e super-empacotamento)
         let p0 = Math.max(0.5, Math.min(3.0, parseFloat(getEl("p0Input")?.value || 1.0)));
         let t0 = Math.max(200, Math.min(600, parseFloat(getEl("t0Input")?.value || 300)));
-        numParticles = Math.max(50, Math.min(250, parseInt(getEl("nInput")?.value || 150)));
-        let qInput = Math.max(1.0, Math.min(25.0, parseFloat(getEl("qInput")?.value || 8.0)));
+        numParticles = Math.max(100, Math.min(300, parseInt(getEl("nInput")?.value || 180)));
+        let qInput = Math.max(-50.0, Math.min(100.0, parseFloat(getEl("qInput")?.value || 40.0)));
         
         getEl("p0Input").value = p0.toFixed(2);
         getEl("t0Input").value = t0.toFixed(0);
@@ -51,40 +53,39 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (geometry === "linear") {
             Cv_m = 2.5 * R;
             Cp_m = 3.5 * R;
-        } else { // non-linear
+        } else {
             Cv_m = 3.0 * R;
             Cp_m = 4.0 * R;
         }
 
         m = 4;
-        particleRadius = 4; 
+        particleRadius = 3.5; 
         boxWidth = 130; 
         initialBoxHeight = 160; 
         
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
 
-        // Convert the input kJ scale directly to energy coordinates inside the simulation engine
-        maxHeatToAdd = qInput * 800; 
-        heatingRate = maxHeatToAdd / 400; 
+        // Fator de conversão calibrado para gerar deltas nítidos de expansão/variação de T
+        maxHeatToAdd = qInput * numParticles * R * 4; 
+        heatingRate = maxHeatToAdd / 300; 
+        isCooling = (maxHeatToAdd < 0);
 
-        // Theoretical Classical Thermodynamic Computations
-        // Delta Energy Conversion scaled to align calculations with particle ensemble sizes
+        // Cálculos Termodinâmicos Clássicos Padrão
         const theoreticalQ = maxHeatToAdd / numParticles; 
         
         T_theo_V = t0 + (theoreticalQ / Cv_m);
         P_theo_V = p0 * (T_theo_V / t0);
         
         T_theo_P = t0 + (theoreticalQ / Cp_m);
-        P_theo_P = p0; // Isobaric tracking criteria baseline
+        P_theo_P = p0; 
 
-        // Update Classical Previsions fields inside the scorecard GUI
+        // Inserção das previsões teóricas no Scorecard
         getEl("t-v-teo").innerText = `${T_theo_V.toFixed(0)} K`;
         getEl("p-v-teo").innerText = `${P_theo_V.toFixed(2)} bar`;
         getEl("t-p-teo").innerText = `${T_theo_P.toFixed(0)} K`;
         getEl("p-p-teo").innerText = `${P_theo_P.toFixed(2)} bar`;
 
-        // Initialize state arrays
         sysV = {
             particles: initParticles(numParticles, boxWidth, initialBoxHeight, t0),
             width: boxWidth,
@@ -111,12 +112,12 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         heatAddedTotal = 0;
+        equilibriumFramesCounter = 0;
     }
 
     function initSimulationState() {
         validateAndLoadInputs();
         
-        // Reset scoreboard indicators to active baseline tracking
         getEl("pDisplayBox").className = "jsbox-alert";
         getEl("pDisplayBox").style.background = "#fff3cd";
         getEl("pDisplayBox").style.color = "#856404";
@@ -132,35 +133,32 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderStaticFrame() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofcórico)", false);
+        drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
         drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, T_theo_V);
         drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V);
 
-        // Chart labels
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
         ctx.fillStyle = "#333";
         ctx.font = "12px sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("Chamber Fixa (ΔV=0)", 238, 631);
+        ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
         ctx.fillStyle = "#333";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
-        // Progress bar container
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
         ctx.fillStyle = "#333";
         ctx.font = "bold 11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Calor Injetado (Q): 0%", canvas.width / 2, 32);
+        ctx.fillText("Calor Transferido (Q): 0%", canvas.width / 2, 32);
     }
 
-    // Trigger base initialization automatically upon script loading execution
     initSimulationState();
     renderStaticFrame();
 
@@ -168,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (isRunning) {
             cancelAnimationFrame(animationId);
             isRunning = false;
-            btnRun.innerText = "Simular Aquecimento (Dual)";
+            btnRun.innerText = "Simular Processo (Dual)";
             btnRun.style.backgroundColor = "#007bff";
             return;
         }
@@ -177,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
         isRunning = true;
         btnRun.innerText = "Parar Simulação";
         btnRun.style.backgroundColor = "#d9534f";
-        getEl("status-val").innerText = "Aquecendo o sistema...";
+        getEl("status-val").innerText = isCooling ? "Resfriando o sistema..." : "Aquecendo o sistema...";
 
         animate();
     });
@@ -219,17 +217,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const N = sys.particles.length;
 
         if (isIsobaric) {
-            // Acceleration driven relative to user-specified initial external baseline parameters
-            let fNet = (sys.P - targetP) * 60; 
+            let fNet = (sys.P - targetP) * 50; 
             sys.vCap += fNet * dt;
-            sys.vCap *= 0.85; 
+            sys.vCap *= 0.82; 
             sys.height += sys.vCap * dt;
 
-            if (sys.height < 40) { sys.height = 40; sys.vCap = 0; }
-            if (sys.height > 290) { sys.height = 290; sys.vCap = 0; }
+            if (sys.height < 35) { sys.height = 35; sys.vCap = 0; }
+            if (sys.height > 295) { sys.height = 295; sys.vCap = 0; }
         }
         
-        const wallBuffer = particleRadius + 2; 
+        const wallBuffer = particleRadius + 1.5; 
 
         for (let i = 0; i < N; i++) {
             let p = sys.particles[i];
@@ -292,6 +289,12 @@ document.addEventListener("DOMContentLoaded", () => {
             currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
         }
         let newKinetic = currentKinetic + deltaQ;
+        
+        // Trava de segurança para impedir energia cinética negativa/nula em resfriamentos extremos
+        if (newKinetic < numParticles * R * 40) {
+            newKinetic = numParticles * R * 40;
+        }
+        
         let scale = Math.sqrt(newKinetic / currentKinetic);
         for (let p of sys.particles) {
             p.vx *= scale;
@@ -317,10 +320,23 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.lineTo(sys.width, 300);
         ctx.stroke();
 
-        const tDiff = Math.min(1.0, (sys.T - sys.T0) / 500);
-        const rVal = Math.floor(40 + tDiff * 215);
-        const bVal = Math.floor(230 - tDiff * 190);
-        const gVal = Math.floor(100 - tDiff * 60);
+        // Escala térmica calibrada para transição fluida de cor (Vermelho/Azul) baseado em T0
+        let tDiff = (sys.T - sys.T0) / 180; 
+        let rVal, gVal, bVal;
+        
+        if (tDiff >= 0) {
+            // Aquecimento: Cinza neutro (130,130,130) para Vermelho vivo (235,50,50)
+            let factor = Math.min(1.0, tDiff);
+            rVal = Math.floor(130 + factor * 105);
+            gVal = Math.floor(130 - factor * 80);
+            bVal = Math.floor(130 - factor * 80);
+        } else {
+            // Resfriamento: Cinza neutro (130,130,130) para Azul elétrico (50,70,235)
+            let factor = Math.min(1.0, Math.abs(tDiff));
+            rVal = Math.floor(130 - factor * 80);
+            gVal = Math.floor(130 - factor * 60);
+            bVal = Math.floor(130 + factor * 105);
+        }
 
         ctx.fillStyle = `rgb(${rVal}, ${gVal}, ${bVal})`;
         for (let p of sys.particles) {
@@ -350,10 +366,10 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText(title, offsetX + sys.width / 2, 65);
         
         ctx.font = "12px monospace";
-        ctx.fillStyle = "#d9534f";
+        ctx.fillStyle = `rgb(${Math.min(200, rVal)}, 50, ${Math.min(200, bVal)})`;
         ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 85);
         ctx.fillStyle = "#28a745";
-        ctx.fillText(`Pressure (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 103);
+        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 103);
         ctx.fillStyle = "#333";
         ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 121);
     }
@@ -373,10 +389,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "left";
         ctx.fillText(title, 5, -10);
 
-        let yMin = defMin; 
-        let yMax = Math.max(...historyV, ...historyP, defMax);
+        let allValues = historyV.concat(historyP).concat([defMin, defMax]);
+        let yMin = Math.min(...allValues);
+        let yMax = Math.max(...allValues);
         let delta = yMax - yMin;
-        yMax += delta * 0.12;
+        yMax += delta * 0.15;
+        yMin -= delta * 0.05;
         if (yMax === yMin) yMax += 1.0; 
 
         ctx.strokeStyle = "#eee";
@@ -391,11 +409,11 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#777";
         ctx.font = "9px monospace";
         ctx.textAlign = "right";
-        ctx.fillText(yMax.toFixed(2) + unit, -5, 10);
-        ctx.fillText(((yMax + yMin)/2).toFixed(2) + unit, -5, h/2 + 4);
-        ctx.fillText(yMin.toFixed(2) + unit, -5, h - 2);
+        ctx.fillText(yMax.toFixed(1) + unit, -5, 10);
+        ctx.fillText(((yMax + yMin)/2).toFixed(1) + unit, -5, h/2 + 4);
+        ctx.fillText(yMin.toFixed(1) + unit, -5, h - 2);
 
-        const maxPoints = Math.max(450, historyV.length);
+        const maxPoints = Math.max(600, historyV.length);
 
         const drawLine = (history, color) => {
             if (history.length < 2) return;
@@ -423,10 +441,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function animate() {
         if (!isRunning) return;
 
-        // Fetch target pressure criteria context dynamically from inputs
         let targetP0 = parseFloat(getEl("p0Input")?.value || 1.0);
 
-        if (heatAddedTotal < maxHeatToAdd) {
+        // Fluxo contínuo de transferência calórica (suporta sinais positivos ou negativos)
+        if (Math.abs(heatAddedTotal) < Math.abs(maxHeatToAdd)) {
             heatAddedTotal += heatingRate;
             injectHeat(sysV, heatingRate);
             injectHeat(sysP, heatingRate);
@@ -442,7 +460,7 @@ document.addEventListener("DOMContentLoaded", () => {
             sysP.historyP.push(sysP.P);
         }
 
-        // Live scorecard readout population updates
+        // Atualização em tempo real do Scorecard experimental
         getEl("t-v-sim").innerText = `${sysV.T.toFixed(0)} K`;
         getEl("p-v-sim").innerText = `${sysV.P.toFixed(2)} bar`;
         getEl("t-p-sim").innerText = `${sysP.T.toFixed(0)} K`;
@@ -456,45 +474,55 @@ document.addEventListener("DOMContentLoaded", () => {
         drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, T_theo_V);
         drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V);
 
-        // Chart indicators
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
         ctx.fillStyle = "#333";
         ctx.font = "12px sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("Chamber Fixa (ΔV=0)", 238, 631);
+        ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
         ctx.fillStyle = "#333";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
-        // Thermal progression bar updates
-        const pct = Math.min(100, (heatAddedTotal / maxHeatToAdd) * 100);
+        // Barra de progresso da transferência de energia
+        const pct = Math.min(100, (Math.abs(heatAddedTotal) / Math.abs(maxHeatToAdd)) * 100);
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
-        ctx.fillStyle = "#28a745";
+        ctx.fillStyle = isCooling ? "#3498db" : "#28a745";
         ctx.fillRect(canvas.width / 2 - 150, 20, 3 * pct, 16);
         
         ctx.fillStyle = "#333";
         ctx.font = "bold 11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`Calor Injetado (Q): ${pct.toFixed(0)}%`, canvas.width / 2, 32);
+        ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, canvas.width / 2, 32);
 
-        // Automated Equilibrium Exit Criteria Evaluation Check
-        // Evaluates if heating injection concluded and moving piston mechanical oscillation stabilized
-        if (heatAddedTotal >= maxHeatToAdd && Math.abs(sysP.vCap) < 0.04 && Math.abs(sysP.P - targetP0) < 0.02) {
-            cancelAnimationFrame(animationId);
-            isRunning = false;
-            
-            btnRun.innerText = "Simular Aquecimento (Dual)";
-            btnRun.style.backgroundColor = "#007bff";
-            
-            // Switch alert class banner style seamlessly using template criteria layout hooks
-            let pBox = getEl("pDisplayBox");
-            pBox.className = "jsbox-alert snapped";
-            getEl("status-val").innerText = "Equilíbrio Atingido!";
-            return;
+        // Condicional de Monitoramento do Critério de Parada
+        if (Math.abs(heatAddedTotal) >= Math.abs(maxHeatToAdd)) {
+            // Critério estrito: Pressão do pistão igual ou menor que p0 (+ tolerância física de 0.015)
+            if (sysP.P <= (targetP0 + 0.015)) {
+                equilibriumFramesCounter++;
+            } else {
+                equilibriumFramesCounter = 0; // Reseta se oscilar para cima
+            }
+
+            // Avisa o usuário que o sistema está aguardando a janela de tempo de estabilização
+            let remainingSecs = Math.max(0, (REQUIRED_EQUILIBRIUM_FRAMES - equilibriumFramesCounter) * dt);
+            getEl("status-val").innerText = `Estabilizando pistão... (${remainingSecs.toFixed(1)}s)`;
+
+            if (equilibriumFramesCounter >= REQUIRED_EQUILIBRIUM_FRAMES) {
+                cancelAnimationFrame(animationId);
+                isRunning = false;
+                
+                btnRun.innerText = "Simular Processo (Dual)";
+                btnRun.style.backgroundColor = "#007bff";
+                
+                let pBox = getEl("pDisplayBox");
+                pBox.className = "jsbox-alert snapped";
+                getEl("status-val").innerText = "Equilíbrio Atingido (20s Estável)!";
+                return;
+            }
         }
 
         animationId = requestAnimationFrame(animate);
