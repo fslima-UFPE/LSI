@@ -27,15 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
     
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
 
-    btnRun.addEventListener("click", () => {
-        if (isRunning) {
-            cancelAnimationFrame(animationId);
-            isRunning = false;
-            btnRun.innerText = "Simular Aquecimento (Dual)";
-            btnRun.style.backgroundColor = "#007bff";
-            return;
-        }
-
+    // Separate setup logic so the initial frame can be built automatically on load
+    function initSimulationState() {
         const baseParticles = parseInt(getEl("inp-n1")?.value || 55);
         numParticles = baseParticles * 3; 
         
@@ -82,6 +75,55 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         heatAddedTotal = 0;
+    }
+
+    // Render static framework to view immediately on page load
+    function renderStaticFrame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        drawSystem(sysV, leftBoxOffset, "Constant Volume (Isochoric)", false);
+        drawSystem(sysP, rightBoxOffset, "Constant Pressure (Isobaric)", true);
+
+        drawGraph(50, 490, 270, 110, "Temperature Evolution (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, 350);
+        drawGraph(380, 490, 270, 110, "Pressure Evolution (p)", sysV.historyP, sysP.historyP, " bar", 1.0, 1.2);
+
+        // Chart line indicators
+        ctx.fillStyle = "#e67e22";
+        ctx.fillRect(220, 620, 12, 12);
+        ctx.fillStyle = "#333";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("Fixed Chamber (ΔV=0)", 238, 631);
+
+        ctx.fillStyle = "#3498db";
+        ctx.fillRect(400, 620, 12, 12);
+        ctx.fillStyle = "#333";
+        ctx.fillText("Piston Chamber (Δp=0)", 418, 631);
+
+        // Thermal progress background bar
+        ctx.fillStyle = "#e9ecef";
+        ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
+        ctx.fillStyle = "#333";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Heat Energy Injected (Q): 0%", canvas.width / 2, 32);
+    }
+
+    // Run baseline setup immediately on load
+    initSimulationState();
+    renderStaticFrame();
+
+    btnRun.addEventListener("click", () => {
+        if (isRunning) {
+            cancelAnimationFrame(animationId);
+            isRunning = false;
+            btnRun.innerText = "Simular Aquecimento (Dual)";
+            btnRun.style.backgroundColor = "#007bff";
+            return;
+        }
+
+        // Re-initialize state parameters to allow clean restarts on click
+        initSimulationState();
         isRunning = true;
         btnRun.innerText = "Parar Simulação";
         btnRun.style.backgroundColor = "#d9534f";
@@ -137,15 +179,22 @@ document.addEventListener("DOMContentLoaded", () => {
             if (sys.height > 290) { sys.height = 290; sys.vCap = 0; }
         }
         
+        // Wall offset cushion compensating for container stroke footprint
+        const wallBuffer = particleRadius + 2; 
+
         for (let i = 0; i < N; i++) {
             let p = sys.particles[i];
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
-            if (p.x <= particleRadius) { p.x = particleRadius; p.vx = Math.abs(p.vx); }
-            else if (p.x >= sys.width - particleRadius) { p.x = sys.width - particleRadius; p.vx = -Math.abs(p.vx); }
+            // Lateral boundaries containment with buffer
+            if (p.x <= wallBuffer) { p.x = wallBuffer; p.vx = Math.abs(p.vx); }
+            else if (p.x >= sys.width - wallBuffer) { p.x = sys.width - wallBuffer; p.vx = -Math.abs(p.vx); }
 
-            if (p.y <= particleRadius) { p.y = particleRadius; p.vy = Math.abs(p.vy); }
+            // Base boundary containment with buffer
+            if (p.y <= wallBuffer) { p.y = wallBuffer; p.vy = Math.abs(p.vy); }
+            
+            // Upper moving boundary containment (piston surface interface)
             else if (p.y >= sys.height - particleRadius) { 
                 p.y = sys.height - particleRadius; 
                 
@@ -209,7 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function drawSystem(sys, offsetX, title) {
+    function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
         ctx.translate(offsetX, 450); // Cylinders shifted down to Y=450 to clear text headers
         ctx.scale(1, -1); 
@@ -239,28 +288,36 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.fill();
         }
 
+        // Fixed Cap Stroke Boundaries perfectly nested inside the wall profiles
         ctx.strokeStyle = "#d9534f";
         ctx.lineWidth = 8;
         ctx.beginPath();
-        ctx.moveTo(-4, sys.height);
-        ctx.lineTo(sys.width + 4, sys.height);
+        ctx.moveTo(0, sys.height);
+        ctx.lineTo(sys.width, sys.height);
         ctx.stroke();
+
+        // Mechanical blocker tags rendered explicitly for Constant-Volume framework visuals
+        if (!isIsobaric) {
+            ctx.fillStyle = "#555";
+            ctx.fillRect(-6, sys.height + 4, 10, 6);           // Left anchor pin
+            ctx.fillRect(sys.width - 4, sys.height + 4, 10, 6); // Right anchor pin
+        }
 
         ctx.restore();
 
-        // Informational overlay placed entirely clear of maximum possible expansion bounds
+        // Optimized descriptive overlays completely separate from maximum expansion limits
         ctx.fillStyle = "#222";
         ctx.font = "bold 13px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(title, offsetX + sys.width / 2, 75);
+        ctx.fillText(title, offsetX + sys.width / 2, 65);
         
         ctx.font = "12px monospace";
         ctx.fillStyle = "#d9534f";
-        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 95);
+        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 85);
         ctx.fillStyle = "#28a745";
-        ctx.fillText(`Pressure (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 113);
+        ctx.fillText(`Pressure (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 103);
         ctx.fillStyle = "#333";
-        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 131);
+        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 121);
     }
 
     function drawGraph(x, y, w, h, title, historyV, historyP, unit, defMin, defMax) {
@@ -278,13 +335,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "left";
         ctx.fillText(title, 5, -10);
 
-        // Compute completely dynamic ranges with 10% headroom padded padding
-        let yMin = Math.min(...historyV, ...historyP, defMin);
+        // Anchor baseline yMin directly to environmental startup inputs
+        let yMin = defMin; 
         let yMax = Math.max(...historyV, ...historyP, defMax);
         let delta = yMax - yMin;
         yMax += delta * 0.12;
-        yMin -= delta * 0.05;
-        if (yMin < 0 && defMin >= 0) yMin = 0;
+        if (yMax === yMin) yMax += 1.0; 
 
         ctx.strokeStyle = "#eee";
         ctx.beginPath();
@@ -302,6 +358,9 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText(((yMax + yMin)/2).toFixed(2) + unit, -5, h/2 + 4);
         ctx.fillText(yMin.toFixed(2) + unit, -5, h - 2);
 
+        // Completely dynamic compression factor handles extended runtime plots perfectly
+        const maxPoints = Math.max(450, historyV.length);
+
         const drawLine = (history, color) => {
             if (history.length < 2) return;
             ctx.strokeStyle = color;
@@ -309,8 +368,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.beginPath();
             
             for (let i = 0; i < history.length; i++) {
-                let px = (i / 450) * w; 
-                if (px > w) px = w;
+                let px = (i / maxPoints) * w; 
 
                 let val = history[i];
                 let py = h - ((val - yMin) / (yMax - yMin)) * h;
@@ -349,11 +407,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        drawSystem(sysV, leftBoxOffset, "Constant Volume (Isochoric)");
-        drawSystem(sysP, rightBoxOffset, "Constant Pressure (Isobaric)");
+        drawSystem(sysV, leftBoxOffset, "Constant Volume (Isochoric)", false);
+        drawSystem(sysP, rightBoxOffset, "Constant Pressure (Isobaric)", true);
 
-        // Dynamic multi-line visual graphing engines
-        drawGraph(50, 490, 270, 110, "Temperature Evolution (T)", sysV.historyT, sysP.historyT, " K", 300, 350);
+        // Dynamic multi-line visual graphing engines anchored cleanly to starting baselines
+        drawGraph(50, 490, 270, 110, "Temperature Evolution (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, 350);
         drawGraph(380, 490, 270, 110, "Pressure Evolution (p)", sysV.historyP, sysP.historyP, " bar", 1.0, 1.2);
 
         // Chart line indicators
