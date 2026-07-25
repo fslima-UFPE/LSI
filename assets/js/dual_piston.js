@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // LAYOUT REPAIR: Force range labels to wrap below, stack columns on mobile, and lock aspect ratio
+    // GRID MATRIX REPAIR: Lock descriptions left, range info bottom-left, inputs right, and force mobile stack
     const styleBlock = document.createElement("style");
     styleBlock.innerHTML = `
         #sim-canvas-dual {
@@ -9,22 +9,32 @@ document.addEventListener("DOMContentLoaded", () => {
             display: block !important;
             margin: 0 auto !important;
         }
+        /* Convert input rows into an un-wrappable 2-column grid layout */
         .sim-input-group, div:has(> input[type="number"]), div:has(> select) {
-            display: flex !important;
-            flex-wrap: wrap !important;
+            display: grid !important;
+            grid-template-columns: 1fr auto !important;
+            grid-template-rows: auto auto !important;
             align-items: center !important;
-            justify-content: space-between !important;
+            row-gap: 2px !important;
+            column-gap: 16px !important;
             width: 100% !important;
-            gap: 8px !important;
             margin-bottom: 14px !important;
             box-sizing: border-box !important;
         }
-        label {
-            white-space: nowrap !important;
+        /* Row 1, Column 1: Main parameter description text */
+        .sim-input-group > label, div:has(> input[type="number"]) > label, div:has(> select) > label {
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            justify-self: start !important;
             text-align: left !important;
-            flex: 1 !important;
+            white-space: nowrap !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
+        /* Row 1 & 2, Column 2: Inputs anchored cleanly to the right side */
         input[type="number"] { 
+            grid-column: 2 !important;
+            grid-row: 1 / span 2 !important;
             width: 70px !important; 
             max-width: 70px !important;
             min-width: 70px !important;
@@ -33,10 +43,11 @@ document.addEventListener("DOMContentLoaded", () => {
             border: 1px solid #cbd5e1 !important;
             border-radius: 4px !important;
             text-align: right !important;
-            flex-shrink: 0 !important;
-            margin-left: auto !important;
+            align-self: center !important;
         }
         select {
+            grid-column: 2 !important;
+            grid-row: 1 / span 2 !important;
             width: 120px !important;
             max-width: 120px !important;
             min-width: 120px !important;
@@ -44,31 +55,40 @@ document.addEventListener("DOMContentLoaded", () => {
             font-size: 13px !important;
             border: 1px solid #cbd5e1 !important;
             border-radius: 4px !important;
-            flex-shrink: 0 !important;
-            margin-left: auto !important;
+            align-self: center !important;
         }
-        /* Force range descriptors to drop cleanly onto their own line below parameter descriptions */
-        #q-range-label, .range-label, small, span[id*="range"], div:has(> input) + span, div:has(> input) small {
+        /* Row 2, Column 1: Force range limits directly below the description text */
+        #q-range-label, .sim-input-group small, .sim-input-group span, 
+        div:has(> input[type="number"]) small, div:has(> input[type="number"]) span {
+            grid-column: 1 !important;
+            grid-row: 2 !important;
+            justify-self: start !important;
             display: block !important;
-            width: 100% !important;
-            flex: none !important;
-            margin-top: 2px !important;
             font-size: 11px !important;
             color: #64748b !important;
+            margin: 0 !important;
+            padding: 0 !important;
             text-align: left !important;
+            font-weight: normal !important;
         }
-        @media (max-width: 768px) {
-            .row, .d-flex, [class*="col-"] {
+        /* Aggressive Mobile Column Collapsing Wrapper */
+        @media (max-width: 992px) {
+            .row, .d-flex, form, fieldset, div:has(> .control-panel) {
                 display: flex !important;
                 flex-direction: column !important;
                 width: 100% !important;
                 max-width: 100% !important;
-                flex: 0 0 100% !important;
                 box-sizing: border-box !important;
             }
-            .control-panel, .calculation-panel, form, fieldset {
+            [class*="col-"], .control-panel, .calculation-panel, 
+            div:has(> #pDisplayBox), div:has(> #btn-run-dual) {
                 width: 100% !important;
                 max-width: 100% !important;
+                flex: none !important;
+                display: block !important;
+                box-sizing: border-box !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
             }
         }
     `;
@@ -81,7 +101,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!canvas || !btnRun) return;
     const ctx = canvas.getContext("2d");
 
-    // HIGH-DPI SCALER: Ensures crisp rendering vectors
     const dpr = window.devicePixelRatio || 1;
     const logicalWidth = 700;
     const logicalHeight = 650;
@@ -172,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
         T_theo_P = t0 + (systemEnergyJoules / (nMolesProportional * Cp_m));
         P_theo_P = p0; 
 
-        // ADAPTIVE GEOMETRY SCALE ENGINE: Prevent ceiling collision by resizing resting scale dynamically
+        // CEILING COLLISION ENGINE: Calculate dynamic boundary limits based on expansion ratios
         let expansionRatio = T_theo_P / t0;
         let compressionRatio = T_theo_V / t0;
         let targetInitialHeight = 90;
@@ -557,7 +576,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let frameTargetT_V = t0 + qInjectedJoules / (nMolesProportional * Cv_m);
         
-        // RESTORED ENGINE: Reverted back to explicit work parameters to accurately track mechanical piston inertia
         let workDoneJoules = nMolesProportional * R * t0 * ((sysP.height - sysP.initialHeight) / sysP.initialHeight);
         let frameTargetT_P = t0 + (qInjectedJoules - workDoneJoules) / (nMolesProportional * Cv_m);
         if (frameTargetT_P < 40) frameTargetT_P = 40; 
