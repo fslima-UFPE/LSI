@@ -1,0 +1,118 @@
+<style>
+/* Layout Container System */
+.sim-interface-container {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 24px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 20px !important;
+}
+
+.sim-panel-column {
+    flex: 1 !important;
+    min-width: 0 !important;
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+}
+
+/* Native Row Grid Matrix */
+.sim-grid-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 8px 0 !important;
+    border-bottom: 1px dashed #f1f5f9 !important;
+    gap: 16px !important;
+}
+
+.sim-text-block {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+}
+
+.sim-text-block label {
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+}
+
+.sim-range-text {
+    font-size: 11px !important;
+    color: #64748b !important;
+    margin-top: 2px !important;
+}
+
+/* Consistent Input Dimensions */
+.sim-input-block input[type="number"] {
+    width: 75px !important;
+    padding: 5px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    text-align: right !important;
+}
+
+.sim-input-block select {
+    width: 160px !important;
+    padding: 5px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+}
+
+/* Components */
+.sim-action-block {
+    margin-top: 20px !important;
+    text-align: center !important;
+}
+.sim-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 100%;
+}
+.sim-status-box {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    text-align: center;
+}
+.sim-data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.sim-data-table th, .sim-data-table td {
+    border: 1px solid #e2e8f0;
+    padding: 8px;
+    text-align: center;
+    font-size: 12px;
+}
+.sim-data-table th {
+    background: #f8fafc;
+}
+
+/* Hard Mobile Breakdown Breakpoint */
+@media (max-width: 992px) {
+    .sim-interface-container {
+        flex-direction: column !important;
+    }
+    .sim-panel-column {
+        width: 100% !important;
+    }
+}
+</style>
