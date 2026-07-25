@@ -20,14 +20,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const dt = 0.02; 
     const R = 8.314;
     
-    // Decoupled Frame-Based Heating Regimes
+    // Trajectory Tracking Variables
     let heatingFramesRemaining = 0;
-    let heatingRateV = 0;
-    let heatingRateP = 0;
     let isCooling = false;
     
     let equilibriumFramesCounter = 0;
-    const REQUIRED_EQUILIBRIUM_FRAMES = 1000; 
+    const REQUIRED_EQUILIBRIUM_FRAMES = 200; // ~4 seconds of stability at dt=0.02
 
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
     let Cv_m, Cp_m;
@@ -55,9 +53,9 @@ document.addEventListener("DOMContentLoaded", () => {
             Cp_m = 4.0 * R;
         }
 
-        // FIXED: Scaled by proportional moles to prevent extreme 144k K temperature overshoots
         const nMolesProportional = numParticles / 180;
         
+        // Safety bounds to restrict outcomes between 60K and 1200K
         let qMinAllowed = (nMolesProportional * Cv_m * (60 - t0)) / 1000;
         let qMaxAllowed = (nMolesProportional * Cv_m * (1200 - t0)) / 1000;
         
@@ -66,15 +64,15 @@ document.addEventListener("DOMContentLoaded", () => {
             qRangeLabel.innerText = `Permitido: ${qMinAllowed.toFixed(1)} a ${qMaxAllowed.toFixed(1)}`;
         }
 
-        let qInput = parseFloat(getEl("qInput")?.value || 20.0);
+        let qInput = parseFloat(getEl("qInput")?.value || 11.2);
         if (qInput < qMinAllowed) qInput = qMinAllowed;
         if (qInput > qMaxAllowed) qInput = qMaxAllowed;
         if (getEl("qInput")) getEl("qInput").value = qInput.toFixed(1);
 
         m = 4;
         particleRadius = 3.5; 
-        boxWidth = 130; 
-        initialBoxHeight = 160; 
+        boxWidth = 140; 
+        initialBoxHeight = 90; // Decreased to provide ample expansion headroom
         
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
@@ -95,10 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (getEl("t-p-teo")) getEl("t-p-teo").innerText = `${T_theo_P.toFixed(0)} K`;
         if (getEl("p-p-teo")) getEl("p-p-teo").innerText = `${P_theo_P.toFixed(2)} bar`;
 
-        // Decoupled Energy Slopes for 2D Translation Spaces
         heatingFramesRemaining = 350; 
-        heatingRateV = (numParticles * R * (T_theo_V - t0)) / 350; 
-        heatingRateP = (2.0 * numParticles * R * (T_theo_P - t0)) / 350; // Cp_2D = 2.0R to naturally cover work
         isCooling = (qInput < 0);
 
         sysV = {
@@ -231,34 +226,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
         for (let p of arr) { currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy); }
         let scale = Math.sqrt(targetKinetic / currentKinetic);
-        for (let p of arr) { p.vx *= scale; p.vy *= scale; }
+        for (let p of arr) { p.vx *= s; p.vy *= s; }
 
         return arr;
     }
 
-    function updatePhysics(sys, isIsobaric, targetP, rateQ) {
+    function updatePhysics(sys, isIsobaric, targetP, targetTheoreticalT) {
         const N = sys.particles.length;
 
-        // Decoupled Thermal Injections
+        // Clean Thermodynamic Trajectory Rescaling
+        let currentStep = 350 - heatingFramesRemaining;
+        let frameTargetT = sys.T0;
+        
         if (heatingFramesRemaining > 0) {
-            let currentKinetic = 0;
-            for (let p of sys.particles) currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
-            
-            let newKinetic = currentKinetic + rateQ;
-            if (newKinetic > N * R * 30) {
-                let s = Math.sqrt(newKinetic / currentKinetic);
-                for (let p of sys.particles) { p.vx *= s; p.vy *= s; }
-            }
+            frameTargetT = sys.T0 + (targetTheoreticalT - sys.T0) * (currentStep / 350);
+        } else {
+            frameTargetT = targetTheoreticalT; 
         }
 
         if (isIsobaric) {
-            let fNet = (sys.P - targetP) * 55; 
+            let fNet = (sys.P - targetP) * 45; 
             sys.vCap += fNet * dt;
-            sys.vCap *= 0.82; 
+            sys.vCap *= 0.85; // Mechanical stability dampening
             sys.height += sys.vCap * dt;
 
-            if (sys.height < 35) { sys.height = 35; sys.vCap = 0; }
-            if (sys.height > 295) { sys.height = 295; sys.vCap = 0; }
+            if (sys.height < 30) { sys.height = 30; sys.vCap = 0; }
+            if (sys.height > 350) { sys.height = 350; sys.vCap = 0; }
         }
         
         const wallBuffer = particleRadius + 1.5; 
@@ -276,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 p.y = sys.height - particleRadius; 
                 if (p.vy > 0) {
                     if (isIsobaric) {
-                        p.vy = -p.vy + 2 * sys.vCap; // Energy Transfer via Piston Moving Boundary Work
+                        p.vy = -p.vy + 2 * sys.vCap; 
                     } else {
                         p.vy = -Math.abs(p.vy);
                     }
@@ -307,9 +300,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
+        // Apply temperature tracking thermostat directly to neutralize lossy friction sinks
         let totalKinetic = 0;
         for (let p of sys.particles) totalKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
         sys.T = totalKinetic / (N * R);
+
+        let s = Math.sqrt(frameTargetT / (sys.T || 1));
+        for (let p of sys.particles) { p.vx *= s; p.vy *= s; }
+        sys.T = frameTargetT;
 
         const currentVolume = sys.width * sys.height;
         const initialVolume = sys.width * sys.initialHeight;
@@ -318,20 +316,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
-        ctx.translate(offsetX, 450); 
+        ctx.translate(offsetX, 430); // Shifted up to give the taller container space
         ctx.scale(1, -1); 
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.02)";
-        ctx.fillRect(0, 0, sys.width, 300);
+        ctx.fillRect(0, 0, sys.width, 360); // Extended container box size
 
         ctx.strokeStyle = "#444";
         ctx.lineWidth = 4;
         ctx.lineCap = "round";
         ctx.beginPath();
-        ctx.moveTo(0, 300);
+        ctx.moveTo(0, 360);
         ctx.lineTo(0, 0);
         ctx.lineTo(sys.width, 0);
-        ctx.lineTo(sys.width, 300);
+        ctx.lineTo(sys.width, 360);
         ctx.stroke();
 
         let fColor = (sys.T - tMinGlobal) / (tMaxGlobal - tMinGlobal || 1);
@@ -444,8 +442,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let targetP0 = parseFloat(getEl("p0Input")?.value || 1.0);
 
-        updatePhysics(sysV, false, targetP0, heatingRateV);
-        updatePhysics(sysP, true, targetP0, heatingRateP);
+        updatePhysics(sysV, false, targetP0, T_theo_V);
+        updatePhysics(sysP, true, targetP0, T_theo_P);
 
         if (heatingFramesRemaining > 0) {
             heatingFramesRemaining--;
@@ -494,9 +492,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "center";
         ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, canvas.width / 2, 32);
 
-        // Stabilize and halt checking
+        // Advanced multi-variable verification window check for fast stabilization
         if (heatingFramesRemaining <= 0) {
-            if (sysP.P <= (targetP0 + 0.015)) {
+            const pressureSettled = Math.abs(sysP.P - targetP0) <= 0.015;
+            const mechanicalFrictionGrounded = Math.abs(sysP.vCap) < 0.4;
+
+            if (pressureSettled && mechanicalFrictionGrounded) {
                 equilibriumFramesCounter++;
             } else {
                 equilibriumFramesCounter = 0; 
@@ -515,7 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 let pBox = getEl("pDisplayBox");
                 if (pBox) pBox.className = "jsbox-alert snapped";
-                if (sVal) sVal.innerText = "Equilíbrio Atingido (20s Estável)!";
+                if (sVal) sVal.innerText = "Equilíbrio Atingido (Estável)!";
                 return;
             }
         }
