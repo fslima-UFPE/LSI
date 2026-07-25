@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRunning = false;
     let animationId = null;
     
-    // Configurações e vetores dos sistemas
     let sysV = { particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, historyT: [], historyP: [] };
     let sysP = { 
         particles: [], width: 0, height: 0, T: 0, T0: 0, P: 1.0, 
@@ -18,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     
     let numParticles, particleRadius, m;
-    const dt = 0.02; // Cada frame físico equivale a 0.02 segundos
+    const dt = 0.02; 
     const R = 8.314;
     
     let heatAddedTotal = 0;
@@ -26,25 +25,25 @@ document.addEventListener("DOMContentLoaded", () => {
     let heatingRate = 0; 
     let isCooling = false;
     
-    // Contador para validação do critério de equilíbrio estável (20 segundos / dt = 1000 frames)
+    // Strict 20 seconds stability frames tracker (20s / 0.02s = 1000 consecutive frames)
     let equilibriumFramesCounter = 0;
     const REQUIRED_EQUILIBRIUM_FRAMES = 1000; 
 
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
     let Cv_m, Cp_m;
     let T_theo_V, P_theo_V, T_theo_P, P_theo_P;
+    
+    // Shared color bounding anchors
+    let tMinGlobal, tMaxGlobal;
 
     function validateAndLoadInputs() {
-        // Definição de limites seguros (N entre 100 e 300 evita ruído estatístico e super-empacotamento)
         let p0 = Math.max(0.5, Math.min(3.0, parseFloat(getEl("p0Input")?.value || 1.0)));
         let t0 = Math.max(200, Math.min(600, parseFloat(getEl("t0Input")?.value || 300)));
         numParticles = Math.max(100, Math.min(300, parseInt(getEl("nInput")?.value || 180)));
-        let qInput = Math.max(-50.0, Math.min(100.0, parseFloat(getEl("qInput")?.value || 40.0)));
         
         getEl("p0Input").value = p0.toFixed(2);
         getEl("t0Input").value = t0.toFixed(0);
         getEl("nInput").value = numParticles.toFixed(0);
-        getEl("qInput").value = qInput.toFixed(1);
 
         const geometry = getEl("geomSelect")?.value || "mono";
         if (geometry === "mono") {
@@ -58,6 +57,19 @@ document.addEventListener("DOMContentLoaded", () => {
             Cp_m = 4.0 * R;
         }
 
+        // Dynamic Heat Input Bounds Calculation based on N, T0, and Geometry
+        // Safe limits prevent T from falling below 60K or exceeding 1100K
+        let qMinAllowed = (numParticles * Cv_m * (60 - t0)) / 1000;
+        let qMaxAllowed = (numParticles * Cv_m * (1100 - t0)) / 1000;
+        
+        // Format values nicely for the range help prompt labels
+        getEl("q-range-label").innerText = `Permitido: ${qMinAllowed.toFixed(0)} a ${qMaxAllowed.toFixed(0)}`;
+
+        let qInput = parseFloat(getEl("qInput")?.value || 40.0);
+        if (qInput < qMinAllowed) qInput = qMinAllowed;
+        if (qInput > qMaxAllowed) qInput = qMaxAllowed;
+        getEl("qInput").value = qInput.toFixed(1);
+
         m = 4;
         particleRadius = 3.5; 
         boxWidth = 130; 
@@ -66,25 +78,32 @@ document.addEventListener("DOMContentLoaded", () => {
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
 
-        // Fator de conversão calibrado para gerar deltas nítidos de expansão/variação de T
-        maxHeatToAdd = qInput * numParticles * R * 4; 
-        heatingRate = maxHeatToAdd / 300; 
-        isCooling = (maxHeatToAdd < 0);
-
-        // Cálculos Termodinâmicos Clássicos Padrão
-        const theoreticalQ = maxHeatToAdd / numParticles; 
+        // Theoretical Classical 3D Thermodynamic Projections
+        const systemEnergyJoules = qInput * 1000; 
+        const nMolesProportional = numParticles / 180; // Scaled relative to recommended particle baseline
         
-        T_theo_V = t0 + (theoreticalQ / Cv_m);
+        T_theo_V = t0 + (systemEnergyJoules / (nMolesProportional * Cv_m));
         P_theo_V = p0 * (T_theo_V / t0);
         
-        T_theo_P = t0 + (theoreticalQ / Cp_m);
+        T_theo_P = t0 + (systemEnergyJoules / (nMolesProportional * Cp_m));
         P_theo_P = p0; 
 
-        // Inserção das previsões teóricas no Scorecard
+        // Establish absolute global temperature bounds to unify color scaling ranges
+        tMinGlobal = Math.min(t0, T_theo_V, T_theo_P);
+        tMaxGlobal = Math.max(t0, T_theo_V, T_theo_P);
+
+        // Map theoretical expectations onto UI tables
         getEl("t-v-teo").innerText = `${T_theo_V.toFixed(0)} K`;
         getEl("p-v-teo").innerText = `${P_theo_V.toFixed(2)} bar`;
         getEl("t-p-teo").innerText = `${T_theo_P.toFixed(0)} K`;
         getEl("p-p-teo").innerText = `${P_theo_P.toFixed(2)} bar`;
+
+        // Calculate total scaled energy addition required by the 2D physics engine
+        // 2D ideal gas updates translation velocity states where Cv_2D = 1.0R and Cp_2D = 2.0R
+        const targetDeltaTv = T_theo_V - t0;
+        maxHeatToAdd = numParticles * R * targetDeltaTv; 
+        heatingRate = maxHeatToAdd / 350; 
+        isCooling = (maxHeatToAdd < 0);
 
         sysV = {
             particles: initParticles(numParticles, boxWidth, initialBoxHeight, t0),
@@ -136,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
         drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
-        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, T_theo_V);
+        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
         drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V);
 
         ctx.fillStyle = "#e67e22";
@@ -159,8 +178,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText("Calor Transferido (Q): 0%", canvas.width / 2, 32);
     }
 
-    initSimulationState();
-    renderStaticFrame();
+    // Attach immediate reflection monitors across inputs to automatically render updates on change
+    ["p0Input", "t0Input", "nInput", "qInput", "geomSelect"].forEach(id => {
+        getEl(id).addEventListener("input", () => {
+            if (!isRunning) { validateAndLoadInputs(); renderStaticFrame(); }
+        });
+    });
 
     btnRun.addEventListener("click", () => {
         if (isRunning) {
@@ -171,7 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        initSimulationState();
+        validateAndLoadInputs();
         isRunning = true;
         btnRun.innerText = "Parar Simulação";
         btnRun.style.backgroundColor = "#d9534f";
@@ -213,11 +236,26 @@ document.addEventListener("DOMContentLoaded", () => {
         return arr;
     }
 
-    function updatePhysics(sys, isIsobaric, targetP) {
+    function updatePhysics(sys, isIsobaric, targetP, rateQ) {
         const N = sys.particles.length;
 
+        // Apply thermal scaling directly to the particles' velocity vectors
+        if (Math.abs(heatAddedTotal) < Math.abs(maxHeatToAdd)) {
+            let currentKinetic = 0;
+            for (let p of sys.particles) currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
+            
+            // Adjust rates individually based on system constraints (Cv vs Cp)
+            let systemSpecificRate = isIsobaric ? rateQ * (1.0 / 2.0) : rateQ;
+            let newKinetic = currentKinetic + systemSpecificRate;
+            
+            if (newKinetic > N * R * 40) {
+                let s = Math.sqrt(newKinetic / currentKinetic);
+                for (let p of sys.particles) { p.vx *= s; p.vy *= s; }
+            }
+        }
+
         if (isIsobaric) {
-            let fNet = (sys.P - targetP) * 50; 
+            let fNet = (sys.P - targetP) * 55; 
             sys.vCap += fNet * dt;
             sys.vCap *= 0.82; 
             sys.height += sys.vCap * dt;
@@ -249,6 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
+        // Inter-particle elastic wall collisions
         for (let i = 0; i < N; i++) {
             for (let j = i + 1; j < N; j++) {
                 let p1 = sys.particles[i];
@@ -283,25 +322,6 @@ document.addEventListener("DOMContentLoaded", () => {
         sys.P = (sys.T / sys.T0) * (initialVolume / currentVolume) * targetP;
     }
 
-    function injectHeat(sys, deltaQ) {
-        let currentKinetic = 0;
-        for (let p of sys.particles) {
-            currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
-        }
-        let newKinetic = currentKinetic + deltaQ;
-        
-        // Trava de segurança para impedir energia cinética negativa/nula em resfriamentos extremos
-        if (newKinetic < numParticles * R * 40) {
-            newKinetic = numParticles * R * 40;
-        }
-        
-        let scale = Math.sqrt(newKinetic / currentKinetic);
-        for (let p of sys.particles) {
-            p.vx *= scale;
-            p.vy *= scale;
-        }
-    }
-
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
         ctx.translate(offsetX, 450); 
@@ -320,23 +340,14 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.lineTo(sys.width, 300);
         ctx.stroke();
 
-        // Escala térmica calibrada para transição fluida de cor (Vermelho/Azul) baseado em T0
-        let tDiff = (sys.T - sys.T0) / 180; 
-        let rVal, gVal, bVal;
+        // High-Contrast Unified Color Interpolation Engine
+        // Maps the global extremes across the full color spectrum (Pure Blue to Pure Red)
+        let fColor = (sys.T - tMinGlobal) / (tMaxGlobal - tMinGlobal || 1);
+        fColor = Math.max(0, Math.min(1, fColor)); 
         
-        if (tDiff >= 0) {
-            // Aquecimento: Cinza neutro (130,130,130) para Vermelho vivo (235,50,50)
-            let factor = Math.min(1.0, tDiff);
-            rVal = Math.floor(130 + factor * 105);
-            gVal = Math.floor(130 - factor * 80);
-            bVal = Math.floor(130 - factor * 80);
-        } else {
-            // Resfriamento: Cinza neutro (130,130,130) para Azul elétrico (50,70,235)
-            let factor = Math.min(1.0, Math.abs(tDiff));
-            rVal = Math.floor(130 - factor * 80);
-            gVal = Math.floor(130 - factor * 60);
-            bVal = Math.floor(130 + factor * 105);
-        }
+        let rVal = Math.floor(40 + fColor * 215);
+        let gVal = 35;
+        let bVal = Math.floor(255 - fColor * 215);
 
         ctx.fillStyle = `rgb(${rVal}, ${gVal}, ${bVal})`;
         for (let p of sys.particles) {
@@ -366,7 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText(title, offsetX + sys.width / 2, 65);
         
         ctx.font = "12px monospace";
-        ctx.fillStyle = `rgb(${Math.min(200, rVal)}, 50, ${Math.min(200, bVal)})`;
+        ctx.fillStyle = `rgb(${Math.min(210, rVal)}, 40, ${Math.min(210, bVal)})`;
         ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 85);
         ctx.fillStyle = "#28a745";
         ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 103);
@@ -420,12 +431,10 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.strokeStyle = color;
             ctx.lineWidth = 2.5;
             ctx.beginPath();
-            
             for (let i = 0; i < history.length; i++) {
                 let px = (i / maxPoints) * w; 
                 let val = history[i];
                 let py = h - ((val - yMin) / (yMax - yMin)) * h;
-                
                 if (i === 0) ctx.moveTo(px, py);
                 else ctx.lineTo(px, py);
             }
@@ -443,15 +452,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let targetP0 = parseFloat(getEl("p0Input")?.value || 1.0);
 
-        // Fluxo contínuo de transferência calórica (suporta sinais positivos ou negativos)
+        // Core physics iteration update
+        updatePhysics(sysV, false, targetP0, heatingRate);
+        updatePhysics(sysP, true, targetP0, heatingRate);
+
         if (Math.abs(heatAddedTotal) < Math.abs(maxHeatToAdd)) {
             heatAddedTotal += heatingRate;
-            injectHeat(sysV, heatingRate);
-            injectHeat(sysP, heatingRate);
         }
-
-        updatePhysics(sysV, false, targetP0);
-        updatePhysics(sysP, true, targetP0);
 
         if (animationId % 2 === 0) { 
             sysV.historyT.push(sysV.T);
@@ -460,7 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
             sysP.historyP.push(sysP.P);
         }
 
-        // Atualização em tempo real do Scorecard experimental
+        // Live scorecard readout population updates
         getEl("t-v-sim").innerText = `${sysV.T.toFixed(0)} K`;
         getEl("p-v-sim").innerText = `${sysV.P.toFixed(2)} bar`;
         getEl("t-p-sim").innerText = `${sysP.T.toFixed(0)} K`;
@@ -471,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
         drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
-        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", sysV.T0, T_theo_V);
+        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
         drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V);
 
         ctx.fillStyle = "#e67e22";
@@ -486,7 +493,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#333";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
-        // Barra de progresso da transferência de energia
         const pct = Math.min(100, (Math.abs(heatAddedTotal) / Math.abs(maxHeatToAdd)) * 100);
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
@@ -498,18 +504,17 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "center";
         ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, canvas.width / 2, 32);
 
-        // Condicional de Monitoramento do Critério de Parada
+        // Strict 20-Second Verification Logic Check (Runs once full thermal dose finishes transferring)
         if (Math.abs(heatAddedTotal) >= Math.abs(maxHeatToAdd)) {
-            // Critério estrito: Pressão do pistão igual ou menor que p0 (+ tolerância física de 0.015)
+            // Check if piston pressure matches or has fallen back beneath environmental bounds
             if (sysP.P <= (targetP0 + 0.015)) {
                 equilibriumFramesCounter++;
             } else {
-                equilibriumFramesCounter = 0; // Reseta se oscilar para cima
+                equilibriumFramesCounter = 0; 
             }
 
-            // Avisa o usuário que o sistema está aguardando a janela de tempo de estabilização
             let remainingSecs = Math.max(0, (REQUIRED_EQUILIBRIUM_FRAMES - equilibriumFramesCounter) * dt);
-            getEl("status-val").innerText = `Estabilizando pistão... (${remainingSecs.toFixed(1)}s)`;
+            getEl("status-val").innerText = `Estabilizando pistão... (${remainingSecs.toFixed(1)}s restante)`;
 
             if (equilibriumFramesCounter >= REQUIRED_EQUILIBRIUM_FRAMES) {
                 cancelAnimationFrame(animationId);
