@@ -20,20 +20,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const dt = 0.02; 
     const R = 8.314;
     
-    let heatAddedTotal = 0;
-    let maxHeatToAdd = 0; 
-    let heatingRate = 0; 
+    // Decoupled Frame-Based Heating Regimes
+    let heatingFramesRemaining = 0;
+    let heatingRateV = 0;
+    let heatingRateP = 0;
     let isCooling = false;
     
-    // Strict 20 seconds stability frames tracker (20s / 0.02s = 1000 consecutive frames)
     let equilibriumFramesCounter = 0;
     const REQUIRED_EQUILIBRIUM_FRAMES = 1000; 
 
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
     let Cv_m, Cp_m;
     let T_theo_V, P_theo_V, T_theo_P, P_theo_P;
-    
-    // Shared color bounding anchors
     let tMinGlobal, tMaxGlobal;
 
     function validateAndLoadInputs() {
@@ -41,9 +39,9 @@ document.addEventListener("DOMContentLoaded", () => {
         let t0 = Math.max(200, Math.min(600, parseFloat(getEl("t0Input")?.value || 300)));
         numParticles = Math.max(100, Math.min(300, parseInt(getEl("nInput")?.value || 180)));
         
-        getEl("p0Input").value = p0.toFixed(2);
-        getEl("t0Input").value = t0.toFixed(0);
-        getEl("nInput").value = numParticles.toFixed(0);
+        if (getEl("p0Input")) getEl("p0Input").value = p0.toFixed(2);
+        if (getEl("t0Input")) getEl("t0Input").value = t0.toFixed(0);
+        if (getEl("nInput")) getEl("nInput").value = numParticles.toFixed(0);
 
         const geometry = getEl("geomSelect")?.value || "mono";
         if (geometry === "mono") {
@@ -57,18 +55,21 @@ document.addEventListener("DOMContentLoaded", () => {
             Cp_m = 4.0 * R;
         }
 
-        // Dynamic Heat Input Bounds Calculation based on N, T0, and Geometry
-        // Safe limits prevent T from falling below 60K or exceeding 1100K
-        let qMinAllowed = (numParticles * Cv_m * (60 - t0)) / 1000;
-        let qMaxAllowed = (numParticles * Cv_m * (1100 - t0)) / 1000;
+        // FIXED: Scaled by proportional moles to prevent extreme 144k K temperature overshoots
+        const nMolesProportional = numParticles / 180;
         
-        // Format values nicely for the range help prompt labels
-        getEl("q-range-label").innerText = `Permitido: ${qMinAllowed.toFixed(0)} a ${qMaxAllowed.toFixed(0)}`;
+        let qMinAllowed = (nMolesProportional * Cv_m * (60 - t0)) / 1000;
+        let qMaxAllowed = (nMolesProportional * Cv_m * (1200 - t0)) / 1000;
+        
+        const qRangeLabel = getEl("q-range-label");
+        if (qRangeLabel) {
+            qRangeLabel.innerText = `Permitido: ${qMinAllowed.toFixed(1)} a ${qMaxAllowed.toFixed(1)}`;
+        }
 
-        let qInput = parseFloat(getEl("qInput")?.value || 40.0);
+        let qInput = parseFloat(getEl("qInput")?.value || 20.0);
         if (qInput < qMinAllowed) qInput = qMinAllowed;
         if (qInput > qMaxAllowed) qInput = qMaxAllowed;
-        getEl("qInput").value = qInput.toFixed(1);
+        if (getEl("qInput")) getEl("qInput").value = qInput.toFixed(1);
 
         m = 4;
         particleRadius = 3.5; 
@@ -78,9 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
         leftBoxOffset = (canvas.width / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * canvas.width / 4) - (boxWidth / 2);
 
-        // Theoretical Classical 3D Thermodynamic Projections
         const systemEnergyJoules = qInput * 1000; 
-        const nMolesProportional = numParticles / 180; // Scaled relative to recommended particle baseline
         
         T_theo_V = t0 + (systemEnergyJoules / (nMolesProportional * Cv_m));
         P_theo_V = p0 * (T_theo_V / t0);
@@ -88,22 +87,19 @@ document.addEventListener("DOMContentLoaded", () => {
         T_theo_P = t0 + (systemEnergyJoules / (nMolesProportional * Cp_m));
         P_theo_P = p0; 
 
-        // Establish absolute global temperature bounds to unify color scaling ranges
         tMinGlobal = Math.min(t0, T_theo_V, T_theo_P);
         tMaxGlobal = Math.max(t0, T_theo_V, T_theo_P);
 
-        // Map theoretical expectations onto UI tables
-        getEl("t-v-teo").innerText = `${T_theo_V.toFixed(0)} K`;
-        getEl("p-v-teo").innerText = `${P_theo_V.toFixed(2)} bar`;
-        getEl("t-p-teo").innerText = `${T_theo_P.toFixed(0)} K`;
-        getEl("p-p-teo").innerText = `${P_theo_P.toFixed(2)} bar`;
+        if (getEl("t-v-teo")) getEl("t-v-teo").innerText = `${T_theo_V.toFixed(0)} K`;
+        if (getEl("p-v-teo")) getEl("p-v-teo").innerText = `${P_theo_V.toFixed(2)} bar`;
+        if (getEl("t-p-teo")) getEl("t-p-teo").innerText = `${T_theo_P.toFixed(0)} K`;
+        if (getEl("p-p-teo")) getEl("p-p-teo").innerText = `${P_theo_P.toFixed(2)} bar`;
 
-        // Calculate total scaled energy addition required by the 2D physics engine
-        // 2D ideal gas updates translation velocity states where Cv_2D = 1.0R and Cp_2D = 2.0R
-        const targetDeltaTv = T_theo_V - t0;
-        maxHeatToAdd = numParticles * R * targetDeltaTv; 
-        heatingRate = maxHeatToAdd / 350; 
-        isCooling = (maxHeatToAdd < 0);
+        // Decoupled Energy Slopes for 2D Translation Spaces
+        heatingFramesRemaining = 350; 
+        heatingRateV = (numParticles * R * (T_theo_V - t0)) / 350; 
+        heatingRateP = (2.0 * numParticles * R * (T_theo_P - t0)) / 350; // Cp_2D = 2.0R to naturally cover work
+        isCooling = (qInput < 0);
 
         sysV = {
             particles: initParticles(numParticles, boxWidth, initialBoxHeight, t0),
@@ -130,23 +126,26 @@ document.addEventListener("DOMContentLoaded", () => {
             historyP: [p0]
         };
 
-        heatAddedTotal = 0;
         equilibriumFramesCounter = 0;
     }
 
     function initSimulationState() {
         validateAndLoadInputs();
         
-        getEl("pDisplayBox").className = "jsbox-alert";
-        getEl("pDisplayBox").style.background = "#fff3cd";
-        getEl("pDisplayBox").style.color = "#856404";
-        getEl("pDisplayBox").style.borderColor = "#ffeeba";
-        getEl("status-val").innerText = "Pronto para iniciar";
+        const pBox = getEl("pDisplayBox");
+        if (pBox) {
+            pBox.className = "jsbox-alert";
+            pBox.style.background = "#fff3cd";
+            pBox.style.color = "#856404";
+            pBox.style.borderColor = "#ffeeba";
+        }
+        const sVal = getEl("status-val");
+        if (sVal) sVal.innerText = "Pronto para iniciar";
         
-        getEl("t-v-sim").innerText = "-";
-        getEl("p-v-sim").innerText = "-";
-        getEl("t-p-sim").innerText = "-";
-        getEl("p-p-sim").innerText = "-";
+        if (getEl("t-v-sim")) getEl("t-v-sim").innerText = "-";
+        if (getEl("p-v-sim")) getEl("p-v-sim").innerText = "-";
+        if (getEl("t-p-sim")) getEl("t-p-sim").innerText = "-";
+        if (getEl("p-p-sim")) getEl("p-p-sim").innerText = "-";
     }
 
     function renderStaticFrame() {
@@ -178,9 +177,8 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillText("Calor Transferido (Q): 0%", canvas.width / 2, 32);
     }
 
-    // Attach immediate reflection monitors across inputs to automatically render updates on change
     ["p0Input", "t0Input", "nInput", "qInput", "geomSelect"].forEach(id => {
-        getEl(id).addEventListener("input", () => {
+        getEl(id)?.addEventListener("input", () => {
             if (!isRunning) { validateAndLoadInputs(); renderStaticFrame(); }
         });
     });
@@ -198,7 +196,9 @@ document.addEventListener("DOMContentLoaded", () => {
         isRunning = true;
         btnRun.innerText = "Parar Simulação";
         btnRun.style.backgroundColor = "#d9534f";
-        getEl("status-val").innerText = isCooling ? "Resfriando o sistema..." : "Aquecendo o sistema...";
+        
+        const sVal = getEl("status-val");
+        if (sVal) sVal.innerText = isCooling ? "Resfriando o sistema..." : "Aquecendo o sistema...";
 
         animate();
     });
@@ -239,16 +239,13 @@ document.addEventListener("DOMContentLoaded", () => {
     function updatePhysics(sys, isIsobaric, targetP, rateQ) {
         const N = sys.particles.length;
 
-        // Apply thermal scaling directly to the particles' velocity vectors
-        if (Math.abs(heatAddedTotal) < Math.abs(maxHeatToAdd)) {
+        // Decoupled Thermal Injections
+        if (heatingFramesRemaining > 0) {
             let currentKinetic = 0;
             for (let p of sys.particles) currentKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
             
-            // Adjust rates individually based on system constraints (Cv vs Cp)
-            let systemSpecificRate = isIsobaric ? rateQ * (1.0 / 2.0) : rateQ;
-            let newKinetic = currentKinetic + systemSpecificRate;
-            
-            if (newKinetic > N * R * 40) {
+            let newKinetic = currentKinetic + rateQ;
+            if (newKinetic > N * R * 30) {
                 let s = Math.sqrt(newKinetic / currentKinetic);
                 for (let p of sys.particles) { p.vx *= s; p.vy *= s; }
             }
@@ -279,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 p.y = sys.height - particleRadius; 
                 if (p.vy > 0) {
                     if (isIsobaric) {
-                        p.vy = -p.vy + 2 * sys.vCap;
+                        p.vy = -p.vy + 2 * sys.vCap; // Energy Transfer via Piston Moving Boundary Work
                     } else {
                         p.vy = -Math.abs(p.vy);
                     }
@@ -287,7 +284,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // Inter-particle elastic wall collisions
         for (let i = 0; i < N; i++) {
             for (let j = i + 1; j < N; j++) {
                 let p1 = sys.particles[i];
@@ -312,9 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         let totalKinetic = 0;
-        for (let p of sys.particles) {
-            totalKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
-        }
+        for (let p of sys.particles) totalKinetic += 0.5 * m * (p.vx * p.vx + p.vy * p.vy);
         sys.T = totalKinetic / (N * R);
 
         const currentVolume = sys.width * sys.height;
@@ -340,8 +334,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.lineTo(sys.width, 300);
         ctx.stroke();
 
-        // High-Contrast Unified Color Interpolation Engine
-        // Maps the global extremes across the full color spectrum (Pure Blue to Pure Red)
         let fColor = (sys.T - tMinGlobal) / (tMaxGlobal - tMinGlobal || 1);
         fColor = Math.max(0, Math.min(1, fColor)); 
         
@@ -452,12 +444,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let targetP0 = parseFloat(getEl("p0Input")?.value || 1.0);
 
-        // Core physics iteration update
-        updatePhysics(sysV, false, targetP0, heatingRate);
-        updatePhysics(sysP, true, targetP0, heatingRate);
+        updatePhysics(sysV, false, targetP0, heatingRateV);
+        updatePhysics(sysP, true, targetP0, heatingRateP);
 
-        if (Math.abs(heatAddedTotal) < Math.abs(maxHeatToAdd)) {
-            heatAddedTotal += heatingRate;
+        if (heatingFramesRemaining > 0) {
+            heatingFramesRemaining--;
         }
 
         if (animationId % 2 === 0) { 
@@ -467,11 +458,10 @@ document.addEventListener("DOMContentLoaded", () => {
             sysP.historyP.push(sysP.P);
         }
 
-        // Live scorecard readout population updates
-        getEl("t-v-sim").innerText = `${sysV.T.toFixed(0)} K`;
-        getEl("p-v-sim").innerText = `${sysV.P.toFixed(2)} bar`;
-        getEl("t-p-sim").innerText = `${sysP.T.toFixed(0)} K`;
-        getEl("p-p-sim").innerText = `${sysP.P.toFixed(2)} bar`;
+        if (getEl("t-v-sim")) getEl("t-v-sim").innerText = `${sysV.T.toFixed(0)} K`;
+        if (getEl("p-v-sim")) getEl("p-v-sim").innerText = `${sysV.P.toFixed(2)} bar`;
+        if (getEl("t-p-sim")) getEl("t-p-sim").innerText = `${sysP.T.toFixed(0)} K`;
+        if (getEl("p-p-sim")) getEl("p-p-sim").innerText = `${sysP.P.toFixed(2)} bar`;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
@@ -493,7 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#333";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
-        const pct = Math.min(100, (Math.abs(heatAddedTotal) / Math.abs(maxHeatToAdd)) * 100);
+        const pct = Math.min(100, ((350 - heatingFramesRemaining) / 350) * 100);
         ctx.fillStyle = "#e9ecef";
         ctx.fillRect(canvas.width / 2 - 150, 20, 300, 16);
         ctx.fillStyle = isCooling ? "#3498db" : "#28a745";
@@ -504,9 +494,8 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.textAlign = "center";
         ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, canvas.width / 2, 32);
 
-        // Strict 20-Second Verification Logic Check (Runs once full thermal dose finishes transferring)
-        if (Math.abs(heatAddedTotal) >= Math.abs(maxHeatToAdd)) {
-            // Check if piston pressure matches or has fallen back beneath environmental bounds
+        // Stabilize and halt checking
+        if (heatingFramesRemaining <= 0) {
             if (sysP.P <= (targetP0 + 0.015)) {
                 equilibriumFramesCounter++;
             } else {
@@ -514,7 +503,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             let remainingSecs = Math.max(0, (REQUIRED_EQUILIBRIUM_FRAMES - equilibriumFramesCounter) * dt);
-            getEl("status-val").innerText = `Estabilizando pistão... (${remainingSecs.toFixed(1)}s restante)`;
+            const sVal = getEl("status-val");
+            if (sVal) sVal.innerText = `Estabilizando pistão... (${remainingSecs.toFixed(1)}s restante)`;
 
             if (equilibriumFramesCounter >= REQUIRED_EQUILIBRIUM_FRAMES) {
                 cancelAnimationFrame(animationId);
@@ -524,12 +514,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 btnRun.style.backgroundColor = "#007bff";
                 
                 let pBox = getEl("pDisplayBox");
-                pBox.className = "jsbox-alert snapped";
-                getEl("status-val").innerText = "Equilíbrio Atingido (20s Estável)!";
+                if (pBox) pBox.className = "jsbox-alert snapped";
+                if (sVal) sVal.innerText = "Equilíbrio Atingido (20s Estável)!";
                 return;
             }
         }
 
         animationId = requestAnimationFrame(animate);
     }
+
+    initSimulationState();
+    renderStaticFrame();
 });
