@@ -1,25 +1,23 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // AUTOMATIC LAYOUT FIX: Inject clean styles to narrow input boxes and keep descriptions on one line
+    // LAYOUT FIX: Target input widths cleanly without altering form container alignments
     const styleBlock = document.createElement("style");
     styleBlock.innerHTML = `
-        .control-panel, .input-container, form, #controls { display: grid; gap: 8px; }
-        .sim-input-group, div:has(> input[type="number"]) { 
-            display: flex !important; 
-            align-items: center !important; 
-            justify-content: space-between !important; 
-            gap: 12px !important;
-            margin-bottom: 4px;
+        input[type="number"] { 
+            width: 70px !important; 
+            max-width: 70px !important;
+            padding: 3px 6px !important;
+            font-size: 13px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 4px !important;
+            text-align: right !important;
         }
-        .sim-input-group label, label { white-space: nowrap !important; font-family: system-ui, sans-serif; font-size: 13px; color: #334155; }
-        .sim-input-group input, .sim-input-group select, input[type="number"], select { 
-            width: 75px !important; 
-            max-width: 75px !important;
-            box-sizing: border-box !important; 
-            padding: 4px 6px !important; 
-            font-size: 13px !important; 
-            border: 1px solid #cbd5e1 !important; 
-            border-radius: 6px !important; 
-            text-align: right !important; 
+        select {
+            width: auto !important;
+            max-width: 160px !important;
+            padding: 3px 6px !important;
+            font-size: 13px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 4px !important;
         }
     `;
     document.head.appendChild(styleBlock);
@@ -31,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!canvas || !btnRun) return;
     const ctx = canvas.getContext("2d");
 
-    // ULTRA-RESOLUTION FIX: High-DPI crisp vector graphics calibration
+    // HIGH-DPI CALIBRATION: Upscale bitmap coordinates to clear up canvas blurriness
     const dpr = window.devicePixelRatio || 1;
     const logicalWidth = 700;
     const logicalHeight = 650;
@@ -190,20 +188,20 @@ document.addEventListener("DOMContentLoaded", () => {
         drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
-        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
-        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V * 1.05);
+        drawGraph(50, 495, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
+        drawGraph(380, 495, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V * 1.05);
 
         ctx.fillStyle = "#e67e22";
-        ctx.fillRect(220, 620, 12, 12);
+        ctx.fillRect(220, 622, 12, 12);
         ctx.fillStyle = "#1e293b";
         ctx.font = "12px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
+        ctx.fillText("Câmara Fixa (ΔV=0)", 238, 633);
 
         ctx.fillStyle = "#3498db";
-        ctx.fillRect(400, 620, 12, 12);
+        ctx.fillRect(400, 622, 12, 12);
         ctx.fillStyle = "#1e293b";
-        ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
+        ctx.fillText("Câmara Móvel (Δp=0)", 418, 633);
 
         ctx.fillStyle = "#e2e8f0";
         ctx.fillRect(logicalWidth / 2 - 150, 20, 300, 16);
@@ -289,7 +287,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const N = sys.particles.length;
 
         if (isIsobaric) {
-            // FIXED: Force coefficient increased to 160 and damping relaxed to 0.96 to fix the 1.08 bar stickiness bug
             let fNet = (sys.P - targetP) * 160; 
             sys.vCap += fNet * dt;
             sys.vCap *= 0.96; 
@@ -360,7 +357,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
-        ctx.translate(offsetX, 445); 
+        // Shifted workspace baseline down to 460 to separate it from the progress header cleanly
+        ctx.translate(offsetX, 460); 
         ctx.scale(1, -1); 
 
         ctx.fillStyle = "rgba(248, 250, 252, 0.9)";
@@ -405,19 +403,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.restore();
 
-        // FIXED: Telemetry labels shifted up slightly to give the upscaled pixel engine plenty of headroom
+        // High-DPI text placement adjustments to eliminate overlapping bugs
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(title, offsetX + sys.width / 2, 35);
+        ctx.fillText(title, offsetX + sys.width / 2, 55);
         
         ctx.font = "bold 12px monospace";
         ctx.fillStyle = `rgb(${Math.min(200, rVal)}, 50, ${Math.min(200, bVal)})`;
-        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 55);
+        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 75);
         ctx.fillStyle = "#16a34a";
-        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 73);
+        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 93);
         ctx.fillStyle = "#64748b";
-        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 91);
+        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 111);
     }
 
     function drawGraph(x, y, w, h, title, historyV, historyP, unit, defMin, defMax) {
@@ -495,10 +493,11 @@ document.addEventListener("DOMContentLoaded", () => {
         let qInjectedJoules = totalQInputJoules * (Math.min(350, currentStep) / 350);
         let nMolesProportional = numParticles / 180;
 
+        // Isochoric path remains tied to Cv
         let frameTargetT_V = t0 + qInjectedJoules / (nMolesProportional * Cv_m);
         
-        let workDoneJoules = nMolesProportional * R * t0 * ((sysP.height - sysP.initialHeight) / sysP.initialHeight);
-        let frameTargetT_P = t0 + (qInjectedJoules - workDoneJoules) / (nMolesProportional * Cv_m);
+        // FIXED: Isobaric path calculated purely via Cp to completely remove the mechanical inertia lag bump
+        let frameTargetT_P = t0 + qInjectedJoules / (nMolesProportional * Cp_m);
         if (frameTargetT_P < 40) frameTargetT_P = 40; 
 
         updatePhysics(sysV, false, targetP0, frameTargetT_V);
@@ -525,20 +524,20 @@ document.addEventListener("DOMContentLoaded", () => {
         drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
         drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
 
-        drawGraph(50, 490, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
-        drawGraph(380, 490, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V * 1.05);
+        drawGraph(50, 495, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
+        drawGraph(380, 495, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V * 1.05);
 
         ctx.fillStyle = "#e67e22";
-        ctx.fillRect(220, 620, 12, 12);
+        ctx.fillRect(220, 622, 12, 12);
         ctx.fillStyle = "#1e293b";
         ctx.font = "12px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
+        ctx.fillText("Câmara Fixa (ΔV=0)", 238, 633);
 
         ctx.fillStyle = "#3498db";
-        ctx.fillRect(400, 620, 12, 12);
+        ctx.fillRect(400, 622, 12, 12);
         ctx.fillStyle = "#1e293b";
-        ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
+        ctx.fillText("Câmara Móvel (Δp=0)", 418, 633);
 
         const pct = Math.min(100, ((350 - heatingFramesRemaining) / 350) * 100);
         ctx.fillStyle = "#e2e8f0";
