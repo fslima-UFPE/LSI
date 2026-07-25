@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // LAYOUT REPAIR: Fix mobile stacking, justify labels, and lock canvas aspect ratio
+    // LAYOUT REPAIR: Force range labels to wrap below, stack columns on mobile, and lock aspect ratio
     const styleBlock = document.createElement("style");
     styleBlock.innerHTML = `
         #sim-canvas-dual {
@@ -11,11 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         .sim-input-group, div:has(> input[type="number"]), div:has(> select) {
             display: flex !important;
+            flex-wrap: wrap !important;
             align-items: center !important;
             justify-content: space-between !important;
             width: 100% !important;
-            gap: 16px !important;
-            margin-bottom: 10px !important;
+            gap: 8px !important;
+            margin-bottom: 14px !important;
             box-sizing: border-box !important;
         }
         label {
@@ -33,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
             border-radius: 4px !important;
             text-align: right !important;
             flex-shrink: 0 !important;
+            margin-left: auto !important;
         }
         select {
             width: 120px !important;
@@ -43,18 +45,30 @@ document.addEventListener("DOMContentLoaded", () => {
             border: 1px solid #cbd5e1 !important;
             border-radius: 4px !important;
             flex-shrink: 0 !important;
+            margin-left: auto !important;
+        }
+        /* Force range descriptors to drop cleanly onto their own line below parameter descriptions */
+        #q-range-label, .range-label, small, span[id*="range"], div:has(> input) + span, div:has(> input) small {
+            display: block !important;
+            width: 100% !important;
+            flex: none !important;
+            margin-top: 2px !important;
+            font-size: 11px !important;
+            color: #64748b !important;
+            text-align: left !important;
         }
         @media (max-width: 768px) {
-            div:has(> #pDisplayBox), .row, form, fieldset {
+            .row, .d-flex, [class*="col-"] {
                 display: flex !important;
                 flex-direction: column !important;
                 width: 100% !important;
-                gap: 16px !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+                box-sizing: border-box !important;
             }
-            [class*="col-"], .control-panel, .calculation-panel, div:has(> #btn-run-dual) {
+            .control-panel, .calculation-panel, form, fieldset {
                 width: 100% !important;
                 max-width: 100% !important;
-                flex: none !important;
             }
         }
     `;
@@ -67,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!canvas || !btnRun) return;
     const ctx = canvas.getContext("2d");
 
-    // HIGH-DPI SCALER: Crisp desktop vector processing
+    // HIGH-DPI SCALER: Ensures crisp rendering vectors
     const dpr = window.devicePixelRatio || 1;
     const logicalWidth = 700;
     const logicalHeight = 650;
@@ -149,11 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
         m = 4;
         particleRadius = 3.5; 
         boxWidth = 210; 
-        initialBoxHeight = 90; 
         
-        leftBoxOffset = (logicalWidth / 4) - (boxWidth / 2);
-        rightBoxOffset = (3 * logicalWidth / 4) - (boxWidth / 2);
-
         const systemEnergyJoules = qInput * 1000; 
         
         T_theo_V = t0 + (systemEnergyJoules / (nMolesProportional * Cv_m));
@@ -161,6 +171,22 @@ document.addEventListener("DOMContentLoaded", () => {
         
         T_theo_P = t0 + (systemEnergyJoules / (nMolesProportional * Cp_m));
         P_theo_P = p0; 
+
+        // ADAPTIVE GEOMETRY SCALE ENGINE: Prevent ceiling collision by resizing resting scale dynamically
+        let expansionRatio = T_theo_P / t0;
+        let compressionRatio = T_theo_V / t0;
+        let targetInitialHeight = 90;
+        
+        if (targetInitialHeight * expansionRatio > 310) {
+            targetInitialHeight = 310 / expansionRatio;
+        }
+        if (targetInitialHeight * compressionRatio < 35) {
+            targetInitialHeight = 35 / compressionRatio;
+        }
+        initialBoxHeight = Math.max(50, Math.min(110, targetInitialHeight));
+        
+        leftBoxOffset = (logicalWidth / 4) - (boxWidth / 2);
+        rightBoxOffset = (3 * logicalWidth / 4) - (boxWidth / 2);
 
         tMinGlobal = Math.min(t0, T_theo_V, T_theo_P);
         tMaxGlobal = Math.max(t0, T_theo_V, T_theo_P) * 1.15; 
@@ -531,7 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let frameTargetT_V = t0 + qInjectedJoules / (nMolesProportional * Cv_m);
         
-        // REVERTED ENGINE: Restored explicit mechanical work monitoring to bring back the dynamic lag transient
+        // RESTORED ENGINE: Reverted back to explicit work parameters to accurately track mechanical piston inertia
         let workDoneJoules = nMolesProportional * R * t0 * ((sysP.height - sysP.initialHeight) / sysP.initialHeight);
         let frameTargetT_P = t0 + (qInjectedJoules - workDoneJoules) / (nMolesProportional * Cv_m);
         if (frameTargetT_P < 40) frameTargetT_P = 40; 
