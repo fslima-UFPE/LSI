@@ -1,22 +1,49 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // AUTOMATIC LAYOUT FIX: Inject clean styles to narrow input boxes and keep descriptions on one line
+    const styleBlock = document.createElement("style");
+    styleBlock.innerHTML = `
+        .control-panel, .input-container, form, #controls { display: grid; gap: 8px; }
+        .sim-input-group, div:has(> input[type="number"]) { 
+            display: flex !important; 
+            align-items: center !important; 
+            justify-content: space-between !important; 
+            gap: 12px !important;
+            margin-bottom: 4px;
+        }
+        .sim-input-group label, label { white-space: nowrap !important; font-family: system-ui, sans-serif; font-size: 13px; color: #334155; }
+        .sim-input-group input, .sim-input-group select, input[type="number"], select { 
+            width: 75px !important; 
+            max-width: 75px !important;
+            box-sizing: border-box !important; 
+            padding: 4px 6px !important; 
+            font-size: 13px !important; 
+            border: 1px solid #cbd5e1 !important; 
+            border-radius: 6px !important; 
+            text-align: right !important; 
+        }
+    `;
+    document.head.appendChild(styleBlock);
+
     const getEl = (id) => document.getElementById(id);
-    
     const btnRun = getEl("btn-run-dual");
     const canvas = getEl("sim-canvas-dual");
 
     if (!canvas || !btnRun) return;
     const ctx = canvas.getContext("2d");
 
-    // CRISP RESOLUTION FIX: Read device pixel ratio and upscale backing coordinates
+    // ULTRA-RESOLUTION FIX: High-DPI crisp vector graphics calibration
     const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = canvas.width || 700;
-    const logicalHeight = canvas.height || 650;
+    const logicalWidth = 700;
+    const logicalHeight = 650;
     
     canvas.style.width = logicalWidth + "px";
     canvas.style.height = logicalHeight + "px";
     canvas.width = logicalWidth * dpr;
     canvas.height = logicalHeight * dpr;
+    
+    ctx.resetTransform();
     ctx.scale(dpr, dpr);
+    ctx.imageSmoothingEnabled = true;
 
     let isRunning = false;
     let animationId = null;
@@ -35,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let isCooling = false;
     
     let equilibriumFramesCounter = 0;
-    const REQUIRED_EQUILIBRIUM_FRAMES = 200; 
+    const REQUIRED_EQUILIBRIUM_FRAMES = 220; 
 
     let boxWidth, initialBoxHeight, leftBoxOffset, rightBoxOffset;
     let Cv_m, Cp_m;
@@ -168,19 +195,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1e293b";
         ctx.font = "12px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
         ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1e293b";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
-        ctx.fillStyle = "#e9ecef";
+        ctx.fillStyle = "#e2e8f0";
         ctx.fillRect(logicalWidth / 2 - 150, 20, 300, 16);
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1e293b";
         ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("Calor Transferido (Q): 0%", logicalWidth / 2, 32);
@@ -262,14 +289,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const N = sys.particles.length;
 
         if (isIsobaric) {
-            let fNet = (sys.P - targetP) * 45; 
+            // FIXED: Force coefficient increased to 160 and damping relaxed to 0.96 to fix the 1.08 bar stickiness bug
+            let fNet = (sys.P - targetP) * 160; 
             sys.vCap += fNet * dt;
-            sys.vCap *= 0.85; 
+            sys.vCap *= 0.96; 
             sys.height += sys.vCap * dt;
 
-            // FIXED: Ceiling cap extended safely to 300 to eliminate thermodynamic path lockouts
             if (sys.height < 30) { sys.height = 30; sys.vCap = 0; }
-            if (sys.height > 300) { sys.height = 300; sys.vCap = 0; }
+            if (sys.height > 330) { sys.height = 330; sys.vCap = 0; }
         }
         
         const wallBuffer = particleRadius + 1.5; 
@@ -333,15 +360,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function drawSystem(sys, offsetX, title, isIsobaric) {
         ctx.save();
-        // Shifted baseline down to 445 to accommodate high vertical expansion crisply
         ctx.translate(offsetX, 445); 
         ctx.scale(1, -1); 
 
-        // Premium glass chamber visual design
-        ctx.fillStyle = "rgba(245, 247, 250, 0.8)";
+        ctx.fillStyle = "rgba(248, 250, 252, 0.9)";
         ctx.fillRect(0, 0, sys.width, 360); 
 
-        ctx.strokeStyle = "#2c3e50";
+        ctx.strokeStyle = "#1e293b";
         ctx.lineWidth = 3;
         ctx.lineCap = "round";
         ctx.beginPath();
@@ -354,11 +379,10 @@ document.addEventListener("DOMContentLoaded", () => {
         let fColor = (sys.T - tMinGlobal) / (tMaxGlobal - tMinGlobal || 1);
         fColor = Math.max(0, Math.min(1, fColor)); 
         
-        let rVal = Math.floor(46 + fColor * 209);
-        let gVal = Math.floor(62 - fColor * 20);
-        let bVal = Math.floor(243 - fColor * 180);
+        let rVal = Math.floor(37 + fColor * 218);
+        let gVal = Math.floor(99 - fColor * 60);
+        let bVal = Math.floor(235 - fColor * 175);
 
-        // Render sleek anti-aliased energetic gaseous atoms
         ctx.fillStyle = `rgb(${rVal}, ${gVal}, ${bVal})`;
         for (let p of sys.particles) {
             ctx.beginPath();
@@ -366,35 +390,34 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.fill();
         }
 
-        // Heavy steel engine piston profile
-        ctx.strokeStyle = "#34495e";
-        ctx.lineWidth = 7;
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 8;
         ctx.beginPath();
         ctx.moveTo(0, sys.height);
         ctx.lineTo(sys.width, sys.height);
         ctx.stroke();
 
         if (!isIsobaric) {
-            ctx.fillStyle = "#e74c3c";
+            ctx.fillStyle = "#ef4444";
             ctx.fillRect(-5, sys.height + 3, 8, 5);           
             ctx.fillRect(sys.width - 3, sys.height + 3, 8, 5); 
         }
 
         ctx.restore();
 
-        // High resolution system telemetry displays using standard system UI typography stack
-        ctx.fillStyle = "#2c3e50";
+        // FIXED: Telemetry labels shifted up slightly to give the upscaled pixel engine plenty of headroom
+        ctx.fillStyle = "#1e293b";
         ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(title, offsetX + sys.width / 2, 45);
+        ctx.fillText(title, offsetX + sys.width / 2, 35);
         
         ctx.font = "bold 12px monospace";
-        ctx.fillStyle = `rgb(${Math.min(210, rVal)}, 40, ${Math.min(210, bVal)})`;
-        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 65);
-        ctx.fillStyle = "#27ae60";
-        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 83);
-        ctx.fillStyle = "#7f8c8d";
-        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 101);
+        ctx.fillStyle = `rgb(${Math.min(200, rVal)}, 50, ${Math.min(200, bVal)})`;
+        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 55);
+        ctx.fillStyle = "#16a34a";
+        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 73);
+        ctx.fillStyle = "#64748b";
+        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 91);
     }
 
     function drawGraph(x, y, w, h, title, historyV, historyP, unit, defMin, defMax) {
@@ -403,11 +426,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = "#e2e8f0";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(0, 0, w, h);
 
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1e293b";
         ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
         ctx.fillText(title, 0, -10);
@@ -421,6 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (yMax === yMin) yMax += 1.0; 
 
         ctx.strokeStyle = "#f1f5f9";
+        ctx.lineWidth = 1;
         ctx.beginPath();
         for(let i = 1; i < 4; i++) {
             let ly = h - (i * h / 4);
@@ -429,8 +453,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         ctx.stroke();
 
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "9px monospace";
+        ctx.fillStyle = "#64748b";
+        ctx.font = "bold 9px monospace";
         ctx.textAlign = "right";
         ctx.fillText(yMax.toFixed(1) + unit, -6, 10);
         ctx.fillText(((yMax + yMin)/2).toFixed(1) + unit, -6, h/2 + 4);
@@ -441,7 +465,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const drawLine = (history, color) => {
             if (history.length < 2) return;
             ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 2.5; 
             ctx.beginPath();
             for (let i = 0; i < history.length; i++) {
                 let px = (i / maxPoints) * w; 
@@ -506,14 +530,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 620, 12, 12);
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1e293b";
         ctx.font = "12px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
         ctx.fillText("Câmara Fixa (ΔV=0)", 238, 631);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 620, 12, 12);
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1e293b";
         ctx.fillText("Câmara Móvel (Δp=0)", 418, 631);
 
         const pct = Math.min(100, ((350 - heatingFramesRemaining) / 350) * 100);
@@ -522,14 +546,14 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = isCooling ? "#3498db" : "#28a745";
         ctx.fillRect(logicalWidth / 2 - 150, 20, 3 * pct, 16);
         
-        ctx.fillStyle = "#2c3e50";
+        ctx.fillStyle = "#1e293b";
         ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, logicalWidth / 2, 32);
 
         if (heatingFramesRemaining <= 0) {
-            const pressureSettled = Math.abs(sysP.P - targetP0) <= 0.015;
-            const mechanicalFrictionGrounded = Math.abs(sysP.vCap) < 0.4;
+            const pressureSettled = Math.abs(sysP.P - targetP0) <= 0.012;
+            const mechanicalFrictionGrounded = Math.abs(sysP.vCap) < 0.25;
 
             if (pressureSettled && mechanicalFrictionGrounded) {
                 equilibriumFramesCounter++;
