@@ -186,30 +186,30 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderStaticFrame() {
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
         
-        drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
-        drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
+        drawSystem(sysV, leftBoxOffset, "Sistema isovolumétrico", false);
+        drawSystem(sysP, rightBoxOffset, "Sistema isobárico", true);
 
-        drawGraph(50, 495, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
-        drawGraph(380, 495, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V * 1.05);
+        drawGraph(50, 495, 270, 110, "Evolução da temperatura", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
+        drawGraph(380, 495, 270, 110, "Evolução da pressão", sysV.historyP, sysP.historyP, " bar", sysV.P, P_theo_V * 1.05);
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 622, 12, 12);
         ctx.fillStyle = "#1e293b";
         ctx.font = "12px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("Câmara Fixa (ΔV=0)", 238, 633);
+        ctx.fillText("Sistema isovolumétrico", 238, 633);
 
         ctx.fillStyle = "#3498db";
         ctx.fillRect(400, 622, 12, 12);
         ctx.fillStyle = "#1e293b";
-        ctx.fillText("Câmara Móvel (Δp=0)", 418, 633);
+        ctx.fillText("Sistema isobárico", 418, 633);
 
         ctx.fillStyle = "#e2e8f0";
         ctx.fillRect(logicalWidth / 2 - 150, 20, 300, 16);
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Calor transferido (q): 0%", logicalWidth / 2, 32);
+        ctx.fillText("Calor transferido: 0%", logicalWidth / 2, 32);
     }
 
     ["p0Input", "t0Input", "nInput", "qInput", "geomSelect"].forEach(id => {
@@ -519,8 +519,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
         
-        drawSystem(sysV, leftBoxOffset, "Isovolumétrico", false);
-        drawSystem(sysP, rightBoxOffset, "Isobárico", true);
+        drawSystem(sysV, leftBoxOffset, "Sistema isovolumétrico", false);
+        drawSystem(sysP, rightBoxOffset, "Sistema isobárico", true);
 
         drawGraph(50, 495, 270, 110, "Evolução da temperatura", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
         drawGraph(380, 495, 270, 110, "Evolução da pressão", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V * 1.05);
