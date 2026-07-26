@@ -546,7 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`${isCooling ? 'Frio' : 'Calor'} Transferido: ${pct.toFixed(0)}%`, logicalWidth / 2, 32);
+        ctx.fillText(`Calor ${isCooling ? 'removido' : 'fornecido'}: ${pct.toFixed(0)}%`, logicalWidth / 2, 32);
 
         if (heatingFramesRemaining <= 0) {
             const pressureSettled = Math.abs(sysP.P - targetP0) <= 0.012;
