@@ -112,7 +112,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // CEILING COLLISION ENGINE: Calculate dynamic boundary limits based on expansion ratios
         let expansionRatio = T_theo_P / t0;
         let compressionRatio = T_theo_V / t0;
-        let targetInitialHeight = 90;
+        
+        // --- FIX: DYNAMIC INITIAL VOLUME AND HEIGHT BASED ON IDEAL GAS LAW ---
+        // Dynamically calculates the starting volume and converts it to canvas pixel height
+        let targetInitialHeight = (numParticles * t0) / (600 * p0);
         
         if (targetInitialHeight * expansionRatio > 310) {
             targetInitialHeight = 310 / expansionRatio;
@@ -120,7 +123,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (targetInitialHeight * compressionRatio < 35) {
             targetInitialHeight = 35 / compressionRatio;
         }
-        initialBoxHeight = Math.max(50, Math.min(110, targetInitialHeight));
+        
+        // Capped layout constraints extended from (50-110) to (35-250) to support larger initial volumes
+        initialBoxHeight = Math.max(35, Math.min(250, targetInitialHeight));
         
         leftBoxOffset = (logicalWidth / 4) - (boxWidth / 2);
         rightBoxOffset = (3 * logicalWidth / 4) - (boxWidth / 2);
