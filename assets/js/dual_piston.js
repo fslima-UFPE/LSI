@@ -209,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Calor Transferido (Q): 0%", logicalWidth / 2, 32);
+        ctx.fillText("Calor transferido (q): 0%", logicalWidth / 2, 32);
     }
 
     ["p0Input", "t0Input", "nInput", "qInput", "geomSelect"].forEach(id => {
@@ -235,14 +235,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (isRunning) {
             cancelAnimationFrame(animationId);
             isRunning = false;
-            btnRun.innerText = "Simular Processo (Dual)";
+            btnRun.innerText = "Simular processo";
             btnRun.style.backgroundColor = "#007bff";
             return;
         }
 
         validateAndLoadInputs(true);
         isRunning = true;
-        btnRun.innerText = "Parar Simulação";
+        btnRun.innerText = "Parar simulação";
         btnRun.style.backgroundColor = "#d9534f";
         
         const sVal = getEl("status-val");
@@ -410,11 +410,11 @@ document.addEventListener("DOMContentLoaded", () => {
         
         ctx.font = "bold 12px monospace";
         ctx.fillStyle = `rgb(${Math.min(200, rVal)}, 50, ${Math.min(200, bVal)})`;
-        ctx.fillText(`Temp (T): ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 75);
+        ctx.fillText(`T: ${sys.T.toFixed(0)} K`, offsetX + sys.width / 2, 75);
         ctx.fillStyle = "#16a34a";
-        ctx.fillText(`Pressão (p): ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 93);
+        ctx.fillText(`p: ${sys.P.toFixed(2)} bar`, offsetX + sys.width / 2, 93);
         ctx.fillStyle = "#64748b";
-        ctx.fillText(`Vol (V): ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 111);
+        ctx.fillText(`V: ${(sys.width * sys.height / 1000).toFixed(1)} L`, offsetX + sys.width / 2, 111);
     }
 
     function drawGraph(x, y, w, h, title, historyV, historyP, unit, defMin, defMax) {
@@ -519,11 +519,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ctx.clearRect(0, 0, logicalWidth, logicalHeight);
         
-        drawSystem(sysV, leftBoxOffset, "Vol. Constante (Isofórico)", false);
-        drawSystem(sysP, rightBoxOffset, "Pressão Constante (Isobárico)", true);
+        drawSystem(sysV, leftBoxOffset, "Isovolumétrico", false);
+        drawSystem(sysP, rightBoxOffset, "Isobárico", true);
 
-        drawGraph(50, 495, 270, 110, "Evolução da Temperatura (T)", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
-        drawGraph(380, 495, 270, 110, "Evolução da Pressão (p)", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V * 1.05);
+        drawGraph(50, 495, 270, 110, "Evolução da temperatura", sysV.historyT, sysP.historyT, " K", tMinGlobal, tMaxGlobal);
+        drawGraph(380, 495, 270, 110, "Evolução da pressão", sysV.historyP, sysP.historyP, " bar", targetP0, P_theo_V * 1.05);
 
         ctx.fillStyle = "#e67e22";
         ctx.fillRect(220, 622, 12, 12);
@@ -566,12 +566,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 cancelAnimationFrame(animationId);
                 isRunning = false;
                 
-                btnRun.innerText = "Simular Processo (Dual)";
+                btnRun.innerText = "Simular processo";
                 btnRun.style.backgroundColor = "#007bff";
                 
                 let pBox = getEl("pDisplayBox");
                 if (pBox) pBox.className = "jsbox-alert snapped";
-                if (sVal) sVal.innerText = "Equilíbrio Atingido (Estável)!";
+                if (sVal) sVal.innerText = "Equilíbrio atingido!";
                 return;
             }
         }
