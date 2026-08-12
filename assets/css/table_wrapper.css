@@ -1,50 +1,55 @@
-/* Table Wrapper: Handles max-width, rounded borders, shadows, and anchor link targets */
+/* =========================================
+   Custom Table Style - Discrete Mathbox Theme
+   ========================================= */
+
+/* Table Outer Wrapper: Matches .mathbox border & shadow styling */
 .table-wrapper {
   width: 100%;
-  max-width: 800px;                  /* Matches your mathbox max-width */
-  margin: 1.5rem auto;
-  border-radius: 10px;               /* Matches mathbox & toolbox radius */
-  border: 2px solid #003366;         /* Solid header blue from toolbox */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  overflow-x: auto;                  /* Smooth scrolling on mobile devices */
+  max-width: 800px;
+  margin: 1.2rem auto;
+  border: 2px solid #888888;            /* Same border as .mathbox */
+  border-radius: 10px;                  /* Same 10px rounded corners */
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.15); /* Faint shadow matching .mathbox */
   background-color: #ffffff;
+  overflow: hidden;                     /* Prevents headers from clipping rounded corners */
 }
 
-/* Base Table Styling */
+/* Base Table Element */
 .thermo-table {
   width: 100%;
-  border-collapse: collapse;         /* Clean edge-to-edge borders */
+  border-collapse: separate;            /* Necessary to prevent corner clipping */
+  border-spacing: 0;                    /* Removes gaps between cells */
   font-family: inherit;
   font-size: 0.95rem;
   text-align: center;
 }
 
-/* Header (First Row Highlight) */
+/* Header Row (Soft, Discrete Accent) */
 .thermo-table thead tr {
-  background-color: #003366;         /* Deep navy blue matching toolbox header */
-  color: #ffffff;
-  font-family: "Montserrat", sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  background-color: #e8f1f9;            /* Very soft light blue tone */
+  color: #003366;                       /* Primary dark blue used for text */
 }
 
 .thermo-table th {
-  padding: 12px 16px;
-  border-bottom: 2px solid #001a33;
+  padding: 10px 14px;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #cccccc;     /* Clean subtle division */
+  border-right: 1px solid #e0e0e0;
 }
 
-/* Default Cells */
+/* Base Cells */
 .thermo-table td {
-  padding: 10px 14px;
-  border-bottom: 1px solid #dee2e6;
-  border-right: 1px solid #dee2e6;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
   color: #212529;
 }
 
-/* Remove outer borders on edge cells for a clean card look */
-.thermo-table td:last-child,
-.thermo-table th:last-child {
+/* Edge cleanup (removes outer grid lines inside the box) */
+.thermo-table th:last-child,
+.thermo-table td:last-child {
   border-right: none;
 }
 
@@ -53,37 +58,34 @@
 }
 
 /* Discrete Highlight for First Column */
-.thermo-table tbody tr td:first-child,
-.thermo-table tbody tr th:first-child {
-  background-color: #E6F2FF;         /* Soft light blue tint matching toolbox bg */
+.thermo-table tbody tr td:first-child {
+  background-color: #E6F2FF;            /* Exact light blue background from .toolbox */
   font-weight: 700;
   color: #003366;
-  text-align: left;                  /* Left-align row descriptions */
+  text-align: left;
 }
 
-/* Alternating Row Striping (Standard Cells Only) */
+/* Faint Zebra Striping */
 .thermo-table tbody tr:nth-child(even) td:not(:first-child) {
-  background-color: #f8f9fa;
+  background-color: #fcfcfc;
 }
 
-/* Interactive Hover Effect */
+/* Hover Effect (Exact match to .mathbox:hover) */
 .thermo-table tbody tr:hover td {
-  background-color: #FFFBF9;         /* Soft warm highlight matching mathbox hover */
+  background-color: #FFFBF9;            /* Faint warm highlight from .mathbox */
   transition: background-color 0.2s ease;
 }
 
-/* Keep discrete highlight on first column during hover */
 .thermo-table tbody tr:hover td:first-child {
-  background-color: #dbeaff;
+  background-color: #dcebfa;            /* Faintly darker blue on hover for column 1 */
 }
 
-/* Mobile Responsive Adjustments */
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
   .table-wrapper {
-    margin: 1rem 0;
-    border-radius: 8px;
+    overflow-x: auto;
   }
-  
+
   .thermo-table th,
   .thermo-table td {
     padding: 8px 10px;
