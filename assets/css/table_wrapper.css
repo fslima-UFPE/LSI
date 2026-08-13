@@ -16,7 +16,7 @@
 }
 
 /* Base Table */
-.thermo-table {
+.table-content {
   width: auto;                          /* Compact fitting */
   border-collapse: separate;
   border-spacing: 0;
@@ -26,11 +26,11 @@
 }
 
 /* Header Row (Primary Highlight - Toolbox Blue) */
-.thermo-table thead tr {
+.table-content thead tr {
   background-color: #E6F2FF;            /* Same light blue from .toolbox */
 }
 
-.thermo-table th {
+.table-content th {
   padding: 10px 18px;
   font-family: "Montserrat", sans-serif;
   font-weight: 700;
@@ -42,7 +42,7 @@
 }
 
 /* Data Cells */
-.thermo-table td {
+.table-content td {
   padding: 10px 16px;
   border-bottom: 1px solid #000000;     /* Solid black internal borders */
   border-right: 1px solid #000000;
@@ -51,7 +51,7 @@
 }
 
 /* First Column (Discrete Highlight - Lighter Tint) */
-.thermo-table tbody tr td:first-child {
+.table-content tbody tr td:first-child {
   background-color: #F2F7FC;            /* Discrete, softer blue than header */
   font-weight: 700;
   color: #003366;
@@ -59,22 +59,22 @@
 }
 
 /* Clean Outer Frame Edges */
-.thermo-table th:last-child,
-.thermo-table td:last-child {
+.table-content th:last-child,
+.table-content td:last-child {
   border-right: none;
 }
 
-.thermo-table tbody tr:last-child td {
+.table-content tbody tr:last-child td {
   border-bottom: none;
 }
 
 /* Hover Effect (Exact match to .mathbox:hover) */
-.thermo-table tbody tr:hover td {
+.table-content tbody tr:hover td {
   background-color: #FFFBF9;            /* Faint warm highlight */
   transition: background-color 0.2s ease;
 }
 
-.thermo-table tbody tr:hover td:first-child {
+.table-content tbody tr:hover td:first-child {
   background-color: #E6F2FF;            /* Slight highlight shift on col 1 */
 }
 
@@ -86,8 +86,8 @@
     overflow-x: auto;
   }
 
-  .thermo-table th,
-  .thermo-table td {
+  .table-content th,
+  .table-content td {
     padding: 8px 10px;
     font-size: 0.85rem;
   }
