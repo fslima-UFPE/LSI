@@ -1,53 +1,64 @@
 /* =========================================
-   Custom Table Style - Discrete Mathbox Theme
+   Custom Table Style - Compact Mathbox Theme
    ========================================= */
 
-/* Table Outer Wrapper: Matches .mathbox border & shadow styling */
+/* Outer Wrapper: Fits snugly around table content & stays centered */
 .table-wrapper {
-  width: 100%;
-  max-width: 800px;
-  margin: 1.2rem auto;
-  border: 2px solid #888888;            /* Same border as .mathbox */
-  border-radius: 10px;                  /* Same 10px rounded corners */
-  box-shadow: 2px 2px 6px rgba(0,0,0,0.15); /* Faint shadow matching .mathbox */
+  display: table;                       /* Shrinks box to table size (removes right-side gap) */
+  width: fit-content;
+  max-width: 100%;
+  margin: 1.2rem auto;                  /* Centers the box horizontally */
+  border: 2px solid #000000;            /* Full black outer border */
+  border-radius: 10px;                  /* Smooth rounded corners */
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.15); /* Depth shadow matching .mathbox */
   background-color: #ffffff;
-  overflow: hidden;                     /* Prevents headers from clipping rounded corners */
+  overflow: hidden;                     /* Keeps cell backgrounds inside rounded corners */
 }
 
-/* Base Table Element */
+/* Base Table */
 .thermo-table {
-  width: 100%;
-  border-collapse: separate;            /* Necessary to prevent corner clipping */
-  border-spacing: 0;                    /* Removes gaps between cells */
+  width: auto;                          /* Compact fitting */
+  border-collapse: separate;
+  border-spacing: 0;
   font-family: inherit;
   font-size: 0.95rem;
   text-align: center;
 }
 
-/* Header Row (Soft, Discrete Accent) */
+/* Header Row (Primary Highlight - Toolbox Blue) */
 .thermo-table thead tr {
-  background-color: #e8f1f9;            /* Very soft light blue tone */
-  color: #003366;                       /* Primary dark blue used for text */
+  background-color: #E6F2FF;            /* Same light blue from .toolbox */
 }
 
 .thermo-table th {
-  padding: 10px 14px;
+  padding: 10px 18px;
   font-family: "Montserrat", sans-serif;
   font-weight: 700;
   font-size: 0.95rem;
-  border-bottom: 1px solid #cccccc;     /* Clean subtle division */
-  border-right: 1px solid #e0e0e0;
+  color: #003366;                       /* Navy title text */
+  text-align: center;                   /* Centered */
+  border-bottom: 2px solid #000000;     /* Solid black separator */
+  border-right: 1px solid #000000;
 }
 
-/* Base Cells */
+/* Data Cells */
 .thermo-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #e0e0e0;
-  border-right: 1px solid #e0e0e0;
-  color: #212529;
+  padding: 10px 16px;
+  border-bottom: 1px solid #000000;     /* Solid black internal borders */
+  border-right: 1px solid #000000;
+  color: #000000;
+  text-align: center;                   /* Centered text and equations */
 }
 
-/* Edge cleanup (removes outer grid lines inside the box) */
+/* First Column (Discrete Highlight - Lighter Tint) */
+.thermo-table tbody tr td:first-child {
+  background-color: #F2F7FC;            /* Discrete, softer blue than header */
+  font-weight: 700;
+  color: #003366;
+  text-align: center;                   /* Centered */
+}
+
+/* Clean Outer Frame Edges */
 .thermo-table th:last-child,
 .thermo-table td:last-child {
   border-right: none;
@@ -57,32 +68,21 @@
   border-bottom: none;
 }
 
-/* Discrete Highlight for First Column */
-.thermo-table tbody tr td:first-child {
-  background-color: #E6F2FF;            /* Exact light blue background from .toolbox */
-  font-weight: 700;
-  color: #003366;
-  text-align: left;
-}
-
-/* Faint Zebra Striping */
-.thermo-table tbody tr:nth-child(even) td:not(:first-child) {
-  background-color: #fcfcfc;
-}
-
 /* Hover Effect (Exact match to .mathbox:hover) */
 .thermo-table tbody tr:hover td {
-  background-color: #FFFBF9;            /* Faint warm highlight from .mathbox */
+  background-color: #FFFBF9;            /* Faint warm highlight */
   transition: background-color 0.2s ease;
 }
 
 .thermo-table tbody tr:hover td:first-child {
-  background-color: #dcebfa;            /* Faintly darker blue on hover for column 1 */
+  background-color: #E6F2FF;            /* Slight highlight shift on col 1 */
 }
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .table-wrapper {
+    display: block;                     /* Allows horizontal scrolling on small screens */
+    width: 100%;
     overflow-x: auto;
   }
 
