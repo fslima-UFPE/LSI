@@ -2,7 +2,7 @@
 layout: TCclass
 title: Termodinâmica Clássica
 subtitle: Curso online
-Description: "Curso online de Termodinâmica Clássica para graduandos de Química. Ferramentas interativas de aprendizagem são utilizadas para exemplificar problemas."
+Description: "Curso de Termodinâmica Clássica para graduação em Química (LSI/UFPE). Ferramentas interativas e conceitos fundamentais com Prof. Filipe Lima."
 next_class: "/LSI/Aulas/TC/A1"
 ---
 
