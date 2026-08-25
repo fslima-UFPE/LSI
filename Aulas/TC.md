@@ -1,7 +1,7 @@
 ---
 layout: TCclass
 title: Termodinâmica Clássica
-subtitle: Curso online
+subtitle: Curso online de Físico-Química (UFPE) — Prof. Filipe Lima
 Description: "Curso de Termodinâmica Clássica para graduação em Química (LSI/UFPE). Ferramentas interativas e conceitos fundamentais com Prof. Filipe Lima."
 next_class: "/LSI/Aulas/TC/A1"
 ---
