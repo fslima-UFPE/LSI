@@ -12,7 +12,7 @@
 }
 
 .chembox {
-  background-color: #F6F0F5;       /* soft light grey background */
+  background-color: #EFE5F0;       /* soft light pink-grey background */
   border: 2px solid #888888;       /* medium grey border */
   border-radius: 10px;             /* smooth round corners */
   padding: 4px 8px;              /* space inside the box */
@@ -23,6 +23,12 @@
   box-shadow: 2px 2px 6px rgba(0,0,0,0.15); /* subtle shadow for depth */
   transition: background-color 0.3s, box-shadow 0.3s; /* optional hover effect */
   overflow-x: visible; /*test*/
+}
+
+/* Force inner MathJax elements to be transparent so .chembox color shows */
+.chembox mjx-container,
+.chembox mjx-container * {
+  background-color: transparent !important;
 }
 
 /* Optional: make formula highlight on hover */
