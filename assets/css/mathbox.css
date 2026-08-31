@@ -11,6 +11,12 @@
   gap: 20px;
 }
 
+/* Force inner MathJax elements to be transparent so .chembox color shows */
+.mathbox mjx-container,
+.mathbox mjx-container * {
+  background-color: transparent !important;
+}
+
 .mathbox {
   background-color: #f0f0f0;       /* soft light grey background */
   border: 2px solid #888888;       /* medium grey border */
