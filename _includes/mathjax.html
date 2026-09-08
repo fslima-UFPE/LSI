@@ -4,10 +4,9 @@
     tex: {
       packages: {'[+]': ['cancel', 'enclose']},
       macros: {
-        // Redefine \cancel using \enclose to draw a red slash while keeping text black
         cancel: ["{\\color{red}\\enclose{updiagonalstrike}{\\color{black}{#1}}}", 1],
         bcancel: ["{\\color{red}\\enclose{downdiagonalstrike}{\\color{black}{#1}}}", 1],
-        xcancel: ["{\\color{red}\\enclose{updiagonalstrike,downdiagonalstrike}{\\color{black}{#1}}}", 1]
+        xcancel: ["{\\color{red}\\enclose{updiagonalstrike,downdiagonalstrike}{\\color{black}{#1}}}", 1], // Added missing comma here
         ccancel: ["{\\color{#1}\\enclose{updiagonalstrike}{\\color{black}{#2}}}", 2]
       }
     },
