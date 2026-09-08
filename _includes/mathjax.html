@@ -1,13 +1,13 @@
-{% if page.mathjax %}
 <script type="text/javascript">
   window.MathJax = {
     tex: {
       packages: {'[+]': ['cancel', 'enclose']},
       macros: {
-        cancel: ["{\\color{red}\\enclose{updiagonalstrike}{\\color{black}{#1}}}", 1],
-        bcancel: ["{\\color{red}\\enclose{downdiagonalstrike}{\\color{black}{#1}}}", 1],
-        xcancel: ["{\\color{red}\\enclose{updiagonalstrike,downdiagonalstrike}{\\color{black}{#1}}}", 1], // Added missing comma here
-        ccancel: ["{\\color{#1}\\enclose{updiagonalstrike}{\\color{black}{#2}}}", 2]
+        // Embeds \boldsymbol inside the inner term so the species is always bold black
+        cancel: ["{\\color{red}\\enclose{updiagonalstrike}{\\color{black}{\\boldsymbol{#1}}}}", 1],
+        bcancel: ["{\\color{red}\\enclose{downdiagonalstrike}{\\color{black}{\\boldsymbol{#1}}}}", 1],
+        xcancel: ["{\\color{red}\\enclose{updiagonalstrike,downdiagonalstrike}{\\color{black}{\\boldsymbol{#1}}}}", 1],
+        ccancel: ["{\\color{#1}\\enclose{updiagonalstrike}{\\color{black}{\\boldsymbol{#2}}}}", 2]
       }
     },
     options: {
@@ -18,8 +18,3 @@
     }
   };
 </script>
-
-<script type="text/javascript" id="MathJax-script" async
-  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-</script>
-{% endif %}
