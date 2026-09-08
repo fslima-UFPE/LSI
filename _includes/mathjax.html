@@ -1,12 +1,25 @@
 {% if page.mathjax %}
 <script type="text/javascript">
-  MathJax = {
+  window.MathJax = {
+    tex: {
+      packages: {'[+]': ['cancel', 'enclose']},
+      macros: {
+        // Redefine \cancel using \enclose to draw a red slash while keeping text black
+        cancel: ["{\\color{red}\\enclose{updiagonalstrike}{\\color{black}{#1}}}", 1],
+        bcancel: ["{\\color{red}\\enclose{downdiagonalstrike}{\\color{black}{#1}}}", 1],
+        xcancel: ["{\\color{red}\\enclose{updiagonalstrike,downdiagonalstrike}{\\color{black}{#1}}}", 1]
+      }
+    },
     options: {
-      skipHtmlTags: [
-        'script', 'noscript', 'style', 'textarea', 'pre', 'code'
-      ]
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    },
+    loader: {
+      load: ['[tex]/cancel', '[tex]/enclose']
     }
   };
 </script>
-<script type="text/javascript" async src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
 {% endif %}
