@@ -7,10 +7,9 @@ window.MathJax = {
     processEnvironments: true,
     packages: {'[+]': ['cancel', 'enclose']},
     macros: {
-      cancel:  ["{\\color{red}\\enclose{updiagonalstrike}{\\boldsymbol{#1}}}", 1],
-      bcancel: ["{\\color{red}\\enclose{downdiagonalstrike}{\\boldsymbol{#1}}}", 1],
-      xcancel: ["{\\color{red}\\enclose{updiagonalstrike,downdiagonalstrike}{\\boldsymbol{#1}}}", 1],
-      ccancel: ["{\\color{#1}\\enclose{updiagonalstrike}{\\boldsymbol{#2}}}", 2]
+      cancel: ["{\color{#1}\enclose{updiagonalstrike}{\boldsymbol{#2}}}", 2, "red"],
+      bcancel: ["{\color{#1}\enclose{downdiagonalstrike}{\boldsymbol{#2}}}", 2, "red"],
+      xcancel: ["{\color{#1}\enclose{updiagonalstrike,downdiagonalstrike}{\boldsymbol{#2}}}", 2, "red"]
     }
   },
   options: {
