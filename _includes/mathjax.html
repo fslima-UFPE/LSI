@@ -5,7 +5,7 @@ window.MathJax = {
     displayMath: [['$$', '$$'], ['\\[', '\\]']],
     processEscapes: false,
     processEnvironments: true,
-    packages: {'[+]': ['cancel', 'enclose']},
+    packages: {'[+]': ['enclose', 'color']},
     macros: {
       cancel: ["{\rlap{\color{#1}\enclose{updiagonalstrike}{\phantom{#2}}}}{#2}", 2, "red"],
       bcancel: ["{\rlap{\color{#1}\enclose{downdiagonalstrike}{\phantom{#2}}}}{#2}", 2, "red"],
@@ -13,7 +13,7 @@ window.MathJax = {
     }
   },
   options: {
-    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],    
+    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],    
   },
   loader: {
     load: ['[tex]/color', '[tex]/enclose']
