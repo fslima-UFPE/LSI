@@ -5,20 +5,20 @@ window.MathJax = {
     displayMath: [['$$', '$$'], ['\\[', '\\]']],
     processEscapes: false,
     processEnvironments: true,
-    packages: {'[+]': ['enclose', 'color']},
+    packages: {'[+]': ['cancel', 'enclose']},
     macros: {
-      cancel: [String.raw{\rlap{\enclose{updiagonalstrike}[mathcolor=#1, style="color: #1;"]{\phantom{#2}}}}{#2}, 2, "red"],
-      bcancel: [String.raw{\rlap{\enclose{downdiagonalstrike}[mathcolor=#1, style="color: #1;"]{\phantom{#2}}}}{#2}, 2, "red"],
-      xcancel: [String.raw{\rlap{\enclose{updiagonalstrike,downdiagonalstrike}[mathcolor=#1, style="color: #1;"]{\phantom{#2}}}}{#2}, 2, "red"]
+      cancel: ["{\\color{red}\\enclose{updiagonalstrike}{\\color{black}{\\boldsymbol{#1}}}}", 1],
+      bcancel: ["{\\color{red}\\enclose{downdiagonalstrike}{\\color{black}{\\boldsymbol{#1}}}}", 1],
+      xcancel: ["{\\color{red}\\enclose{updiagonalstrike,downdiagonalstrike}{\\color{black}{\\boldsymbol{#1}}}}", 1],
+      ccancel: ["{\\color{#1}\\enclose{updiagonalstrike}{\\color{black}{\\boldsymbol{#2}}}}", 2]
     }
   },
   options: {
-    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],    
+    skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
   },
   loader: {
-    load: ['[tex]/color', '[tex]/enclose']
+    load: ['[tex]/cancel', '[tex]/enclose']
   }
 };
 </script>
 <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
