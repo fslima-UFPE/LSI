@@ -7,9 +7,9 @@ window.MathJax = {
     processEnvironments: true,
     packages: {'[+]': ['enclose', 'color']},
     macros: {
-      cancel: [String.raw{\rlap{\enclose{updiagonalstrike}[mathcolor=#1]{\phantom{#2}}}}{#2}, 2, "red"],
-      bcancel: [String.raw{\rlap{\enclose{downdiagonalstrike}[mathcolor=#1]{\phantom{#2}}}}{#2}, 2, "red"],
-      xcancel: [String.raw{\rlap{\enclose{updiagonalstrike,downdiagonalstrike}[mathcolor=#1]{\phantom{#2}}}}{#2}, 2, "red"]
+      cancel: [String.raw{\rlap{\enclose{updiagonalstrike}{\color{#1}\phantom{#2}}}}{#2}, 2, "red"],
+      bcancel: [String.raw{\rlap{\enclose{downdiagonalstrike}{\color{#1}\phantom{#2}}}}{#2}, 2, "red"],
+      xcancel: [String.raw{\rlap{\enclose{updiagonalstrike,downdiagonalstrike}{\color{#1}\phantom{#2}}}}{#2}, 2, "red"]
     }
   },
   options: {
