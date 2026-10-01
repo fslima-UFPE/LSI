@@ -1,1 +1,4 @@
+User-agent: *
+Allow: /
+
 Sitemap: https://fslima-ufpe.github.io/LSI/sitemap.xml
