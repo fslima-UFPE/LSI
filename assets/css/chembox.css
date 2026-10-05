@@ -1,109 +1,58 @@
-/* ========================================== */
-/* Boxed formulas "formula card" style        */
-/* ========================================== */
-
-/* Wrapper: 3-column symmetric grid strictly capped at 800px */
+/* Container matches the 800px text column */
 .chembox-wrapper {
-  display: grid;
-  grid-template-columns: 1fr minmax(0, auto) 1fr; /* minmax(0, auto) prevents track blowout */
+  position: relative;
+  display: flex;
+  justify-content: center;
   align-items: center;
   width: 100%;
-  max-width: 800px;
-  margin: 4px auto;
+  max-width: 800px; /* Full text column width */
+  margin: 1.5rem auto;
   box-sizing: border-box;
 }
 
-/* Chemical formula box (centered in Column 2 with enforced horizontal scrolling) */
+/* Chembox uses the full 800px before scrolling */
 .chembox {
-  grid-column: 2;
-  justify-self: center;
-  width: auto;
-  max-width: 100%;       /* Keeps box bounded inside grid cell */
+  width: fit-content;
+  max-width: 100%; /* Uses all 800px */
   box-sizing: border-box;
-  overflow-x: auto;      /* Triggers horizontal scrollbar when equation > box max-width */
+  overflow-x: auto;
   overflow-y: hidden;
 
   background-color: #EFEBEE;
   border: 2px solid #888888;
   border-radius: 10px;
-  padding: 4px 8px;
+  padding: 6px 12px;
   margin: 0;
   font-size: 1.15em;
   font-weight: bold;
   text-align: center;
   box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
-  transition: background-color 0.3s, box-shadow 0.3s;
 }
 
-.chembox:hover {
-  background-color: #FFFBF9;
-  box-shadow: 3px 3px 8px rgba(0,0,0,0.2);
-}
-
-/* Equation numbers/names (placed in Column 3) */
+/* Pushes EC label into the right margin, outside the 800px box */
 .eq-numbers {
-  grid-column: 3;
-  justify-self: start;
-  margin-left: 15px;
-  flex-shrink: 0;
+  position: absolute;
+  left: calc(100% + 15px); /* Positioned 15px past the right edge of the text column */
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
 }
 
 .eq-numbers span {
   display: block;
   font-weight: bold;
   font-style: italic;
-  line-height: 1.4em;
   color: black;
 }
 
-/* ========================================== */
-/* MathJax typography & spacing overrides     */
-/* ========================================== */
-
-.chembox mjx-container {
-  padding: 0;
-  max-width: 100%;
-}
-
-.chembox mjx-container,
-.chembox mjx-container * {
-  background-color: transparent !important;
-  font-weight: bold;
-}
-
-.chembox mjx-container[jax="CHTML"][display="true"] {
-  margin: 0;
-}
-
-.chembox .mjx-chtml {
-  line-height: 1.4em;
-}
-
-/* ========================================== */
-/* Mobile responsive (< 768px)                */
-/* ========================================== */
-
-@media (max-width: 768px) {
+/* Mobile fallback: keeps label inline on small screens where margin doesn't exist */
+@media (max-width: 1024px) {
   .chembox-wrapper {
-    display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 8px;
   }
-
-  .chembox {
-    width: 100%;
-    font-size: 1em;
-  }
-
   .eq-numbers {
-    margin-left: 0;
-  }
-
-  mjx-container[jax="CHTML"][display="true"] {
-    display: block;
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-width: 100%;
+    position: static;
+    transform: none;
+    margin-top: 8px;
   }
 }
