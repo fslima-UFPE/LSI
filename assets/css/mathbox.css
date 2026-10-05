@@ -30,7 +30,7 @@
   
   /* Layout constraints for scrolling wide formulas */
   /*min-width: min-content;*/
-  min-width: 0;
+  min-width: 225;
   max-width: 500px;
   flex-shrink: 0;
   overflow-x: auto;
