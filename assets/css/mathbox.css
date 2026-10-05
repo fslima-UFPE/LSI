@@ -29,7 +29,8 @@
   transition: background-color 0.3s, box-shadow 0.3s;
   
   /* Layout constraints for scrolling wide formulas */
-  min-width: min-content;
+  /*min-width: min-content;*/
+  min-width: 0;
   max-width: 500px;
   flex-shrink: 0;
   overflow-x: auto;
