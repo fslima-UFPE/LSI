@@ -1,18 +1,15 @@
-/* ========================= */
-/* Boxed formulas “formula card” style */
+/* ======================================================= */
+/* 1. Base Styles & Desktop Grid Layout                    */
+/* ======================================================= */
 
-/* Wrapper for mathbox + equation number */
 .mathbox-wrapper {
   display: grid;
-  grid-template-columns: 1fr auto 1fr; /* Equal left space | Center Mathbox | Equal right space */
-  align-items: center;              /* vertically align box and number */
-  justify-content: center;   /* box on left, number on right */
-  margin: 4px 0;                /* vertical spacing (keep center alignment) */
-  max-width: 800px;                 /* optional: limit max width */
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  margin: 8px auto;
+  max-width: 900px;
 }
 
-/* Force inner MathJax elements to be transparent so .chembox color shows */
 .mathbox mjx-container,
 .mathbox mjx-container * {
   background-color: transparent !important;
@@ -21,94 +18,33 @@
 .mathbox {
   grid-column: 2;
   justify-self: center;
-  background-color: #f0f0f0;       /* soft light grey background */
-  border: 2px solid #888888;       /* medium grey border */
-  border-radius: 10px;             /* smooth round corners */
-  padding: 4px 8px;              /* space inside the box */
-  display: inline-block;            /* shrink box to formula width */
-  margin: 0;                   /* vertical spacing between formulas */
-  font-size: 1.15em;                /* slightly larger font for readability */
+  background-color: #f0f0f0;
+  border: 2px solid #888888;
+  border-radius: 10px;
+  padding: 4px 12px;
+  display: inline-block;
+  margin: 0;
+  font-size: 1.15em;
   text-align: center;
-  box-shadow: 2px 2px 6px rgba(0,0,0,0.15); /* subtle shadow for depth */
-  transition: background-color 0.3s, box-shadow 0.3s; /* optional hover effect */
-  overflow-x: visible; /*test*/
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
+  transition: background-color 0.3s, box-shadow 0.3s;
+  overflow-x: visible;
 }
 
-/* Optional: make formula highlight on hover */
 .mathbox:hover {
   background-color: #FFFBF9;
   box-shadow: 3px 3px 8px rgba(0,0,0,0.2);
 }
 
-.eq-numbers {
-  display: flex;
-  flex-direction: column;      /* stack vertically */
-  justify-content: center;     /* center relative to the box */
-  margin-left: 30px;           /* space from the box */
-  flex-shrink: 0;
-}
-
-.eq-numbers span {
-  display: block;
-  font-weight: bold;
-  font-style: italic;
-  line-height: 1.4em;          /* controls spacing between numbers */
-  text-align: left;
-  color: black;
-}
-
-
-/* ========================= */
-/* Fix MathJax spacing inside mathbox */
-
-/* 1. Remove big vertical margins from $$ ... $$ */
-.mathbox mjx-container[jax="CHTML"][display="true"] {
-  margin: 0;
-}
-
-/* 2. Tighten internal MathJax layout */
-.mathbox .mjx-chtml {
-  line-height: 1.4em;
-}
-
-/* 3. (Optional but safe) ensure compact rendering */
-.mathbox mjx-container {
-  padding: 0;
-}
-
-/* NEW: container for numbers + image */
 .eq-side {
   grid-column: 3;
-  justify-self: start;                 /* Align to the left edge of the right column */
-  margin-left: 15px;                   /* Gap between mathbox and side content */
+  justify-self: start;
   display: flex;
-  align-items: center;   /* vertically align with mathbox */
-  margin-left: 0px;     /* replaces old spacing */
+  align-items: center;
+  margin-left: 20px;
   gap: 20px;
 }
 
-/* keep your stacked numbers exactly as-is */
-.eq-numbers {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* image beside stacked numbers */
-.eq-side img {
-  height: 300px;
-  width: auto;
-  flex-shrink: 1;
-  align-self: center;
-  display: block;
-}
-
-/* ======================================================= */
-/* Fix Jekyll paragraph wrapping & Image Sizing            */
-/* ======================================================= */
-
-/* Reset margins on automatically generated paragraphs inside eq-side */
 .eq-side p {
   margin: 0;
   padding: 0;
@@ -116,74 +52,115 @@
   align-items: center;
 }
 
+.eq-numbers {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.eq-numbers span {
+  display: block;
+  font-weight: bold;
+  font-style: italic;
+  line-height: 1.4em;
+  text-align: left;
+  color: black;
+}
+
+/* Image beside equation: reduced fixed height to 160px */
 .eq-side img {
-  height: 250px;
+  height: 160px;
   width: auto;
-  max-width: 100%;
+  flex-shrink: 0;
+  align-self: center;
   display: block;
 }
 
-/* ======================================================= */
-/* Conditional Centering: Switch to flex when image exists */
-/* ======================================================= */
-
-/* When any image exists inside the wrapper: switch container to centered flexbox */
-.mathbox-wrapper:has(img) {
-  display: flex !important;
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-  width: fit-content;
-  max-width: 95vw;
-  margin: 12px auto;
-}
-
-/* Override grid layout constraints when image is active */
-.mathbox-wrapper:has(img) .mathbox {
-  grid-column: auto !important;
-  justify-self: auto !important;
+/* Fix MathJax spacing inside mathbox */
+.mathbox mjx-container[jax="CHTML"][display="true"] {
   margin: 0;
 }
 
-.mathbox-wrapper:has(img) .eq-side {
-  grid-column: auto !important;
-  justify-self: auto !important;
-  margin-left: 0 !important;
+.mathbox .mjx-chtml {
+  line-height: 1.4em;
 }
 
-  /* equations for phone */
+.mathbox mjx-container {
+  padding: 0;
+}
+
+/* ======================================================= */
+/* 2. Desktop Conditional Centering (When Image Exists)   */
+/* ======================================================= */
+
+.mathbox-wrapper:has(.eq-side img) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin: 12px auto;
+}
+
+.mathbox-wrapper:has(.eq-side img) .mathbox {
+  grid-column: auto;
+  justify-self: auto;
+}
+
+.mathbox-wrapper:has(.eq-side img) .eq-side {
+  grid-column: auto;
+  justify-self: auto;
+  margin-left: 0;
+}
+
+/* ======================================================= */
+/* 3. Mobile Responsiveness (Overriding All Desktop Rules) */
+/* ======================================================= */
+
 @media (max-width: 768px) {
-  .mathbox {
-    width: 100%;
-    font-size: 1em;
-    overflow-x: auto;
+  .mathbox-wrapper,
+  .mathbox-wrapper:has(.eq-side img) {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 10px 0 !important;
+    gap: 8px !important;
   }
 
-  .mathbox-wrapper {
-    flex-direction: column;
-    align-items: center;
+  .mathbox,
+  .mathbox-wrapper:has(.eq-side img) .mathbox {
+    grid-column: auto !important;
+    width: 100% !important;
+    font-size: 1em !important;
+    overflow-x: auto !important;
+    box-sizing: border-box !important;
   }
 
-  .eq-numbers {
-    margin-top: 5px;
+  .eq-side,
+  .mathbox-wrapper:has(.eq-side img) .eq-side {
+    grid-column: auto !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    margin-left: 0 !important;
+    gap: 8px !important;
   }
 
-  mjx-container[jax="CHTML"][display="true"] {
-  display: block;
-  overflow-x: auto;
-  overflow-y: hidden;
-  max-width: 100%;
-  }
-
-  .eq-side {
-    flex-direction: column;
-    align-items: center;
+  .eq-numbers span {
+    text-align: center !important;
   }
 
   .eq-side img {
-    width: 150px;
-    height: auto;
-    margin-left: 0;
-    margin-top: 15px;
+    height: auto !important;
+    max-width: 220px !important;
+    width: 100% !important;
+    margin-top: 5px !important;
+  }
+
+  mjx-container[jax="CHTML"][display="true"] {
+    display: block !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
   }
 }
