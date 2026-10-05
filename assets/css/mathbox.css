@@ -7,7 +7,7 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   margin: 8px auto;
-  max-width: 900px;
+  max-width: 800px;
 }
 
 /* ======================================================= */
