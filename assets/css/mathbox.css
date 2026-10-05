@@ -104,6 +104,28 @@
   display: block;
 }
 
+/* ======================================================= */
+/* Conditional Centering: Only when an image exists */
+/* ======================================================= */
+
+/* When .eq-side contains an img: switch to flexbox to center the entire block */
+.mathbox-wrapper:has(.eq-side img) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Reset grid column rules when flexbox is active */
+.mathbox-wrapper:has(.eq-side img) .mathbox {
+  grid-column: auto;
+}
+
+.mathbox-wrapper:has(.eq-side img) .eq-side {
+  grid-column: auto;
+  margin-left: 0; /* Gap handles spacing */
+}
+
   /* equations for phone */
 @media (max-width: 768px) {
   .mathbox {
