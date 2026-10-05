@@ -105,25 +105,50 @@
 }
 
 /* ======================================================= */
-/* Conditional Centering: Only when an image exists */
+/* Fix Jekyll paragraph wrapping & Image Sizing            */
 /* ======================================================= */
 
-/* When .eq-side contains an img: switch to flexbox to center the entire block */
-.mathbox-wrapper:has(.eq-side img) {
+/* Reset margins on automatically generated paragraphs inside eq-side */
+.eq-side p {
+  margin: 0;
+  padding: 0;
   display: flex;
+  align-items: center;
+}
+
+.eq-side img {
+  height: 250px;
+  width: auto;
+  max-width: 100%;
+  display: block;
+}
+
+/* ======================================================= */
+/* Conditional Centering: Switch to flex when image exists */
+/* ======================================================= */
+
+/* When any image exists inside the wrapper: switch container to centered flexbox */
+.mathbox-wrapper:has(img) {
+  display: flex !important;
   justify-content: center;
   align-items: center;
   gap: 20px;
+  width: fit-content;
+  max-width: 95vw;
+  margin: 12px auto;
 }
 
-/* Reset grid column rules when flexbox is active */
-.mathbox-wrapper:has(.eq-side img) .mathbox {
-  grid-column: auto;
+/* Override grid layout constraints when image is active */
+.mathbox-wrapper:has(img) .mathbox {
+  grid-column: auto !important;
+  justify-self: auto !important;
+  margin: 0;
 }
 
-.mathbox-wrapper:has(.eq-side img) .eq-side {
-  grid-column: auto;
-  margin-left: 0; /* Gap handles spacing */
+.mathbox-wrapper:has(img) .eq-side {
+  grid-column: auto !important;
+  justify-self: auto !important;
+  margin-left: 0 !important;
 }
 
   /* equations for phone */
