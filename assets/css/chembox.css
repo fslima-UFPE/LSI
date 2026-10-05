@@ -47,16 +47,14 @@
 
 /* 1. Target standard wrapper text and MathJax HTML containers */
 .chembox,
-.chembox .MathJax,
-.chembox .mjx-container,
-.chembox .MathJax_Display {
+.chembox * {
   font-weight: bold !important;
 }
 
 /* 2. Target SVG math output (MathJax v3) by thickening vector strokes */
 .chembox svg path {
   stroke: currentColor;
-  stroke-width: 12px;
+  stroke-width: 0.6px;
 }
 
 /* Mobile fallback: keeps label inline on small screens where margin doesn't exist */
