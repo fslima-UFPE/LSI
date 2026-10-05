@@ -30,9 +30,11 @@
   
   /* Layout constraints for scrolling wide formulas */
   min-width: min-content;
-  max-width: 520px;
+  max-width: 500px;
   flex-shrink: 0;
   overflow-x: auto;
+  box-sizing: border-box;
+  overflow-y: hidden;
   box-sizing: border-box;
 }
 
@@ -50,6 +52,7 @@
 .mathbox mjx-container {
   padding: 0;
   max-width: 100%;
+  overflow-y: visible
 }
 
 .mathbox mjx-container[jax="CHTML"][display="true"] {
@@ -105,8 +108,8 @@
  */
 html body .mathbox-wrapper .eq-side img,
 html body .mathbox-wrapper img {
-  height: 110px !important;
-  max-height: 110px !important;
+  height: 150px !important;
+  max-height: 150px !important;
   width: auto !important;
   flex-shrink: 0;
   align-self: center;
@@ -129,7 +132,7 @@ html body .mathbox-wrapper img {
   grid-column: auto;
   justify-self: auto;
   min-width: 220px; /* Prevents flexbox from collapsing the box width */
-  max-width: 480px; /* Leaves room for label + 110px diagram */
+  max-width: 440px; /* Leaves room for label + 110px diagram */
 }
 
 .mathbox-wrapper:has(.eq-side img) .eq-side {
