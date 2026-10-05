@@ -2,19 +2,27 @@
 /* Boxed formulas "formula card" style        */
 /* ========================================== */
 
-/* Wrapper: 3-column symmetric grid to center the chembox on the page */
+/* Wrapper: 3-column symmetric grid strictly capped at 800px */
 .chembox-wrapper {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr minmax(0, auto) 1fr; /* minmax(0, auto) prevents track blowout */
   align-items: center;
-  margin: 4px auto;
+  width: 100%;
   max-width: 800px;
+  margin: 4px auto;
+  box-sizing: border-box;
 }
 
-/* Chemical formula box (centered in Column 2) */
+/* Chemical formula box (centered in Column 2 with enforced horizontal scrolling) */
 .chembox {
   grid-column: 2;
   justify-self: center;
+  width: auto;
+  max-width: 100%;       /* Keeps box bounded inside grid cell */
+  box-sizing: border-box;
+  overflow-x: auto;      /* Triggers horizontal scrollbar when equation > box max-width */
+  overflow-y: hidden;
+
   background-color: #EFEBEE;
   border: 2px solid #888888;
   border-radius: 10px;
@@ -36,7 +44,7 @@
 .eq-numbers {
   grid-column: 3;
   justify-self: start;
-  margin-left: 20px;
+  margin-left: 15px;
   flex-shrink: 0;
 }
 
@@ -52,14 +60,15 @@
 /* MathJax typography & spacing overrides     */
 /* ========================================== */
 
+.chembox mjx-container {
+  padding: 0;
+  max-width: 100%;
+}
+
 .chembox mjx-container,
 .chembox mjx-container * {
   background-color: transparent !important;
   font-weight: bold;
-}
-
-.chembox mjx-container {
-  padding: 0;
 }
 
 .chembox mjx-container[jax="CHTML"][display="true"] {
@@ -85,7 +94,6 @@
   .chembox {
     width: 100%;
     font-size: 1em;
-    overflow-x: auto;
   }
 
   .eq-numbers {
