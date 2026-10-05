@@ -6,7 +6,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  margin: 4px auto;
+  margin: 8px auto;
   max-width: 800px;
 }
 
@@ -20,7 +20,7 @@
   background-color: #f0f0f0;
   border: 2px solid #888888;
   border-radius: 10px;
-  padding: 4px 8px;
+  padding: 6px 12px;
   display: inline-block;
   margin: 0;
   font-size: 1.15em;
@@ -28,8 +28,9 @@
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.15);
   transition: background-color 0.3s, box-shadow 0.3s;
   
-  /* Caps box width and prevents flexbox from collapsing the box width */
-  max-width: 580px;
+  /* Layout constraints for scrolling wide formulas */
+  min-width: min-content;
+  max-width: 520px;
   flex-shrink: 0;
   overflow-x: auto;
   box-sizing: border-box;
@@ -68,8 +69,8 @@
   justify-self: start;
   display: flex;
   align-items: center;
-  margin-left: 20px;
-  gap: 20px;
+  margin-left: 15px;
+  gap: 15px;
   flex-shrink: 0;
 }
 
@@ -98,8 +99,12 @@
   white-space: nowrap;
 }
 
-/* Forces image height to strictly 110px regardless of global theme overrides */
-.eq-side img {
+/* 
+ * High-specificity selector using 'html body' to override global 
+ * theme rules like '.page-content img { height: auto !important; }'
+ */
+html body .mathbox-wrapper .eq-side img,
+html body .mathbox-wrapper img {
   height: 110px !important;
   max-height: 110px !important;
   width: auto !important;
@@ -109,24 +114,27 @@
 }
 
 /* ======================================================= */
-/* 4. Conditional Centering (When Diagram Image Exists)   */
+/* 4. Conditional Layout (When Diagram Image Exists)      */
 /* ======================================================= */
 
 .mathbox-wrapper:has(.eq-side img) {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 20px;
+  gap: 15px;
   margin: 12px auto;
 }
 
-.mathbox-wrapper:has(.eq-side img) .mathbox,
-.mathbox-wrapper:has(.eq-side img) .eq-side {
+.mathbox-wrapper:has(.eq-side img) .mathbox {
   grid-column: auto;
   justify-self: auto;
+  min-width: 220px; /* Prevents flexbox from collapsing the box width */
+  max-width: 480px; /* Leaves room for label + 110px diagram */
 }
 
 .mathbox-wrapper:has(.eq-side img) .eq-side {
+  grid-column: auto;
+  justify-self: auto;
   margin-left: 0;
 }
 
@@ -149,6 +157,7 @@
   .mathbox-wrapper:has(.eq-side img) .mathbox {
     grid-column: auto !important;
     width: 100% !important;
+    min-width: 0 !important;
     max-width: 100% !important;
     font-size: 1em !important;
     overflow-x: auto !important;
@@ -169,7 +178,8 @@
     white-space: nowrap !important;
   }
 
-  .eq-side img {
+  html body .mathbox-wrapper .eq-side img,
+  html body .mathbox-wrapper img {
     height: auto !important;
     max-height: none !important;
     max-width: 220px !important;
