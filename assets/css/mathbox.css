@@ -109,8 +109,8 @@
  */
 html body .mathbox-wrapper .eq-side img,
 html body .mathbox-wrapper img {
-  height: 150px !important;
-  max-height: 150px !important;
+  height: 200px !important;
+  max-height: 200px !important;
   width: auto !important;
   flex-shrink: 0;
   align-self: center;
@@ -133,7 +133,7 @@ html body .mathbox-wrapper img {
   grid-column: auto;
   justify-self: auto;
   min-width: 220px; /* Prevents flexbox from collapsing the box width */
-  max-width: 440px; /* Leaves room for label + 110px diagram */
+  max-width: 400px; /* Leaves room for label + 110px diagram */
 }
 
 .mathbox-wrapper:has(.eq-side img) .eq-side {
