@@ -6,7 +6,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  margin: 8px auto;
+  margin: 4px auto;
   max-width: 800px;
 }
 
@@ -20,7 +20,7 @@
   background-color: #f0f0f0;
   border: 2px solid #888888;
   border-radius: 10px;
-  padding: 4px 12px;
+  padding: 4px 8px;
   display: inline-block;
   margin: 0;
   font-size: 1.15em;
