@@ -27,7 +27,11 @@
   text-align: center;
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.15);
   transition: background-color 0.3s, box-shadow 0.3s;
-  overflow-x: visible;
+  
+  /* Caps box width on desktop so wide equations scroll instead of squishing labels */
+  max-width: 600px;
+  overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .mathbox:hover {
@@ -43,6 +47,7 @@
 
 .mathbox mjx-container {
   padding: 0;
+  max-width: 100%;
 }
 
 .mathbox mjx-container[jax="CHTML"][display="true"] {
@@ -88,10 +93,12 @@
   line-height: 1.4em;
   text-align: left;
   color: black;
+  white-space: nowrap; /* Prevents vertical character stacking */
 }
 
+/* Desktop image height set to 96px */
 .eq-side img {
-  height: 160px;
+  height: 96px;
   width: auto;
   flex-shrink: 0;
   align-self: center;
@@ -139,6 +146,7 @@
   .mathbox-wrapper:has(.eq-side img) .mathbox {
     grid-column: auto !important;
     width: 100% !important;
+    max-width: 100% !important;
     font-size: 1em !important;
     overflow-x: auto !important;
     box-sizing: border-box !important;
@@ -155,6 +163,7 @@
 
   .eq-numbers span {
     text-align: center !important;
+    white-space: nowrap !important;
   }
 
   .eq-side img {
