@@ -45,6 +45,20 @@
   color: black;
 }
 
+/* 1. Target standard wrapper text and MathJax HTML containers */
+.chembox,
+.chembox .MathJax,
+.chembox .mjx-container,
+.chembox .MathJax_Display {
+  font-weight: bold !important;
+}
+
+/* 2. Target SVG math output (MathJax v3) by thickening vector strokes */
+.chembox svg path {
+  stroke: currentColor;
+  stroke-width: 12px;
+}
+
 /* Mobile fallback: keeps label inline on small screens where margin doesn't exist */
 @media (max-width: 1024px) {
   .chembox-wrapper {
