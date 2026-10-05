@@ -3,7 +3,8 @@
 
 /* Wrapper for mathbox + equation number */
 .mathbox-wrapper {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* Equal left space | Center Mathbox | Equal right space */
   align-items: center;              /* vertically align box and number */
   justify-content: center;   /* box on left, number on right */
   margin: 4px 0;                /* vertical spacing (keep center alignment) */
@@ -18,6 +19,8 @@
 }
 
 .mathbox {
+  grid-column: 2;
+  justify-self: center;
   background-color: #f0f0f0;       /* soft light grey background */
   border: 2px solid #888888;       /* medium grey border */
   border-radius: 10px;             /* smooth round corners */
@@ -75,6 +78,9 @@
 
 /* NEW: container for numbers + image */
 .eq-side {
+  grid-column: 3;
+  justify-self: start;                 /* Align to the left edge of the right column */
+  margin-left: 15px;                   /* Gap between mathbox and side content */
   display: flex;
   align-items: center;   /* vertically align with mathbox */
   margin-left: 0px;     /* replaces old spacing */
