@@ -121,25 +121,32 @@ html body .mathbox-wrapper img {
 /* 4. Conditional Layout (When Diagram Image Exists)      */
 /* ======================================================= */
 
+/* Container holding MathBox + Image */
 .mathbox-wrapper:has(.eq-side img) {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 15px;
-  margin: 12px auto;
+  justify-content: center;
+  gap: 20px; /* Adjust gap between MathBox, label, and Image */
 }
 
+/* Math Box width control */
 .mathbox-wrapper:has(.eq-side img) .mathbox {
-  grid-column: auto;
-  justify-self: auto;
-  min-width: 220px; /* Prevents flexbox from collapsing the box width */
-  max-width: 400px; /* Leaves room for label + 110px diagram */
+  min-width: 200px;
+  max-width: 400px; /* Your desired max width for math */
 }
 
-.mathbox-wrapper:has(.eq-side img) .eq-side {
-  grid-column: auto;
-  justify-self: auto;
-  margin-left: 0;
+/* Image Wrapper control */
+.eq-side {
+  flex: 0 1 auto;
+  min-width: 0; /* Allows flex item to shrink below intrinsic image size */
+}
+
+/* Image Tag control - EXACT SIZE CAP */
+.eq-side img {
+  display: block;
+  width: 100%;
+  max-width: 400px; /* Change this to whatever image size you want (e.g. 150px, 200px, 250px) */
+  height: auto;     /* Preserves aspect ratio */
 }
 
 /* ======================================================= */
