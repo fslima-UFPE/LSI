@@ -1,14 +1,15 @@
 /* ======================================================= */
-/* 1. Main Container & Flex Alignment                       */
+/* 1. Main Container & Flex Centering                      */
 /* ======================================================= */
 
 .mathbox-wrapper {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 15px; /* Gap between Mathbox and Image */
-  max-width: 800px; /* 800px width container for Mathbox / Mathbox+Img */
   margin: 12px auto;
+  max-width: 800px; /* Entire 800px column is dedicated to the mathbox */
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -17,13 +18,13 @@
 /* ======================================================= */
 
 .mathbox {
-  margin: 0;
   width: fit-content;
-  max-width: 100%;
+  max-width: 100%; /* Uses the full 800px before triggering scrollbar */
   background-color: #f0f0f0;
   border: 2px solid #888888;
   border-radius: 10px;
   padding: 6px 12px;
+  margin: 0;
   font-size: 1.15em;
   text-align: center;
   box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.15);
@@ -32,7 +33,6 @@
   overflow-x: auto;
   overflow-y: hidden;
   box-sizing: border-box;
-  flex-shrink: 0;
 }
 
 .mathbox:hover {
@@ -61,60 +61,66 @@
 }
 
 /* ======================================================= */
-/* 3. Side Container & Image (Diagram Equations)            */
+/* 3. Side Content (Positions Labels in Right Margin)      */
 /* ======================================================= */
 
-.eq-side {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  padding: 0;
-}
-
-.eq-side img,
-.mathbox-wrapper > img {
-  order: 1;
-  height: 200px !important;
-  max-height: 200px !important;
-  width: auto !important;
-  display: block;
-  flex-shrink: 0;
-}
-
-/* ======================================================= */
-/* 4. Equation Name (Side-by-Side & Ignored for Centering)   */
-/* ======================================================= */
-
+/* Places .eq-numbers OUTSIDE the 800px box, 15px into the right margin */
 .mathbox-wrapper > .eq-numbers,
-.eq-side .eq-numbers {
-  order: 2;
-  width: auto !important;
-  max-width: none !important;
-  flex-shrink: 0 !important;
-  
-  /* Space out 15px to the right, cancel out layout footprint on the right */
-  margin-left: 15px !important; 
-  margin-right: -500px !important; 
-  
+.eq-side {
+  position: absolute;
+  left: calc(100% + 15px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.eq-numbers {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  overflow: visible !important;
-  white-space: nowrap !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+  flex-shrink: 0;
 }
 
 .eq-numbers span {
-  display: inline-block;
+  display: block;
   font-weight: bold;
   font-style: italic;
   line-height: 1.4em;
   text-align: left;
   color: black;
   white-space: nowrap;
-  visibility: visible !important;
-  opacity: 1 !important;
+}
+
+/* Image handling */
+html body .mathbox-wrapper .eq-side img,
+html body .mathbox-wrapper img {
+  height: 200px !important;
+  max-height: 200px !important;
+  width: auto !important;
+  flex-shrink: 0;
+  align-self: center;
+  display: block;
+}
+
+/* ======================================================= */
+/* 4. Conditional Layout (When Diagram Image Exists)       */
+/* ======================================================= */
+
+.mathbox-wrapper:has(.eq-side img) .eq-side {
+  position: static;
+  transform: none;
+}
+
+.mathbox-wrapper:has(.eq-side img) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.mathbox-wrapper:has(.eq-side img) .mathbox {
+  min-width: 200px;
+  max-width: 400px;
 }
 
 /* ======================================================= */
@@ -124,23 +130,13 @@
 @media (max-width: 1024px) {
   .mathbox-wrapper {
     flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .eq-side {
-    flex-direction: column;
-    align-items: center;
   }
 
   .mathbox-wrapper > .eq-numbers,
-  .eq-side .eq-numbers {
-    order: 3;
-    width: auto !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    margin-top: 4px;
-    align-items: center;
+  .eq-side {
+    position: static;
+    transform: none;
+    margin-top: 8px;
   }
 
   .mathbox {
