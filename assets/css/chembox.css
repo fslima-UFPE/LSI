@@ -18,7 +18,7 @@
   padding: 4px 8px;              /* space inside the box */
   display: inline-block;            /* shrink box to formula width */
   margin: 0;                   /* vertical spacing between formulas */
-  font-size: 1.15em;                /* slightly larger font for readability */
+  font-size: 1.00em;                /* slightly larger font for readability */
   text-align: center;
   box-shadow: 2px 2px 6px rgba(0,0,0,0.15); /* subtle shadow for depth */
   transition: background-color 0.3s, box-shadow 0.3s; /* optional hover effect */
