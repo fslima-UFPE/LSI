@@ -7,7 +7,7 @@
   justify-content: center;
   align-items: center;
   gap: 15px; /* Gap between Mathbox and Image */
-  max-width: 800px; /* 800px width container for formula/diagram */
+  max-width: 800px; /* 800px width container for Mathbox / Mathbox+Img */
   margin: 12px auto;
   box-sizing: border-box;
 }
@@ -82,35 +82,39 @@
 }
 
 /* ======================================================= */
-/* 4. Equation Name (Completely Excluded from Centering)    */
+/* 4. Equation Name (Side-by-Side & Ignored for Centering)   */
 /* ======================================================= */
 
 .mathbox-wrapper > .eq-numbers,
 .eq-side .eq-numbers {
   order: 2;
-  /* Zero-footprint setup so Flexbox ignores this in centering calculations */
-  width: 0 !important;
-  min-width: 0 !important;
-  max-width: 0 !important;
-  flex: 0 0 0px !important;
-  overflow: visible !important;
-  white-space: nowrap !important;
+  width: auto !important;
+  max-width: none !important;
+  flex-shrink: 0 !important;
   
-  /* Positioning & Spacing */
-  margin-left: 15px !important; /* 15px gap to the right of Mathbox or Image */
+  /* Space out 15px to the right, cancel out layout footprint on the right */
+  margin-left: 15px !important; 
+  margin-right: -500px !important; 
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .eq-numbers span {
-  display: block;
+  display: inline-block;
   font-weight: bold;
   font-style: italic;
   line-height: 1.4em;
   text-align: left;
   color: black;
   white-space: nowrap;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* ======================================================= */
@@ -133,9 +137,8 @@
   .eq-side .eq-numbers {
     order: 3;
     width: auto !important;
-    max-width: 100% !important;
-    flex: initial !important;
     margin-left: 0 !important;
+    margin-right: 0 !important;
     margin-top: 4px;
     align-items: center;
   }
