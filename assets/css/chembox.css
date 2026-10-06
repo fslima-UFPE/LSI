@@ -1,70 +1,101 @@
-/* Container matches the 800px text column */
+/* ========================= */
+/* Boxed formulas “formula card” style */
+
+/* Wrapper for chembox + equation number */
 .chembox-wrapper {
-  position: relative;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  max-width: 800px; /* Full text column width */
-  margin: 1.5rem auto;
-  box-sizing: border-box;
+  align-items: center;              /* vertically align box and number */
+  justify-content: center;   /* box on left, number on right */
+  margin: 4px 0;                /* vertical spacing (keep center alignment) */
+  max-width: 800px;                 /* optional: limit max width */
+  gap: 20px;
 }
 
-/* Chembox uses the full 800px before scrolling */
 .chembox {
-  width: fit-content;
-  max-width: 100%; /* Uses all 800px */
-  box-sizing: border-box;
-  overflow-x: auto;
-  overflow-y: hidden;
-
-  background-color: #EFEBEE;
-  border: 2px solid #888888;
-  border-radius: 10px;
-  padding: 6px 12px;
-  margin: 0;
-  font-size: 1.15em;
-  font-weight: bold;
+  background-color: #EFEBEE;       /* soft light pink-grey background */
+  border: 2px solid #888888;       /* medium grey border */
+  border-radius: 10px;             /* smooth round corners */
+  padding: 4px 8px;              /* space inside the box */
+  display: inline-block;            /* shrink box to formula width */
+  margin: 0;                   /* vertical spacing between formulas */
+  font-size: 1.15em;                /* slightly larger font for readability */
   text-align: center;
-  box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.15); /* subtle shadow for depth */
+  transition: background-color 0.3s, box-shadow 0.3s; /* optional hover effect */
+  overflow-x: visible; /*test*/
+  font-weight: bold;
 }
 
-/* Pushes EC label into the right margin, outside the 800px box */
+/* Force inner MathJax elements to be transparent so .chembox color shows */
+.chembox mjx-container,
+.chembox mjx-container * {
+  background-color: transparent !important;
+  font-weight: bold;
+}
+
+/* Optional: make formula highlight on hover */
+.chembox:hover {
+  background-color: #FFFBF9;
+  box-shadow: 3px 3px 8px rgba(0,0,0,0.2);
+}
+
 .eq-numbers {
-  position: absolute;
-  left: calc(100% + 15px); /* Positioned 15px past the right edge of the text column */
-  top: 50%;
-  transform: translateY(-50%);
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;      /* stack vertically */
+  justify-content: center;     /* center relative to the box */
+  margin-left: 30px;           /* space from the box */
+  flex-shrink: 0;
 }
 
 .eq-numbers span {
   display: block;
   font-weight: bold;
   font-style: italic;
+  line-height: 1.4em;          /* controls spacing between numbers */
+  text-align: left;
   color: black;
 }
 
-/* 1. Target standard wrapper text and MathJax HTML containers */
-.chembox,
-.chembox * {
-  font-weight: bold !important;
+
+/* ========================= */
+/* Fix MathJax spacing inside chembox */
+
+/* 1. Remove big vertical margins from $$ ... $$ */
+.chembox mjx-container[jax="CHTML"][display="true"] {
+  margin: 0;
 }
 
-/* 2. Target SVG math output (MathJax v3) by thickening vector strokes */
-.chembox svg path {
-  stroke: currentColor;
-  stroke-width: 0.6px;
+/* 2. Tighten internal MathJax layout */
+.chembox .mjx-chtml {
+  line-height: 1.4em;
 }
 
-/* Mobile fallback: keeps label inline on small screens where margin doesn't exist */
-@media (max-width: 1024px) {
+/* 3. (Optional but safe) ensure compact rendering */
+.chembox mjx-container {
+  padding: 0;
+}
+
+  /* equations for phone */
+@media (max-width: 768px) {
+  .chembox {
+    width: 100%;
+    font-size: 1em;
+    overflow-x: auto;
+  }
+
   .chembox-wrapper {
     flex-direction: column;
+    align-items: center;
   }
+
   .eq-numbers {
-    position: static;
-    transform: none;
-    margin-top: 8px;
+    margin-top: 5px;
+  }
+
+  mjx-container[jax="CHTML"][display="true"] {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
   }
 }
