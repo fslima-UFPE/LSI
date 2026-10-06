@@ -1,16 +1,22 @@
 /* ======================================================= */
-/* 1. Main Container & Flex Centering                      */
+/* 1. Main Container & Grid Layout                         */
 /* ======================================================= */
 
+/* Standard Equations: 3-column grid centers ONLY .mathbox */
 .mathbox-wrapper {
-  position: relative;
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   margin: 12px auto;
-  max-width: 800px; /* Entire 800px column is dedicated to the mathbox */
+  max-width: 800px; /* Aligns with text column */
   width: 100%;
   box-sizing: border-box;
+}
+
+/* Diagram Equations: 4-column grid centers ONLY (.mathbox + img) */
+.mathbox-wrapper:has(img) {
+  grid-template-columns: 1fr auto auto 1fr;
+  column-gap: 15px; /* Gap between Mathbox and Diagram Image */
 }
 
 /* ======================================================= */
@@ -18,8 +24,10 @@
 /* ======================================================= */
 
 .mathbox {
+  grid-column: 2;
+  justify-self: center;
   width: fit-content;
-  max-width: 100%; /* Uses the full 800px before triggering scrollbar */
+  max-width: 100%;
   background-color: #f0f0f0;
   border: 2px solid #888888;
   border-radius: 10px;
@@ -38,6 +46,11 @@
 .mathbox:hover {
   background-color: #FFFBF9;
   box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.mathbox-wrapper:has(img) .mathbox {
+  min-width: 200px;
+  max-width: 400px;
 }
 
 /* MathJax internal overrides */
@@ -61,24 +74,52 @@
 }
 
 /* ======================================================= */
-/* 3. Side Content (Positions Labels in Right Margin)      */
+/* 3. Image Grid Placement                                 */
 /* ======================================================= */
 
-/* Places .eq-numbers OUTSIDE the 800px box, 15px into the right margin */
-.mathbox-wrapper > .eq-numbers,
-.eq-side {
-  position: absolute;
-  left: calc(100% + 15px);
-  top: 50%;
-  transform: translateY(-50%);
-  white-space: nowrap;
+/* Places image inside Column 3 right after .mathbox */
+.mathbox-wrapper:has(img) .eq-side,
+.mathbox-wrapper:has(img) .eq-side img,
+.mathbox-wrapper:has(img) > img {
+  grid-column: 3;
+  justify-self: center;
 }
 
-.eq-numbers {
+html body .mathbox-wrapper .eq-side img,
+html body .mathbox-wrapper img {
+  height: 200px !important;
+  max-height: 200px !important;
+  width: auto !important;
+  flex-shrink: 0;
+  align-self: center;
+  display: block;
+}
+
+/* ======================================================= */
+/* 4. Equation Numbers & Side Content                      */
+/* ======================================================= */
+
+/* Standard Layout: Places label in Column 3 */
+.mathbox-wrapper > .eq-numbers,
+.eq-side .eq-numbers {
+  grid-column: 3;
+  justify-self: start;
+  position: static;
+  transform: none;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  flex-shrink: 0;
+  margin-left: 15px; /* Gap between Mathbox and equation label */
+  white-space: nowrap;
+}
+
+/* Diagram Layout: Places label in Column 4 (Right of Image) */
+.mathbox-wrapper:has(img) > .eq-numbers,
+.mathbox-wrapper:has(img) .eq-side .eq-numbers,
+.mathbox-wrapper:has(img) .eq-numbers {
+  grid-column: 4;
+  justify-self: start;
+  margin-left: 0; /* Gap managed by column-gap on grid */
 }
 
 .eq-numbers span {
@@ -91,55 +132,30 @@
   white-space: nowrap;
 }
 
-/* Image handling */
-html body .mathbox-wrapper .eq-side img,
-html body .mathbox-wrapper img {
-  height: 200px !important;
-  max-height: 200px !important;
-  width: auto !important;
-  flex-shrink: 0;
-  align-self: center;
-  display: block;
-}
-
-/* ======================================================= */
-/* 4. Conditional Layout (When Diagram Image Exists)       */
-/* ======================================================= */
-
-.mathbox-wrapper:has(.eq-side img) .eq-side {
-  position: static;
-  transform: none;
-}
-
-.mathbox-wrapper:has(.eq-side img) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-}
-
-.mathbox-wrapper:has(.eq-side img) .mathbox {
-  min-width: 200px;
-  max-width: 400px;
-}
-
 /* ======================================================= */
 /* 5. Mobile Layout (Screen width 1024px and below)        */
 /* ======================================================= */
 
 @media (max-width: 1024px) {
-  .mathbox-wrapper {
+  .mathbox-wrapper,
+  .mathbox-wrapper:has(img) {
+    display: flex;
     flex-direction: column;
+    align-items: center;
+    gap: 10px;
   }
 
   .mathbox-wrapper > .eq-numbers,
-  .eq-side {
-    position: static;
-    transform: none;
-    margin-top: 8px;
+  .mathbox-wrapper:has(img) > .eq-numbers,
+  .eq-side,
+  .eq-side .eq-numbers {
+    grid-column: auto;
+    margin-left: 0;
+    margin-top: 4px;
   }
 
   .mathbox {
+    grid-column: auto;
     width: 100% !important;
     max-width: 100% !important;
   }
