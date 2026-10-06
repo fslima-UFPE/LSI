@@ -68,7 +68,8 @@
 /* 3. Side Content (Equation Numbers & Diagram Image)     */
 /* ======================================================= */
 
-.eq-side {
+.eq-side,
+.mathbox-wrapper > .eq-numbers {
   grid-column: 3;
   justify-self: start;
   display: flex;
