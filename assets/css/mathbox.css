@@ -4,7 +4,8 @@
 
 .mathbox-wrapper {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /* minmax(max-content, 1fr) ensures Column 3 never shrinks below label size */
+  grid-template-columns: 1fr auto minmax(max-content, 1fr);
   align-items: center;
   margin: 8px auto;
   max-width: 800px;
@@ -29,11 +30,12 @@
   transition: background-color 0.3s, box-shadow 0.3s;
   
   /* Layout constraints for scrolling wide formulas */
-  min-width: min-content;
-  max-width: 520px;
+  min-width: 225px;
+  max-width: 800px;
   flex-shrink: 0;
   overflow-x: auto;
   box-sizing: border-box;
+  overflow-y: hidden;
 }
 
 .mathbox:hover {
@@ -50,6 +52,7 @@
 .mathbox mjx-container {
   padding: 0;
   max-width: 100%;
+  overflow-y: visible;
 }
 
 .mathbox mjx-container[jax="CHTML"][display="true"] {
@@ -64,7 +67,9 @@
 /* 3. Side Content (Equation Numbers & Diagram Image)     */
 /* ======================================================= */
 
-.eq-side {
+/* Assigns direct .eq-numbers children to Column 3 on the right */
+.eq-side,
+.mathbox-wrapper > .eq-numbers {
   grid-column: 3;
   justify-self: start;
   display: flex;
@@ -105,8 +110,8 @@
  */
 html body .mathbox-wrapper .eq-side img,
 html body .mathbox-wrapper img {
-  height: 110px !important;
-  max-height: 110px !important;
+  height: 200px !important;
+  max-height: 200px !important;
   width: auto !important;
   flex-shrink: 0;
   align-self: center;
@@ -114,32 +119,39 @@ html body .mathbox-wrapper img {
 }
 
 /* ======================================================= */
-/* 4. Conditional Layout (When Diagram Image Exists)      */
+/* 4. Conditional Layout (When Diagram Image Exists)       */
 /* ======================================================= */
 
+/* Container holding MathBox + Image */
 .mathbox-wrapper:has(.eq-side img) {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 15px;
-  margin: 12px auto;
+  justify-content: center;
+  gap: 20px;
 }
 
+/* Math Box width control */
 .mathbox-wrapper:has(.eq-side img) .mathbox {
-  grid-column: auto;
-  justify-self: auto;
-  min-width: 220px; /* Prevents flexbox from collapsing the box width */
-  max-width: 480px; /* Leaves room for label + 110px diagram */
+  min-width: 200px;
+  max-width: 400px;
 }
 
+/* Image Wrapper control */
 .mathbox-wrapper:has(.eq-side img) .eq-side {
-  grid-column: auto;
-  justify-self: auto;
-  margin-left: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Image Tag control - EXACT SIZE CAP */
+.eq-side img {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
 }
 
 /* ======================================================= */
-/* 5. Mobile Layout (Screen width 768px and below)        */
+/* 5. Mobile Layout (Screen width 768px and below)         */
 /* ======================================================= */
 
 @media (max-width: 768px) {
@@ -165,7 +177,8 @@ html body .mathbox-wrapper img {
   }
 
   .eq-side,
-  .mathbox-wrapper:has(.eq-side img) .eq-side {
+  .mathbox-wrapper:has(.eq-side img) .eq-side,
+  .mathbox-wrapper > .eq-numbers {
     grid-column: auto !important;
     flex-direction: column !important;
     align-items: center !important;
