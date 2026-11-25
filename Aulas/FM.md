@@ -7,5 +7,5 @@ next_class: "/LSI/Aulas/FM/A1"
 ---
 
 <p class="jt">
-  A descrição do universo pela Físico-Química se faz através de uma linguagem própria: a matemática. Para isso, empregamos largamente um ramo da matemática conhecido como o cálculo diferencial e integral de várias variáveis, e diversos teoremas e técnicas desenvolvidas nele, como o Teorema de Euler para funções homogêneas, os multiplicadores indeterminados de Lagrange, entre outros. Reúno aqui aulas concisas de tópicos que são fundamentais para a Físico-Química.
+  A descrição do universo pela Físico-Química se faz através de uma linguagem própria: a matemática. Para isso, empregamos largamente um ramo da matemática conhecido como o Cálculo Diferencial e Integral de várias variáveis, e diversos teoremas e técnicas desenvolvidas nele, como o Teorema de Euler para funções homogêneas, os multiplicadores indeterminados de Lagrange, entre outros. Reúno aqui aulas concisas de tópicos neste tema que são fundamentais para a Físico-Química.
 </p>
